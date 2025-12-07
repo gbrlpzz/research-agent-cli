@@ -1,0 +1,14 @@
+
+[dev]
+coverage
+pytest
+pytest-cov==2.5.0
+twine
+pep8
+flake8
+wheel
+mypy
+sphinx
+sphinx-autobuild
+sphinx-autodoc-typehints
+sphinx_rtd_theme

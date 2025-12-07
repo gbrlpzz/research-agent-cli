@@ -1,0 +1,100 @@
+[console_scripts]
+papis = papis.commands.default:run
+
+[papis.command]
+add = papis.commands.add:cli
+addto = papis.commands.addto:cli
+bibtex = papis.commands.bibtex:cli
+browse = papis.commands.browse:cli
+cache = papis.commands.cache:cli
+citations = papis.commands.citations:cli
+config = papis.commands.config:cli
+doctor = papis.commands.doctor:cli
+edit = papis.commands.edit:cli
+exec = papis.commands.exec:cli
+explore = papis.commands.explore:cli
+export = papis.commands.export:cli
+git = papis.commands.git:cli
+init = papis.commands.init:cli
+list = papis.commands.list:cli
+merge = papis.commands.merge:cli
+mv = papis.commands.mv:cli
+open = papis.commands.open:cli
+rename = papis.commands.rename:cli
+rm = papis.commands.rm:cli
+run = papis.commands.run:cli
+serve = papis.commands.serve:cli
+tag = papis.commands.tag:cli
+update = papis.commands.update:cli
+
+[papis.downloader]
+acl = papis.downloaders.acl:Downloader
+acm = papis.downloaders.acm:Downloader
+acs = papis.downloaders.acs:Downloader
+annualreviews = papis.downloaders.annualreviews:Downloader
+aps = papis.downloaders.aps:Downloader
+arxiv = papis.arxiv:Downloader
+citeseerx = papis.downloaders.citeseerx:Downloader
+doi = papis.crossref:Downloader
+fallback = papis.downloaders.fallback:Downloader
+frontiersin = papis.downloaders.frontiersin:Downloader
+get = papis.downloaders.get:Downloader
+hal = papis.downloaders.hal:Downloader
+ieee = papis.downloaders.ieee:Downloader
+iopscience = papis.downloaders.iopscience:Downloader
+projecteuclid = papis.downloaders.projecteuclid:Downloader
+sciencedirect = papis.downloaders.sciencedirect:Downloader
+scitationaip = papis.downloaders.scitationaip:Downloader
+springer = papis.downloaders.springer:Downloader
+tandfonline = papis.downloaders.tandfonline:Downloader
+thesesfr = papis.downloaders.thesesfr:Downloader
+usenix = papis.downloaders.usenix:Downloader
+worldscientific = papis.downloaders.worldscientific:Downloader
+
+[papis.explorer]
+add = papis.commands.explore:add
+arxiv = papis.arxiv:explorer
+bibtex = papis.bibtex:explorer
+citations = papis.commands.explore:citations
+cmd = papis.commands.explore:cmd
+crossref = papis.crossref:explorer
+dblp = papis.dblp:explorer
+dissemin = papis.dissemin:explorer
+export = papis.commands.export:explorer
+isbn = papis.isbn:explorer
+json = papis.json:explorer
+lib = papis.commands.explore:lib
+pick = papis.commands.explore:pick
+yaml = papis.yaml:explorer
+
+[papis.exporter]
+bibtex = papis.bibtex:exporter
+json = papis.json:exporter
+typst = papis.hayagriva:exporter
+yaml = papis.yaml:exporter
+
+[papis.format]
+jinja2 = papis.format:Jinja2Formatter
+python = papis.format:PythonFormatter
+
+[papis.importer]
+arxiv = papis.arxiv:Importer
+bibtex = papis.bibtex:Importer
+crossref = papis.crossref:FromCrossrefImporter
+dblp = papis.dblp:Importer
+doi = papis.crossref:Importer
+folder = papis.commands.add:FromFolderImporter
+isbn = papis.isbn:Importer
+lib = papis.commands.add:FromLibImporter
+pdf2arxivid = papis.arxiv:ArxividFromPdfImporter
+pdf2doi = papis.crossref:DoiFromPdfImporter
+pmid = papis.pubmed:Importer
+yaml = papis.yaml:Importer
+zenodo = papis.zenodo:Importer
+
+[papis.picker]
+fzf = papis.fzf:Picker
+papis = papis.tui.picker:Picker
+
+[pytest11]
+papis_testing = papis.testing

@@ -1,0 +1,18 @@
+#!/bin/bash
+# Wrapper to run the discovery tool and pipe to papis
+
+REPO_ROOT="$HOME/Documents/Github/research"
+VENV="$REPO_ROOT/.venv"
+PYTHON="$VENV/bin/python"
+DISCOVER_SCRIPT="$REPO_ROOT/scripts/discover.py"
+PAPIS_CONFIG="$REPO_ROOT/papis.config"
+
+# Check if query provided
+if [ -z "$1" ]; then
+    echo "Usage: research <query>"
+    exit 1
+fi
+
+# Run discovery script
+"$PYTHON" "$DISCOVER_SCRIPT" "$@"
+
