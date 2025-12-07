@@ -1,0 +1,747 @@
+2025-12-07 21:31:57,484 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:31:57,485 - INFO - Script started.
+2025-12-07 21:31:57,485 - INFO - Starting search for: attention is all you need
+2025-12-07 21:31:57,485 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:31:57,485 - DEBUG - Headers: {}
+2025-12-07 21:31:57,485 - DEBUG - Payload: None
+2025-12-07 21:31:57,485 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:31:57,513 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:31:57,721 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1019e6af0>
+2025-12-07 21:31:57,722 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1019c4510> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:31:57,814 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1019d1cd0>
+2025-12-07 21:31:57,815 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:31:57,816 - DEBUG - send_request_headers.complete
+2025-12-07 21:31:57,816 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:31:57,816 - DEBUG - send_request_body.complete
+2025-12-07 21:31:57,816 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:31:58,369 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:31:58 GMT'), (b'x-amz-apigw-id', b'VPCZzGALvHcEUVQ='), (b'x-amzn-RequestId', b'9d13b932-45b4-4dd0-be86-8218f470468a'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 f92e634cae29c615cbe8f686d8333cf6.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'48jFsOcPIgfJyL1kI25mqIhMbCdUums0XtG9G_FNu5p9dB93XBcKTA==')])
+2025-12-07 21:31:58,371 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:31:58,371 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:31:58,372 - DEBUG - receive_response_body.complete
+2025-12-07 21:31:58,372 - DEBUG - response_closed.started
+2025-12-07 21:31:58,372 - DEBUG - response_closed.complete
+2025-12-07 21:31:58,373 - DEBUG - close.started
+2025-12-07 21:31:58,373 - DEBUG - close.complete
+2025-12-07 21:32:28,375 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:32:28,375 - DEBUG - Headers: {}
+2025-12-07 21:32:28,375 - DEBUG - Payload: None
+2025-12-07 21:32:28,376 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:32:28,385 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:32:28,514 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d076d0>
+2025-12-07 21:32:28,514 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10174b890> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:32:28,612 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101782220>
+2025-12-07 21:32:28,614 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:32:28,614 - DEBUG - send_request_headers.complete
+2025-12-07 21:32:28,614 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:32:28,615 - DEBUG - send_request_body.complete
+2025-12-07 21:32:28,615 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:32:29,165 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:32:29 GMT'), (b'x-amz-apigw-id', b'VPCenFczPHcEpqA='), (b'x-amzn-RequestId', b'5edfd0a0-2e20-4dd6-b1cf-e779149e139d'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 5d27236a5f6fb9836424f23bb92b0cd0.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'REIHVgwLD7OTRP_HsaWITfli8Gt2CzBKuyYM-YGiKTj3XbtR_5xLVQ==')])
+2025-12-07 21:32:29,166 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:32:29,166 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:32:29,166 - DEBUG - receive_response_body.complete
+2025-12-07 21:32:29,167 - DEBUG - response_closed.started
+2025-12-07 21:32:29,167 - DEBUG - response_closed.complete
+2025-12-07 21:32:29,167 - DEBUG - close.started
+2025-12-07 21:32:29,168 - DEBUG - close.complete
+2025-12-07 21:32:59,170 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:32:59,170 - DEBUG - Headers: {}
+2025-12-07 21:32:59,170 - DEBUG - Payload: None
+2025-12-07 21:32:59,170 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:32:59,178 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:32:59,272 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d18c40>
+2025-12-07 21:32:59,272 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10174b900> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:32:59,407 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1019f4880>
+2025-12-07 21:32:59,408 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:32:59,409 - DEBUG - send_request_headers.complete
+2025-12-07 21:32:59,409 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:32:59,409 - DEBUG - send_request_body.complete
+2025-12-07 21:32:59,409 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:00,950 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'62409'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:33:00 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:33:00 GMT'), (b'x-amzn-RequestId', b'8f90b91a-514b-4be5-9857-63361beaaf38'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'62409'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPCjbEoLvHcEHLA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 495353e55c32c4243e459034dba6126a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'lM3cf2RUeX1yJxGtrrFhfecUIVF9Dv_739BgYvSX_Vi_f_ZGWMeFHg==')])
+2025-12-07 21:33:00,951 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:33:00,951 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:33:01,116 - DEBUG - receive_response_body.complete
+2025-12-07 21:33:01,117 - DEBUG - response_closed.started
+2025-12-07 21:33:01,117 - DEBUG - response_closed.complete
+2025-12-07 21:33:01,118 - DEBUG - close.started
+2025-12-07 21:33:01,118 - DEBUG - close.complete
+2025-12-07 21:33:01,125 - INFO - Found 20 results. Preparing FZF.
+2025-12-07 21:33:01,126 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=20&limit=20
+2025-12-07 21:33:01,126 - DEBUG - Headers: {}
+2025-12-07 21:33:01,126 - DEBUG - Payload: None
+2025-12-07 21:33:01,126 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=20&limit=20
+2025-12-07 21:33:01,132 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:33:01,188 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d187f0>
+2025-12-07 21:33:01,188 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1019f10b0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:33:01,299 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d1a340>
+2025-12-07 21:33:01,300 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:01,301 - DEBUG - send_request_headers.complete
+2025-12-07 21:33:01,301 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:33:01,301 - DEBUG - send_request_body.complete
+2025-12-07 21:33:01,301 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:03,390 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'58744'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:33:03 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:33:03 GMT'), (b'x-amzn-RequestId', b'c3ee9742-d772-4b77-853f-ca721fa2928e'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'58744'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPCjuEBwvHcEjZg='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 c0d148503ffeda0d8d54a05acac45e20.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'uCEyzZ3vM1knZZVZD__4WkWI3XmmZOMXg3hwPGEjdCX5-2rp6wYiYQ==')])
+2025-12-07 21:33:03,391 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=20&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:33:03,391 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:33:03,495 - DEBUG - receive_response_body.complete
+2025-12-07 21:33:03,496 - DEBUG - response_closed.started
+2025-12-07 21:33:03,496 - DEBUG - response_closed.complete
+2025-12-07 21:33:03,497 - DEBUG - close.started
+2025-12-07 21:33:03,497 - DEBUG - close.complete
+2025-12-07 21:33:03,500 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=40&limit=20
+2025-12-07 21:33:03,500 - DEBUG - Headers: {}
+2025-12-07 21:33:03,500 - DEBUG - Payload: None
+2025-12-07 21:33:03,501 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=40&limit=20
+2025-12-07 21:33:03,507 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:33:03,567 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10176c8b0>
+2025-12-07 21:33:03,568 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101a66c10> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:33:03,690 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10175afd0>
+2025-12-07 21:33:03,691 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:03,692 - DEBUG - send_request_headers.complete
+2025-12-07 21:33:03,692 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:33:03,692 - DEBUG - send_request_body.complete
+2025-12-07 21:33:03,692 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:03,917 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:33:03 GMT'), (b'x-amz-apigw-id', b'VPCkCFNTvHcEpqA='), (b'x-amzn-RequestId', b'd4d37379-4b6a-4b06-95a2-678b345f6bd3'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 c0d148503ffeda0d8d54a05acac45e20.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'53qDibHQASLLo_7CD3KnJ8nl6OdG7QpoIpNqHW5I4e6ES6i6iCpyMA==')])
+2025-12-07 21:33:03,918 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=40&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:33:03,918 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:33:03,918 - DEBUG - receive_response_body.complete
+2025-12-07 21:33:03,919 - DEBUG - response_closed.started
+2025-12-07 21:33:03,919 - DEBUG - response_closed.complete
+2025-12-07 21:33:03,919 - DEBUG - close.started
+2025-12-07 21:33:03,920 - DEBUG - close.complete
+2025-12-07 21:33:33,922 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=40&limit=20
+2025-12-07 21:33:33,922 - DEBUG - Headers: {}
+2025-12-07 21:33:33,922 - DEBUG - Payload: None
+2025-12-07 21:33:33,922 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=40&limit=20
+2025-12-07 21:33:33,936 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:33:38,888 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d7a6d0>
+2025-12-07 21:33:38,888 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10174b820> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:33:39,735 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d18a60>
+2025-12-07 21:33:39,737 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:39,737 - DEBUG - send_request_headers.complete
+2025-12-07 21:33:39,737 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:33:39,738 - DEBUG - send_request_body.complete
+2025-12-07 21:33:39,738 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:33:39,981 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:33:39 GMT'), (b'x-amz-apigw-id', b'VPCprGEKPHcEshA='), (b'x-amzn-RequestId', b'16af1dcd-9ac1-4a65-9088-3dc3297343bb'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 15e6afc335dbbf726da2dd95038f862a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'sN6nxQ-CpdQpFnL17ahiZbXAU_PDxpu8F_MFkzXhkVXvUNKOKeKDzA==')])
+2025-12-07 21:33:39,982 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=40&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:33:39,982 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:33:39,982 - DEBUG - receive_response_body.complete
+2025-12-07 21:33:39,983 - DEBUG - response_closed.started
+2025-12-07 21:33:39,983 - DEBUG - response_closed.complete
+2025-12-07 21:33:39,984 - DEBUG - close.started
+2025-12-07 21:33:39,985 - DEBUG - close.complete
+2025-12-07 21:34:09,987 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=40&limit=20
+2025-12-07 21:34:09,987 - DEBUG - Headers: {}
+2025-12-07 21:34:09,987 - DEBUG - Payload: None
+2025-12-07 21:34:09,987 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=40&limit=20
+2025-12-07 21:34:09,998 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:34:10,101 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d80d60>
+2025-12-07 21:34:10,101 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101d624a0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:34:21,773 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d769a0>
+2025-12-07 21:34:21,774 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:34:21,775 - DEBUG - send_request_headers.complete
+2025-12-07 21:34:21,775 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:34:21,775 - DEBUG - send_request_body.complete
+2025-12-07 21:34:21,775 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:34:28,863 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'55354'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:34:28 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:34:28 GMT'), (b'x-amzn-RequestId', b'43627457-d672-4a29-9595-67124e844d28'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'55354'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPCxKGr4PHcEDDA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 782307cc86daaa076cbdb91c6d06353e.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'l7Ao0Nk_TEYjM7FfbVF5qCNg2UepBcBodnReqwj9BAnF6a4Rt35bGA==')])
+2025-12-07 21:34:28,863 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=40&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:34:28,864 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:34:29,032 - DEBUG - receive_response_body.complete
+2025-12-07 21:34:29,032 - DEBUG - response_closed.started
+2025-12-07 21:34:29,033 - DEBUG - response_closed.complete
+2025-12-07 21:34:29,033 - DEBUG - close.started
+2025-12-07 21:34:29,034 - DEBUG - close.complete
+2025-12-07 21:34:29,036 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=60&limit=20
+2025-12-07 21:34:29,037 - DEBUG - Headers: {}
+2025-12-07 21:34:29,037 - DEBUG - Payload: None
+2025-12-07 21:34:29,037 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=60&limit=20
+2025-12-07 21:34:29,043 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:34:29,179 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d18d30>
+2025-12-07 21:34:29,179 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101d62d60> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:34:34,821 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d0a910>
+2025-12-07 21:34:34,822 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:34:34,823 - DEBUG - send_request_headers.complete
+2025-12-07 21:34:34,823 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:34:34,823 - DEBUG - send_request_body.complete
+2025-12-07 21:34:34,823 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:34:35,921 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:34:35 GMT'), (b'x-amz-apigw-id', b'VPCyaFO0PHcEAQw='), (b'x-amzn-RequestId', b'b67b5b17-e230-48e7-b7c8-ecef6a3da1ff'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 66a3254753daef98131e391b49752390.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'caXhXa7xivduDMhGSTHw92RBLe0CuLwspfPNCcPYdoj6aWD2Y0YEIQ==')])
+2025-12-07 21:34:35,921 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=60&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:34:35,921 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:34:35,922 - DEBUG - receive_response_body.complete
+2025-12-07 21:34:35,922 - DEBUG - response_closed.started
+2025-12-07 21:34:35,922 - DEBUG - response_closed.complete
+2025-12-07 21:34:35,923 - DEBUG - close.started
+2025-12-07 21:34:35,923 - DEBUG - close.complete
+2025-12-07 21:35:05,925 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=60&limit=20
+2025-12-07 21:35:05,925 - DEBUG - Headers: {}
+2025-12-07 21:35:05,925 - DEBUG - Payload: None
+2025-12-07 21:35:05,925 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=60&limit=20
+2025-12-07 21:35:05,934 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:06,089 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101da8820>
+2025-12-07 21:35:06,089 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101d62dd0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:06,202 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d1a0a0>
+2025-12-07 21:35:06,203 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:06,203 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:06,204 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:06,204 - DEBUG - send_request_body.complete
+2025-12-07 21:35:06,204 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:07,813 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'60385'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:07 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:35:07 GMT'), (b'x-amzn-RequestId', b'f60e9811-2a3b-490d-ba1a-28f491dd9b1b'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'60385'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPC3PH5oPHcEX7g='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 fbbaf051f1b6e237fbee09c998e075cc.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'4fAvJ6-rWHEha8Cnm-US95VBEIlJcYtQNseCMlJKlShPP2p1VCrKMg==')])
+2025-12-07 21:35:07,814 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=60&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:35:07,814 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:07,933 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:07,934 - DEBUG - response_closed.started
+2025-12-07 21:35:07,934 - DEBUG - response_closed.complete
+2025-12-07 21:35:07,935 - DEBUG - close.started
+2025-12-07 21:35:07,935 - DEBUG - close.complete
+2025-12-07 21:35:07,937 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=80&limit=20
+2025-12-07 21:35:07,937 - DEBUG - Headers: {}
+2025-12-07 21:35:07,937 - DEBUG - Payload: None
+2025-12-07 21:35:07,937 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=80&limit=20
+2025-12-07 21:35:07,945 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:08,019 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101dd4610>
+2025-12-07 21:35:08,019 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101da9890> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:08,133 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101daf8e0>
+2025-12-07 21:35:08,135 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:08,135 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:08,135 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:08,135 - DEBUG - send_request_body.complete
+2025-12-07 21:35:08,135 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:08,383 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:08 GMT'), (b'x-amz-apigw-id', b'VPC3fG7BvHcESTg='), (b'x-amzn-RequestId', b'c69c5d0d-7fa4-49a4-807e-6b549099bc44'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 92d05088b4c5dd8daf39fac07c1c6b00.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'ARg5lHDF-P_a3c3ychBdtby9jZFHQ0HRbcHYEJoNXwMUXToRlHwtcw==')])
+2025-12-07 21:35:08,384 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=80&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:35:08,384 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:08,384 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:08,384 - DEBUG - response_closed.started
+2025-12-07 21:35:08,385 - DEBUG - response_closed.complete
+2025-12-07 21:35:08,385 - DEBUG - close.started
+2025-12-07 21:35:08,385 - DEBUG - close.complete
+2025-12-07 21:35:38,387 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=80&limit=20
+2025-12-07 21:35:38,388 - DEBUG - Headers: {}
+2025-12-07 21:35:38,388 - DEBUG - Payload: None
+2025-12-07 21:35:38,388 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=80&limit=20
+2025-12-07 21:35:38,399 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:38,483 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101dd8c10>
+2025-12-07 21:35:38,483 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101da9900> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:38,642 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101dd4f10>
+2025-12-07 21:35:38,643 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:38,643 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:38,644 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:38,644 - DEBUG - send_request_body.complete
+2025-12-07 21:35:38,644 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:41,604 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'65450'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:41 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:35:41 GMT'), (b'x-amzn-RequestId', b'b012a124-910b-4ba9-b480-018a464bf543'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'65450'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPC8RFS2vHcEh5w='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 2f9d40e1286737e2a1a91819dee481a8.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'T8lQOp-w53CZY-AD2An4IGYEsUKgSmijHlHyX-YXh2ICWB5l27Tf6g==')])
+2025-12-07 21:35:41,605 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=80&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:35:41,605 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:41,767 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:41,768 - DEBUG - response_closed.started
+2025-12-07 21:35:41,768 - DEBUG - response_closed.complete
+2025-12-07 21:35:41,769 - DEBUG - close.started
+2025-12-07 21:35:41,769 - DEBUG - close.complete
+2025-12-07 21:35:41,772 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=100&limit=20
+2025-12-07 21:35:41,772 - DEBUG - Headers: {}
+2025-12-07 21:35:41,772 - DEBUG - Payload: None
+2025-12-07 21:35:41,772 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=100&limit=20
+2025-12-07 21:35:41,779 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:41,818 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101dd8940>
+2025-12-07 21:35:41,818 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101da9ba0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:41,943 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101ddea30>
+2025-12-07 21:35:41,944 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:41,944 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:41,945 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:41,945 - DEBUG - send_request_body.complete
+2025-12-07 21:35:41,945 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:45,597 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'66587'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:45 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:35:45 GMT'), (b'x-amzn-RequestId', b'e3b9de92-400c-45d6-b1c6-842ab91b43fe'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'66587'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPC80EiRvHcECwQ='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 946a47118939fc2908c7ce8e46e8d16c.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'r4DMZbQ7ApcGWSd_0l4q44V9XdZOSHNciP0kDaUkwHBdWLoaNP6ufw==')])
+2025-12-07 21:35:45,598 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=100&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:35:45,598 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:45,767 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:45,768 - DEBUG - response_closed.started
+2025-12-07 21:35:45,768 - DEBUG - response_closed.complete
+2025-12-07 21:35:45,768 - DEBUG - close.started
+2025-12-07 21:35:45,769 - DEBUG - close.complete
+2025-12-07 21:35:45,772 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=120&limit=20
+2025-12-07 21:35:45,772 - DEBUG - Headers: {}
+2025-12-07 21:35:45,772 - DEBUG - Payload: None
+2025-12-07 21:35:45,772 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=120&limit=20
+2025-12-07 21:35:45,779 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:45,821 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104905d60>
+2025-12-07 21:35:45,822 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101da9dd0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:45,965 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101dd81f0>
+2025-12-07 21:35:45,966 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:45,967 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:45,967 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:45,967 - DEBUG - send_request_body.complete
+2025-12-07 21:35:45,967 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:47,653 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'61753'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:47 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:35:47 GMT'), (b'x-amzn-RequestId', b'7d253d0d-26c9-43a0-a868-7f4b14b557b8'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'61753'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPC9dFp1PHcEkCg='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 495353e55c32c4243e459034dba6126a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'OlKRCHrjC3vMpCCu1qDKdRLY3MkoL9C72O307xJUeNy3R55vANYNkw==')])
+2025-12-07 21:35:47,654 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=120&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:35:47,655 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:47,825 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:47,826 - DEBUG - response_closed.started
+2025-12-07 21:35:47,826 - DEBUG - response_closed.complete
+2025-12-07 21:35:47,827 - DEBUG - close.started
+2025-12-07 21:35:47,827 - DEBUG - close.complete
+2025-12-07 21:35:47,830 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=140&limit=20
+2025-12-07 21:35:47,830 - DEBUG - Headers: {}
+2025-12-07 21:35:47,830 - DEBUG - Payload: None
+2025-12-07 21:35:47,830 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=140&limit=20
+2025-12-07 21:35:47,837 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:47,890 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104956e80>
+2025-12-07 21:35:47,891 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101da9dd0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:48,022 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101dd8d00>
+2025-12-07 21:35:48,023 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:48,023 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:48,023 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:48,023 - DEBUG - send_request_body.complete
+2025-12-07 21:35:48,023 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:49,688 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'62189'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:49 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:35:49 GMT'), (b'x-amzn-RequestId', b'52c4273e-c79c-4602-ad3d-4cf369027b16'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'62189'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPC9xEzZPHcEUMQ='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 fd1922963c91836bd3bc6df1671c0612.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'X7sBZiG4mPYmMIQDxeOQ2RWDd76sDCK35s_Fhip-HT5PQMKYXiCdMw==')])
+2025-12-07 21:35:49,689 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=140&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:35:49,689 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:49,857 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:49,858 - DEBUG - response_closed.started
+2025-12-07 21:35:49,859 - DEBUG - response_closed.complete
+2025-12-07 21:35:49,859 - DEBUG - close.started
+2025-12-07 21:35:49,860 - DEBUG - close.complete
+2025-12-07 21:35:49,862 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=160&limit=20
+2025-12-07 21:35:49,862 - DEBUG - Headers: {}
+2025-12-07 21:35:49,862 - DEBUG - Payload: None
+2025-12-07 21:35:49,862 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=160&limit=20
+2025-12-07 21:35:49,869 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:35:49,936 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10498e610>
+2025-12-07 21:35:49,936 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1049479e0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:35:50,086 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104987880>
+2025-12-07 21:35:50,087 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:50,087 - DEBUG - send_request_headers.complete
+2025-12-07 21:35:50,087 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:35:50,087 - DEBUG - send_request_body.complete
+2025-12-07 21:35:50,087 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:35:50,372 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:35:50 GMT'), (b'x-amz-apigw-id', b'VPC-DE4IvHcEpZA='), (b'x-amzn-RequestId', b'ec9770f2-696b-4deb-8200-116b89ef07e8'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 b61152e740e230075fb9605e656b9520.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'6_sVx-5MAS9Q_VTvH0AKOM2vA2Y5O9Bf1jWYbIyuWsf5bLsSb5GpIQ==')])
+2025-12-07 21:35:50,373 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=160&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:35:50,373 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:35:50,373 - DEBUG - receive_response_body.complete
+2025-12-07 21:35:50,374 - DEBUG - response_closed.started
+2025-12-07 21:35:50,374 - DEBUG - response_closed.complete
+2025-12-07 21:35:50,375 - DEBUG - close.started
+2025-12-07 21:35:50,375 - DEBUG - close.complete
+2025-12-07 21:36:20,377 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=160&limit=20
+2025-12-07 21:36:20,377 - DEBUG - Headers: {}
+2025-12-07 21:36:20,377 - DEBUG - Payload: None
+2025-12-07 21:36:20,377 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=160&limit=20
+2025-12-07 21:36:20,390 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:36:20,499 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104994c10>
+2025-12-07 21:36:20,499 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x104947a50> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:36:20,690 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10498ef10>
+2025-12-07 21:36:20,691 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:36:20,691 - DEBUG - send_request_headers.complete
+2025-12-07 21:36:20,691 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:36:20,691 - DEBUG - send_request_body.complete
+2025-12-07 21:36:20,691 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:36:21,332 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:36:21 GMT'), (b'x-amz-apigw-id', b'VPDC4HEwvHcEkNA='), (b'x-amzn-RequestId', b'd88d7f14-2038-4628-8e72-89d9315fcf75'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 61e929f79f2623281d7e3a91da354352.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'Q143WLSzCZOs-KS8k0hauCHHmqXN7_heX09R1xj3395vdkJ_RF6yxQ==')])
+2025-12-07 21:36:21,333 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=160&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:36:21,333 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:36:21,334 - DEBUG - receive_response_body.complete
+2025-12-07 21:36:21,334 - DEBUG - response_closed.started
+2025-12-07 21:36:21,334 - DEBUG - response_closed.complete
+2025-12-07 21:36:21,335 - DEBUG - close.started
+2025-12-07 21:36:21,336 - DEBUG - close.complete
+2025-12-07 21:36:51,338 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=160&limit=20
+2025-12-07 21:36:51,338 - DEBUG - Headers: {}
+2025-12-07 21:36:51,338 - DEBUG - Payload: None
+2025-12-07 21:36:51,338 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=160&limit=20
+2025-12-07 21:36:51,346 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:36:51,508 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104994610>
+2025-12-07 21:36:51,508 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x104947ac0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:36:56,809 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104987a00>
+2025-12-07 21:36:56,810 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:36:56,811 - DEBUG - send_request_headers.complete
+2025-12-07 21:36:56,811 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:36:56,811 - DEBUG - send_request_body.complete
+2025-12-07 21:36:56,811 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:36:58,418 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'44085'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:36:57 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:36:57 GMT'), (b'x-amzn-RequestId', b'eadd7c22-12ee-45b9-a5bd-58c1d7f26cfd'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'44085'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDIeFUdvHcEnSA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 15e6afc335dbbf726da2dd95038f862a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'JdNB3oRMLBjHpbMlHJJ-nn7zQuzMah8RtXB5MmZnkXLDpZoaJzAwFQ==')])
+2025-12-07 21:36:58,420 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=160&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:36:58,420 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:36:58,607 - DEBUG - receive_response_body.complete
+2025-12-07 21:36:58,608 - DEBUG - response_closed.started
+2025-12-07 21:36:58,608 - DEBUG - response_closed.complete
+2025-12-07 21:36:58,609 - DEBUG - close.started
+2025-12-07 21:36:58,609 - DEBUG - close.complete
+2025-12-07 21:36:58,611 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=180&limit=20
+2025-12-07 21:36:58,611 - DEBUG - Headers: {}
+2025-12-07 21:36:58,611 - DEBUG - Payload: None
+2025-12-07 21:36:58,611 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=180&limit=20
+2025-12-07 21:36:58,620 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:36:58,949 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104996a30>
+2025-12-07 21:36:58,950 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1049b20b0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:36:59,587 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1049969d0>
+2025-12-07 21:36:59,587 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:36:59,588 - DEBUG - send_request_headers.complete
+2025-12-07 21:36:59,588 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:36:59,588 - DEBUG - send_request_body.complete
+2025-12-07 21:36:59,588 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:02,061 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'66890'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:37:01 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:37:01 GMT'), (b'x-amzn-RequestId', b'4b7cb682-d933-4a6c-a07c-e29e6650a797'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'66890'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDI_GoVvHcEYtw='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 b238d3f6f579ec0d467edb5df6f43bbe.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'12Ae88O3FVmuE5GQZI8EtD5U6ljrKX_95643uiX6cKVGwe5GkB5jQg==')])
+2025-12-07 21:37:02,062 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=180&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:37:02,062 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:37:02,185 - DEBUG - receive_response_body.complete
+2025-12-07 21:37:02,186 - DEBUG - response_closed.started
+2025-12-07 21:37:02,186 - DEBUG - response_closed.complete
+2025-12-07 21:37:02,187 - DEBUG - close.started
+2025-12-07 21:37:02,188 - DEBUG - close.complete
+2025-12-07 21:37:02,189 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=200&limit=20
+2025-12-07 21:37:02,190 - DEBUG - Headers: {}
+2025-12-07 21:37:02,190 - DEBUG - Payload: None
+2025-12-07 21:37:02,190 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=200&limit=20
+2025-12-07 21:37:02,197 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:37:02,426 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1049bc460>
+2025-12-07 21:37:02,427 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1049b24a0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:37:04,225 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1049bc3d0>
+2025-12-07 21:37:04,226 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:04,226 - DEBUG - send_request_headers.complete
+2025-12-07 21:37:04,227 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:37:04,227 - DEBUG - send_request_body.complete
+2025-12-07 21:37:04,227 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:07,019 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'55286'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:37:06 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:37:06 GMT'), (b'x-amzn-RequestId', b'd43f84c7-68d2-4680-a9bd-36772dd3a0e9'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'55286'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDJzG9aPHcEiZg='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 2cb4f544b3021873f01656b0bfa9897a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'xKFS73Cmf9psU9EmCSsTBYnhv0bScpSDITS6Uz7ElcrOJzS9HjtC4w==')])
+2025-12-07 21:37:07,020 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=200&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:37:07,020 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:37:07,374 - DEBUG - receive_response_body.complete
+2025-12-07 21:37:07,375 - DEBUG - response_closed.started
+2025-12-07 21:37:07,375 - DEBUG - response_closed.complete
+2025-12-07 21:37:07,376 - DEBUG - close.started
+2025-12-07 21:37:07,376 - DEBUG - close.complete
+2025-12-07 21:37:07,378 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=220&limit=20
+2025-12-07 21:37:07,378 - DEBUG - Headers: {}
+2025-12-07 21:37:07,378 - DEBUG - Payload: None
+2025-12-07 21:37:07,378 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=220&limit=20
+2025-12-07 21:37:07,384 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:37:07,651 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104a01ca0>
+2025-12-07 21:37:07,651 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1049b29e0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:37:11,768 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104a01ee0>
+2025-12-07 21:37:11,769 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:11,769 - DEBUG - send_request_headers.complete
+2025-12-07 21:37:11,769 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:37:11,770 - DEBUG - send_request_body.complete
+2025-12-07 21:37:11,770 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:12,937 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:37:12 GMT'), (b'x-amz-apigw-id', b'VPDK9He5PHcEOpA='), (b'x-amzn-RequestId', b'004ccaec-f0b8-481a-89e8-800c484046c7'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 495353e55c32c4243e459034dba6126a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'Q1SRuoz9LFqujyoUYl9qXYO7bFQOEyZ1ceFT1LTfmkZvi5xYfAGzTw==')])
+2025-12-07 21:37:12,938 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=220&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:37:12,938 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:37:12,938 - DEBUG - receive_response_body.complete
+2025-12-07 21:37:12,938 - DEBUG - response_closed.started
+2025-12-07 21:37:12,939 - DEBUG - response_closed.complete
+2025-12-07 21:37:12,939 - DEBUG - close.started
+2025-12-07 21:37:12,939 - DEBUG - close.complete
+2025-12-07 21:37:42,941 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=220&limit=20
+2025-12-07 21:37:42,942 - DEBUG - Headers: {}
+2025-12-07 21:37:42,942 - DEBUG - Payload: None
+2025-12-07 21:37:42,942 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=220&limit=20
+2025-12-07 21:37:42,952 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:37:43,100 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1049948b0>
+2025-12-07 21:37:43,100 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1049b2a50> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:37:43,217 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104a01100>
+2025-12-07 21:37:43,219 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:43,220 - DEBUG - send_request_headers.complete
+2025-12-07 21:37:43,220 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:37:43,220 - DEBUG - send_request_body.complete
+2025-12-07 21:37:43,220 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:44,690 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'46384'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:37:44 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:37:44 GMT'), (b'x-amzn-RequestId', b'efd3d537-c562-4dcb-8e3a-d42caec078ec'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'46384'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDPuHghvHcElqA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 495353e55c32c4243e459034dba6126a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'Oe9UPiw9K395d2exHiiqvo8ZYZnz2nvJ9a6e0T09VZh22hnF4KWAJw==')])
+2025-12-07 21:37:44,691 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=220&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:37:44,691 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:37:44,823 - DEBUG - receive_response_body.complete
+2025-12-07 21:37:44,824 - DEBUG - response_closed.started
+2025-12-07 21:37:44,825 - DEBUG - response_closed.complete
+2025-12-07 21:37:44,826 - DEBUG - close.started
+2025-12-07 21:37:44,826 - DEBUG - close.complete
+2025-12-07 21:37:44,828 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=240&limit=20
+2025-12-07 21:37:44,828 - DEBUG - Headers: {}
+2025-12-07 21:37:44,828 - DEBUG - Payload: None
+2025-12-07 21:37:44,828 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=240&limit=20
+2025-12-07 21:37:44,834 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:37:44,883 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10495ec70>
+2025-12-07 21:37:44,884 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101d62dd0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:37:45,004 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101daf1f0>
+2025-12-07 21:37:45,005 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:45,006 - DEBUG - send_request_headers.complete
+2025-12-07 21:37:45,006 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:37:45,006 - DEBUG - send_request_body.complete
+2025-12-07 21:37:45,006 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:37:45,262 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:37:45 GMT'), (b'x-amz-apigw-id', b'VPDQAEsdPHcENsQ='), (b'x-amzn-RequestId', b'd1453f6d-7348-4cf8-b87c-bbc22e5f4eb7'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 4d4b96028acf63781fb210bb3b43b4f4.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'luQQrJU2U_LT1YjJOdSlyeQ9z6bYOw2zkUGT575nQA1gvFRO9_jVBw==')])
+2025-12-07 21:37:45,263 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=240&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:37:45,264 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:37:45,264 - DEBUG - receive_response_body.complete
+2025-12-07 21:37:45,265 - DEBUG - response_closed.started
+2025-12-07 21:37:45,265 - DEBUG - response_closed.complete
+2025-12-07 21:37:45,266 - DEBUG - close.started
+2025-12-07 21:37:45,266 - DEBUG - close.complete
+2025-12-07 21:38:15,268 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=240&limit=20
+2025-12-07 21:38:15,268 - DEBUG - Headers: {}
+2025-12-07 21:38:15,268 - DEBUG - Payload: None
+2025-12-07 21:38:15,268 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=240&limit=20
+2025-12-07 21:38:15,275 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:38:15,364 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1049ddeb0>
+2025-12-07 21:38:15,365 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x101d62f90> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:38:17,563 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1049bc700>
+2025-12-07 21:38:17,564 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:38:17,564 - DEBUG - send_request_headers.complete
+2025-12-07 21:38:17,565 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:38:17,565 - DEBUG - send_request_body.complete
+2025-12-07 21:38:17,565 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:38:19,812 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'44188'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:38:19 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:38:19 GMT'), (b'x-amzn-RequestId', b'1db433ef-a88e-4950-8d6a-6df937016d1d'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'44188'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDVOHq9vHcEtCA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 861c9a33ccdd7a6a61b188ea139dd8fa.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'mJNYWq4vAajK96l-hbXjoXzSJFJoVuELQJW0g-PimXLevqWPvprEJA==')])
+2025-12-07 21:38:19,812 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=240&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:38:19,813 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:38:19,942 - DEBUG - receive_response_body.complete
+2025-12-07 21:38:19,942 - DEBUG - response_closed.started
+2025-12-07 21:38:19,943 - DEBUG - response_closed.complete
+2025-12-07 21:38:19,943 - DEBUG - close.started
+2025-12-07 21:38:19,944 - DEBUG - close.complete
+2025-12-07 21:38:19,945 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=260&limit=20
+2025-12-07 21:38:19,945 - DEBUG - Headers: {}
+2025-12-07 21:38:19,945 - DEBUG - Payload: None
+2025-12-07 21:38:19,945 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=260&limit=20
+2025-12-07 21:38:19,952 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:38:20,012 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104a01c10>
+2025-12-07 21:38:20,012 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x104a1f3c0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:38:20,133 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x101d87d00>
+2025-12-07 21:38:20,134 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:38:20,134 - DEBUG - send_request_headers.complete
+2025-12-07 21:38:20,134 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:38:20,134 - DEBUG - send_request_body.complete
+2025-12-07 21:38:20,134 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:38:20,684 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:38:20 GMT'), (b'x-amz-apigw-id', b'VPDViFfNPHcEPiA='), (b'x-amzn-RequestId', b'2aa6ca6e-6844-46a3-82e0-46707aecf269'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 66a3254753daef98131e391b49752390.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'lDr_x9MBrKBdj0Cqz0R0k91D-3H4QTDlOJc9K_ZuZt_ABUwbmainEQ==')])
+2025-12-07 21:38:20,685 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=260&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:38:20,685 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:38:20,685 - DEBUG - receive_response_body.complete
+2025-12-07 21:38:20,685 - DEBUG - response_closed.started
+2025-12-07 21:38:20,685 - DEBUG - response_closed.complete
+2025-12-07 21:38:20,686 - DEBUG - close.started
+2025-12-07 21:38:20,686 - DEBUG - close.complete
+2025-12-07 21:38:44,506 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:38:44,506 - INFO - Script started.
+2025-12-07 21:38:44,506 - INFO - Starting search for: attention is all you need
+2025-12-07 21:38:44,507 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:38:44,507 - DEBUG - Headers: {}
+2025-12-07 21:38:44,507 - DEBUG - Payload: None
+2025-12-07 21:38:44,507 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:38:44,534 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:38:44,608 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10633cd30>
+2025-12-07 21:38:44,608 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10631c580> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:38:44,737 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1060d9ca0>
+2025-12-07 21:38:44,738 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:38:44,738 - DEBUG - send_request_headers.complete
+2025-12-07 21:38:44,738 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:38:44,738 - DEBUG - send_request_body.complete
+2025-12-07 21:38:44,738 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:38:46,436 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'61299'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:38:46 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:38:46 GMT'), (b'x-amzn-RequestId', b'f885d266-910b-4361-af59-608f7bbe753c'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'61299'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDZYEJqvHcETNg='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 e502901885892afe656ee1a0e9f33d48.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'FeQYqhgHOl1XIIQbYixGSkLTzt3DQruowaFYcyy3pdnX1wM9H_XiFA==')])
+2025-12-07 21:38:46,438 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:38:46,438 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:38:46,510 - DEBUG - receive_response_body.complete
+2025-12-07 21:38:46,511 - DEBUG - response_closed.started
+2025-12-07 21:38:46,511 - DEBUG - response_closed.complete
+2025-12-07 21:38:46,512 - DEBUG - close.started
+2025-12-07 21:38:46,512 - DEBUG - close.complete
+2025-12-07 21:38:46,520 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:38:46,520 - INFO - Invoking FZF subprocess.
+2025-12-07 21:39:00,300 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:39:00,306 - INFO - Selected 1 papers: ['https://arxiv.org/abs/1706.03762']
+2025-12-07 21:39:00,308 - INFO - Entering add_to_library loop.
+2025-12-07 21:39:00,310 - INFO - Adding URL: https://arxiv.org/abs/1706.03762
+2025-12-07 21:39:00,310 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis add --from-url https://arxiv.org/abs/1706.03762
+2025-12-07 21:39:00,479 - ERROR - CalledProcessError for https://arxiv.org/abs/1706.03762: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: No such option: --from-url Did you mean --from?
+
+2025-12-07 21:39:00,480 - INFO - Starting search for: attention is all you need
+2025-12-07 21:39:00,480 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:39:00,480 - DEBUG - Headers: {}
+2025-12-07 21:39:00,480 - DEBUG - Payload: None
+2025-12-07 21:39:00,480 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:39:00,483 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:39:00,658 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1063df6a0>
+2025-12-07 21:39:00,658 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10631c4a0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:39:00,803 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10633c040>
+2025-12-07 21:39:00,804 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:39:00,805 - DEBUG - send_request_headers.complete
+2025-12-07 21:39:00,805 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:39:00,805 - DEBUG - send_request_body.complete
+2025-12-07 21:39:00,805 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:39:01,389 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:39:01 GMT'), (b'x-amz-apigw-id', b'VPDb5Hp4PHcEQqw='), (b'x-amzn-RequestId', b'fe7af12c-089e-463a-9b64-042f4c7e3296'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 861c9a33ccdd7a6a61b188ea139dd8fa.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'woQD0dPrs6YvU4_KVQlvXnoZdlGwBIOc3iwmUooD3cud8x-D3zQG1Q==')])
+2025-12-07 21:39:01,390 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:39:01,391 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:39:01,391 - DEBUG - receive_response_body.complete
+2025-12-07 21:39:01,392 - DEBUG - response_closed.started
+2025-12-07 21:39:01,392 - DEBUG - response_closed.complete
+2025-12-07 21:39:01,393 - DEBUG - close.started
+2025-12-07 21:39:01,393 - DEBUG - close.complete
+2025-12-07 21:39:31,395 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:39:31,395 - DEBUG - Headers: {}
+2025-12-07 21:39:31,396 - DEBUG - Payload: None
+2025-12-07 21:39:31,396 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:39:31,403 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:39:31,540 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10661d6a0>
+2025-12-07 21:39:31,540 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1060b67b0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:39:31,687 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1063df970>
+2025-12-07 21:39:31,688 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:39:31,689 - DEBUG - send_request_headers.complete
+2025-12-07 21:39:31,689 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:39:31,689 - DEBUG - send_request_body.complete
+2025-12-07 21:39:31,689 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:39:33,292 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'62409'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:39:33 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:39:33 GMT'), (b'x-amzn-RequestId', b'3b0cf439-371f-42f2-a0b9-a5ba915ca2f7'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'62409'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPDgrGILPHcEU3Q='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 946a47118939fc2908c7ce8e46e8d16c.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'tbZWe6Z9NC3eGC9SNNEkUSQ4IeDDK24n3nyP95tg2kG1QqZzRHS-7A==')])
+2025-12-07 21:39:33,292 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:39:33,293 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:39:33,815 - DEBUG - receive_response_body.complete
+2025-12-07 21:39:33,815 - DEBUG - response_closed.started
+2025-12-07 21:39:33,815 - DEBUG - response_closed.complete
+2025-12-07 21:39:33,816 - DEBUG - close.started
+2025-12-07 21:39:33,816 - DEBUG - close.complete
+2025-12-07 21:39:33,818 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:39:33,818 - INFO - Invoking FZF subprocess.
+2025-12-07 21:39:36,846 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:39:36,847 - INFO - Selected 1 papers: ['https://arxiv.org/abs/1706.03762']
+2025-12-07 21:39:36,848 - INFO - Entering add_to_library loop.
+2025-12-07 21:39:36,850 - INFO - Adding URL: https://arxiv.org/abs/1706.03762
+2025-12-07 21:39:36,850 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis add --from-url https://arxiv.org/abs/1706.03762
+2025-12-07 21:39:36,983 - ERROR - CalledProcessError for https://arxiv.org/abs/1706.03762: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: No such option: --from-url Did you mean --from?
+
+2025-12-07 21:44:42,997 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:42,997 - INFO - Script started.
+2025-12-07 21:44:42,997 - INFO - Starting search for: attention is all you need
+2025-12-07 21:44:42,998 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:44:42,998 - DEBUG - Headers: {}
+2025-12-07 21:44:42,998 - DEBUG - Payload: None
+2025-12-07 21:44:42,998 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:44:43,027 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:44:43,179 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x105f0eb80>
+2025-12-07 21:44:43,179 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x105cdd7b0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:44:43,291 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x105ce7d60>
+2025-12-07 21:44:43,291 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:44:43,291 - DEBUG - send_request_headers.complete
+2025-12-07 21:44:43,291 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:44:43,291 - DEBUG - send_request_body.complete
+2025-12-07 21:44:43,291 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:44:45,042 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'62409'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:44:44 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:44:44 GMT'), (b'x-amzn-RequestId', b'574da4fe-22ae-4838-9c0b-4b8293df5c1e'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'62409'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPERaHyEvHcEYXg='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 b238d3f6f579ec0d467edb5df6f43bbe.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'03BGyji2ZLLBnvjOQsw60dbM5jECNDlbKRSyBpmKRxdVSz5_yiLmKQ==')])
+2025-12-07 21:44:45,044 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:44:45,044 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:44:45,135 - DEBUG - receive_response_body.complete
+2025-12-07 21:44:45,136 - DEBUG - response_closed.started
+2025-12-07 21:44:45,136 - DEBUG - response_closed.complete
+2025-12-07 21:44:45,137 - DEBUG - close.started
+2025-12-07 21:44:45,137 - DEBUG - close.complete
+2025-12-07 21:44:45,144 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:44:45,145 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 21:44:45,273 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:45,273 - INFO - Script started.
+2025-12-07 21:44:47,487 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:47,487 - INFO - Script started.
+2025-12-07 21:44:48,005 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:48,005 - INFO - Script started.
+2025-12-07 21:44:48,213 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:48,213 - INFO - Script started.
+2025-12-07 21:44:48,361 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:48,361 - INFO - Script started.
+2025-12-07 21:44:48,543 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:48,543 - INFO - Script started.
+2025-12-07 21:44:48,707 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:48,707 - INFO - Script started.
+2025-12-07 21:44:48,873 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:48,873 - INFO - Script started.
+2025-12-07 21:44:49,069 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:49,069 - INFO - Script started.
+2025-12-07 21:44:49,217 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:49,217 - INFO - Script started.
+2025-12-07 21:44:49,381 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:49,381 - INFO - Script started.
+2025-12-07 21:44:49,548 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:49,548 - INFO - Script started.
+2025-12-07 21:44:49,726 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:49,726 - INFO - Script started.
+2025-12-07 21:44:52,462 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:52,462 - INFO - Script started.
+2025-12-07 21:44:52,967 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:52,967 - INFO - Script started.
+2025-12-07 21:44:53,049 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,049 - INFO - Script started.
+2025-12-07 21:44:53,130 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,130 - INFO - Script started.
+2025-12-07 21:44:53,211 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,211 - INFO - Script started.
+2025-12-07 21:44:53,292 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,292 - INFO - Script started.
+2025-12-07 21:44:53,373 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,373 - INFO - Script started.
+2025-12-07 21:44:53,454 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,454 - INFO - Script started.
+2025-12-07 21:44:53,535 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,535 - INFO - Script started.
+2025-12-07 21:44:53,616 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,616 - INFO - Script started.
+2025-12-07 21:44:53,697 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:53,697 - INFO - Script started.
+2025-12-07 21:44:55,936 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:55,937 - INFO - Script started.
+2025-12-07 21:44:57,456 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:44:57,461 - INFO - Selected 1 papers: ['https://arxiv.org/abs/1706.03762']
+2025-12-07 21:44:57,463 - INFO - Entering add_to_library loop.
+2025-12-07 21:44:57,465 - INFO - Adding URL: https://arxiv.org/abs/1706.03762
+2025-12-07 21:44:57,465 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis add --from https://arxiv.org/abs/1706.03762 --lib main
+2025-12-07 21:44:57,614 - ERROR - CalledProcessError for https://arxiv.org/abs/1706.03762: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: Invalid value for '--from': 'https://arxiv.org/abs/1706.03762' is not one of 'arxiv', 'bibtex', 'crossref', 'dblp', 'doi', 'folder', 'isbn', 'lib', 'pdf2arxivid', 'pdf2doi', 'pmid', 'yaml', 'zenodo'.
+
+2025-12-07 21:44:57,616 - INFO - Starting search for: attention is all you need
+2025-12-07 21:44:57,616 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:44:57,616 - DEBUG - Headers: {}
+2025-12-07 21:44:57,616 - DEBUG - Payload: None
+2025-12-07 21:44:57,616 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:44:57,619 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:44:57,700 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x105a88460>
+2025-12-07 21:44:57,700 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x105a5aac0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:44:57,817 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x105f4d8b0>
+2025-12-07 21:44:57,817 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:44:57,818 - DEBUG - send_request_headers.complete
+2025-12-07 21:44:57,818 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:44:57,818 - DEBUG - send_request_body.complete
+2025-12-07 21:44:57,818 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:44:59,378 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'61299'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:44:59 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:44:59 GMT'), (b'x-amzn-RequestId', b'5ff9c59c-a589-4b27-9b52-3f5ba0b8507e'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'61299'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPETrHPbvHcEJ2g='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 92d05088b4c5dd8daf39fac07c1c6b00.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'EaKbuSON-MUA-zasOgjdES8Zhu5bTcx8vfApP2ENV_ow8JRBfkLn7w==')])
+2025-12-07 21:44:59,379 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:44:59,379 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:44:59,531 - DEBUG - receive_response_body.complete
+2025-12-07 21:44:59,532 - DEBUG - response_closed.started
+2025-12-07 21:44:59,532 - DEBUG - response_closed.complete
+2025-12-07 21:44:59,533 - DEBUG - close.started
+2025-12-07 21:44:59,533 - DEBUG - close.complete
+2025-12-07 21:44:59,536 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:44:59,537 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 21:44:59,659 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:44:59,659 - INFO - Script started.
+2025-12-07 21:45:03,995 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:45:03,995 - INFO - Script started.
+2025-12-07 21:45:04,681 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:45:04,682 - INFO - Script started.
+2025-12-07 21:45:05,194 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:45:05,194 - INFO - Script started.
+2025-12-07 21:45:06,037 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:45:06,037 - INFO - Script started.
+2025-12-07 21:45:06,542 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:45:06,542 - INFO - Script started.
+2025-12-07 21:45:06,750 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:45:06,750 - INFO - Script started.
+2025-12-07 21:45:09,150 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:45:09,152 - INFO - Selected 3 papers: ['https://arxiv.org/abs/1706.03762', 'https://arxiv.org/abs/2010.13154', 'https://doi.org/10.1609/AAAI.V34I07.6693']
+2025-12-07 21:45:09,153 - INFO - Entering add_to_library loop.
+2025-12-07 21:45:09,156 - INFO - Adding URL: https://arxiv.org/abs/1706.03762
+2025-12-07 21:45:09,156 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis add --from https://arxiv.org/abs/1706.03762 --lib main
+2025-12-07 21:45:09,283 - ERROR - CalledProcessError for https://arxiv.org/abs/1706.03762: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: Invalid value for '--from': 'https://arxiv.org/abs/1706.03762' is not one of 'arxiv', 'bibtex', 'crossref', 'dblp', 'doi', 'folder', 'isbn', 'lib', 'pdf2arxivid', 'pdf2doi', 'pmid', 'yaml', 'zenodo'.
+
+2025-12-07 21:45:09,284 - INFO - Adding URL: https://arxiv.org/abs/2010.13154
+2025-12-07 21:45:09,284 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis add --from https://arxiv.org/abs/2010.13154 --lib main
+2025-12-07 21:45:09,382 - ERROR - CalledProcessError for https://arxiv.org/abs/2010.13154: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: Invalid value for '--from': 'https://arxiv.org/abs/2010.13154' is not one of 'arxiv', 'bibtex', 'crossref', 'dblp', 'doi', 'folder', 'isbn', 'lib', 'pdf2arxivid', 'pdf2doi', 'pmid', 'yaml', 'zenodo'.
+
+2025-12-07 21:45:09,383 - INFO - Adding URL: https://doi.org/10.1609/AAAI.V34I07.6693
+2025-12-07 21:45:09,383 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis add --from https://doi.org/10.1609/AAAI.V34I07.6693 --lib main
+2025-12-07 21:45:09,481 - ERROR - CalledProcessError for https://doi.org/10.1609/AAAI.V34I07.6693: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: Invalid value for '--from': 'https://doi.org/10.1609/AAAI.V34I07.6693' is not one of 'arxiv', 'bibtex', 'crossref', 'dblp', 'doi', 'folder', 'isbn', 'lib', 'pdf2arxivid', 'pdf2doi', 'pmid', 'yaml', 'zenodo'.
+
