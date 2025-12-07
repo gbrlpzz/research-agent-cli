@@ -106,7 +106,8 @@ def search_and_select(query):
     try:
         logging.info("Invoking FZF subprocess with preview.")
         # Command to run this script in preview mode
-        preview_cmd = f"{sys.executable} {os.path.abspath(__file__)} --preview {{1}} {tmp_path}"
+        # Quote paths to handle spaces safely
+        preview_cmd = f'"{sys.executable}" "{os.path.abspath(__file__)}" --preview {{1}} "{tmp_path}"'
         
         fzf_args = [
             'fzf', 
@@ -218,7 +219,8 @@ def add_to_library(items):
             # If source is 'arxiv', use --from arxiv <id>
             # If source is 'doi', use --from doi <id>
             
-            cmd = [papis_cmd, "--config", str(papis_config), "add", "--lib", "main"]
+            # Note: -l/--lib must come BEFORE the subcommand (add)
+            cmd = [papis_cmd, "--config", str(papis_config), "-l", "main", "add", "--batch"]
             
             if source == 'arxiv':
                 cmd.extend(["--from", "arxiv", identifier])
@@ -231,6 +233,8 @@ def add_to_library(items):
                 cmd.append(identifier)
 
             try:
+                # Print the full command for debugging
+                progress.console.print(f"[dim]Executing papis: {' '.join(cmd)}[/dim]")
                 logging.debug(f"Executing: {' '.join(cmd)}")
                 result = subprocess.run(
                     cmd,
@@ -243,6 +247,13 @@ def add_to_library(items):
                 if result.stdout:
                     logging.debug(f"Stdout: {result.stdout.strip()}")
                     progress.console.print(f"[dim]{result.stdout.strip()}[/dim]")
+                
+                # Export all bibtex entries to master.bib
+                master_bib = repo_root / "master.bib"
+                export_cmd = [papis_cmd, "-l", "main", "export", "--all", "-f", "bibtex", "-o", str(master_bib)]
+                subprocess.run(export_cmd, capture_output=True, text=True, timeout=30)
+                logging.info(f"Updated master.bib")
+                
             except subprocess.TimeoutExpired:
                 logging.error(f"Timeout expired for {identifier}")
                 progress.console.print(f"[bold red]Timeout adding {identifier}[/bold red]")
@@ -256,7 +267,7 @@ def add_to_library(items):
             progress.advance(task)
 
 if __name__ == "__main__":
-    logging.info("Script started.")
+    logging.info(f"Script started with args: {sys.argv}")
     
     # Check for preview mode
     if len(sys.argv) >= 4 and sys.argv[1] == '--preview':
@@ -269,6 +280,13 @@ if __name__ == "__main__":
         sys.exit(1)
     
     query = " ".join(sys.argv[1:])
+    
+    # Safeguard against accidental flag processing as query
+    if query.startswith("-"):
+        console.print(f"[bold red]Invalid query:[/bold red] {query}")
+        console.print("Usage: python discover.py <search query>")
+        sys.exit(1)
+
     urls = search_and_select(query)
     
     if urls:

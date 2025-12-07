@@ -745,3 +745,224 @@ Usage: papis add [OPTIONS] [FILES]...
 
 Error: Invalid value for '--from': 'https://doi.org/10.1609/AAAI.V34I07.6693' is not one of 'arxiv', 'bibtex', 'crossref', 'dblp', 'doi', 'folder', 'isbn', 'lib', 'pdf2arxivid', 'pdf2doi', 'pmid', 'yaml', 'zenodo'.
 
+2025-12-07 21:56:15,657 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:56:15,657 - INFO - Script started with args: ['scripts/discover.py', 'test query']
+2025-12-07 21:56:15,657 - INFO - Starting search for: test query
+2025-12-07 21:56:15,657 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:56:15,657 - DEBUG - Headers: {}
+2025-12-07 21:56:15,657 - DEBUG - Payload: None
+2025-12-07 21:56:15,657 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:56:15,687 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:56:15,804 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1067d2910>
+2025-12-07 21:56:15,804 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1067aa820> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:56:15,928 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1067bcaf0>
+2025-12-07 21:56:15,929 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:56:15,929 - DEBUG - send_request_headers.complete
+2025-12-07 21:56:15,929 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:56:15,929 - DEBUG - send_request_body.complete
+2025-12-07 21:56:15,929 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:56:16,532 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:56:16 GMT'), (b'x-amz-apigw-id', b'VPF9oGYcPHcEYlg='), (b'x-amzn-RequestId', b'c46cd2af-0894-41d1-8443-13e9747c874f'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 b4f99b67248205879b34cb6436fcbd88.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'U0VbzFLZTNBSFwqx1C4_FazW5j1PdzVpUSfzZm5c6XCRNEs1DLp94g==')])
+2025-12-07 21:56:16,533 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test+query&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:56:16,533 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:56:16,533 - DEBUG - receive_response_body.complete
+2025-12-07 21:56:16,533 - DEBUG - response_closed.started
+2025-12-07 21:56:16,533 - DEBUG - response_closed.complete
+2025-12-07 21:56:16,533 - DEBUG - close.started
+2025-12-07 21:56:16,534 - DEBUG - close.complete
+2025-12-07 21:57:16,917 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:57:16,918 - INFO - Script started with args: ['scripts/discover.py', 'machine learning']
+2025-12-07 21:57:16,918 - INFO - Starting search for: machine learning
+2025-12-07 21:57:16,918 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:57:16,918 - DEBUG - Headers: {}
+2025-12-07 21:57:16,918 - DEBUG - Payload: None
+2025-12-07 21:57:16,918 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:57:16,939 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:57:17,440 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10b84f790>
+2025-12-07 21:57:17,440 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10b827890> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:57:17,569 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10b83c970>
+2025-12-07 21:57:17,570 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:57:17,571 - DEBUG - send_request_headers.complete
+2025-12-07 21:57:17,571 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:57:17,571 - DEBUG - send_request_body.complete
+2025-12-07 21:57:17,571 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:57:18,179 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:57:18 GMT'), (b'x-amz-apigw-id', b'VPGHQEccPHcEYXg='), (b'x-amzn-RequestId', b'04613f53-dc14-4bef-95ad-710da0c2d9a8'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 645f43b8717568c0a4b2c8f32ab504dc.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'w3owFfB5vR5_sq53KbxLQeMzlcZhi3rk2-6OamlbqHbmpoSyQxdAeQ==')])
+2025-12-07 21:57:18,180 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine+learning&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:57:18,180 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:57:18,180 - DEBUG - receive_response_body.complete
+2025-12-07 21:57:18,181 - DEBUG - response_closed.started
+2025-12-07 21:57:18,181 - DEBUG - response_closed.complete
+2025-12-07 21:57:18,182 - DEBUG - close.started
+2025-12-07 21:57:18,182 - DEBUG - close.complete
+2025-12-07 21:57:48,184 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:57:48,185 - DEBUG - Headers: {}
+2025-12-07 21:57:48,185 - DEBUG - Payload: None
+2025-12-07 21:57:48,185 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:57:48,198 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:57:48,357 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1065b1d30>
+2025-12-07 21:57:48,357 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10b827a50> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:57:48,502 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1065b1ac0>
+2025-12-07 21:57:48,503 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:57:48,503 - DEBUG - send_request_headers.complete
+2025-12-07 21:57:48,504 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:57:48,504 - DEBUG - send_request_body.complete
+2025-12-07 21:57:48,504 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:57:50,882 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'59946'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:57:50 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:57:50 GMT'), (b'x-amzn-RequestId', b'9b9a5fc4-64c8-4117-a858-c3e99e58a68c'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'59946'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPGMGEo-vHcEe4g='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 f92e634cae29c615cbe8f686d8333cf6.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'1tpkLkQo4TEbeFYsWtR5umbnJ8ygcHWSdzgiQlNl25pMInDSfjZc2g==')])
+2025-12-07 21:57:50,883 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine+learning&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:57:50,883 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:57:51,154 - DEBUG - receive_response_body.complete
+2025-12-07 21:57:51,155 - DEBUG - response_closed.started
+2025-12-07 21:57:51,155 - DEBUG - response_closed.complete
+2025-12-07 21:57:51,156 - DEBUG - close.started
+2025-12-07 21:57:51,156 - DEBUG - close.complete
+2025-12-07 21:57:51,163 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:57:51,165 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 21:57:51,330 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:57:51,330 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpp317uoq9.json']
+2025-12-07 21:57:51,894 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:57:51,902 - INFO - Selected 0 papers: []
+2025-12-07 21:57:51,903 - INFO - Starting search for: machine learning
+2025-12-07 21:57:51,904 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:57:51,904 - DEBUG - Headers: {}
+2025-12-07 21:57:51,904 - DEBUG - Payload: None
+2025-12-07 21:57:51,904 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:57:51,914 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:57:52,455 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10b83c970>
+2025-12-07 21:57:52,455 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10b827970> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:57:53,333 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10b8e1700>
+2025-12-07 21:57:53,333 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:57:53,334 - DEBUG - send_request_headers.complete
+2025-12-07 21:57:53,334 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:57:53,334 - DEBUG - send_request_body.complete
+2025-12-07 21:57:53,334 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:57:53,962 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:57:53 GMT'), (b'x-amz-apigw-id', b'VPGMzEJzPHcEn1w='), (b'x-amzn-RequestId', b'ff495b7f-67fe-4ce4-ae07-2cb6397d5bfd'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 9a3c643f228eb943137621235dabf790.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'yHkMhzUuMzSGVN8DiLwTXHuBOj-xJ7Y4E24KThrKM95g9N1Nzl6dUA==')])
+2025-12-07 21:57:53,962 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine+learning&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:57:53,963 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:57:53,963 - DEBUG - receive_response_body.complete
+2025-12-07 21:57:53,963 - DEBUG - response_closed.started
+2025-12-07 21:57:53,964 - DEBUG - response_closed.complete
+2025-12-07 21:57:53,964 - DEBUG - close.started
+2025-12-07 21:57:53,964 - DEBUG - close.complete
+2025-12-07 21:58:09,265 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:58:09,265 - INFO - Script started with args: ['/Users/gabriele/Documents/Github/research/scripts/discover.py', 'test']
+2025-12-07 21:58:09,265 - INFO - Starting search for: test
+2025-12-07 21:58:09,266 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:09,266 - DEBUG - Headers: {}
+2025-12-07 21:58:09,266 - DEBUG - Payload: None
+2025-12-07 21:58:09,266 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:09,297 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:58:09,373 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10430e8b0>
+2025-12-07 21:58:09,373 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1042e6890> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:58:09,492 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1042f8a90>
+2025-12-07 21:58:09,492 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:09,493 - DEBUG - send_request_headers.complete
+2025-12-07 21:58:09,493 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:58:09,493 - DEBUG - send_request_body.complete
+2025-12-07 21:58:09,493 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:10,036 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:58:10 GMT'), (b'x-amz-apigw-id', b'VPGPYEddvHcEZWg='), (b'x-amzn-RequestId', b'c2d73a3e-e3e2-4ba4-81de-e2b9d4831732'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 fbbaf051f1b6e237fbee09c998e075cc.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'fQDxWfM7Se2zJF2927zqCwR2KvD07glsJ4i9osF0ve1e4pNQt-3AdQ==')])
+2025-12-07 21:58:10,037 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-07 21:58:10,037 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:58:10,038 - DEBUG - receive_response_body.complete
+2025-12-07 21:58:10,038 - DEBUG - response_closed.started
+2025-12-07 21:58:10,038 - DEBUG - response_closed.complete
+2025-12-07 21:58:10,039 - DEBUG - close.started
+2025-12-07 21:58:10,039 - DEBUG - close.complete
+2025-12-07 21:58:23,966 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:23,967 - DEBUG - Headers: {}
+2025-12-07 21:58:23,967 - DEBUG - Payload: None
+2025-12-07 21:58:23,967 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine learning&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:23,975 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:58:24,054 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10b9361c0>
+2025-12-07 21:58:24,055 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10b827a50> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:58:24,164 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10b88b370>
+2025-12-07 21:58:24,165 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:24,165 - DEBUG - send_request_headers.complete
+2025-12-07 21:58:24,166 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:58:24,166 - DEBUG - send_request_body.complete
+2025-12-07 21:58:24,166 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:25,662 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'59946'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:58:25 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:58:25 GMT'), (b'x-amzn-RequestId', b'd672068b-5423-4346-abbd-f8fb8133cbda'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'59946'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPGRqGyvPHcER_A='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 15e6afc335dbbf726da2dd95038f862a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'PdpoV6R1hvGLowpp3EC5XzTBze9D0eVVNDTDzpzszONIHU9XBKlRBQ==')])
+2025-12-07 21:58:25,662 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=machine+learning&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:58:25,663 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:58:25,816 - DEBUG - receive_response_body.complete
+2025-12-07 21:58:25,816 - DEBUG - response_closed.started
+2025-12-07 21:58:25,817 - DEBUG - response_closed.complete
+2025-12-07 21:58:25,817 - DEBUG - close.started
+2025-12-07 21:58:25,817 - DEBUG - close.complete
+2025-12-07 21:58:25,822 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:58:25,823 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 21:58:25,971 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:58:25,971 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpg_tbct2p.json']
+2025-12-07 21:58:40,041 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:40,042 - DEBUG - Headers: {}
+2025-12-07 21:58:40,042 - DEBUG - Payload: None
+2025-12-07 21:58:40,042 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:40,050 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:58:40,140 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10450b550>
+2025-12-07 21:58:40,140 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x104315ac0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:58:40,278 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1040aa040>
+2025-12-07 21:58:40,279 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:40,279 - DEBUG - send_request_headers.complete
+2025-12-07 21:58:40,280 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:58:40,280 - DEBUG - send_request_body.complete
+2025-12-07 21:58:40,280 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:42,046 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'44662'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:58:41 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:58:41 GMT'), (b'x-amzn-RequestId', b'c48825ca-526a-4d80-85a9-6cc683cc7aba'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'44662'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPGULFXiPHcEvrg='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 0dfe79aed7452aeeec8075594a25c0fe.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'NetDQuCMfPWutdqF-cPyYcMIt2f1HV6dwjI05-Fa_sG09XKRBclhWQ==')])
+2025-12-07 21:58:42,046 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:58:42,047 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:58:42,176 - DEBUG - receive_response_body.complete
+2025-12-07 21:58:42,177 - DEBUG - response_closed.started
+2025-12-07 21:58:42,177 - DEBUG - response_closed.complete
+2025-12-07 21:58:42,177 - DEBUG - close.started
+2025-12-07 21:58:42,178 - DEBUG - close.complete
+2025-12-07 21:58:42,184 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:58:42,186 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 21:58:42,319 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:58:42,320 - INFO - Script started with args: ['/Users/gabriele/Documents/Github/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpih_7a71_.json']
+2025-12-07 21:58:45,791 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:58:45,792 - INFO - Script started with args: ['/Users/gabriele/Documents/Github/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpih_7a71_.json']
+2025-12-07 21:58:46,165 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:58:46,170 - INFO - Selected 1 papers: [('doi', '10.1136/BMJ.315.7109.629')]
+2025-12-07 21:58:46,171 - INFO - Entering add_to_library loop.
+2025-12-07 21:58:46,173 - INFO - Adding: source=doi, id=10.1136/BMJ.315.7109.629
+2025-12-07 21:58:46,175 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis --config /Users/gabriele/Documents/Github/research/papis.config add --lib main --from doi 10.1136/BMJ.315.7109.629
+2025-12-07 21:58:46,325 - ERROR - CalledProcessError for 10.1136/BMJ.315.7109.629: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: No such option: --lib (Possible options: --git, --link)
+
+2025-12-07 21:58:46,326 - INFO - Starting search for: test
+2025-12-07 21:58:46,326 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:46,326 - DEBUG - Headers: {}
+2025-12-07 21:58:46,326 - DEBUG - Payload: None
+2025-12-07 21:58:46,326 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 21:58:46,329 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 21:58:46,372 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104510ee0>
+2025-12-07 21:58:46,372 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10434df90> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 21:58:46,479 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104507fd0>
+2025-12-07 21:58:46,480 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:46,480 - DEBUG - send_request_headers.complete
+2025-12-07 21:58:46,480 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 21:58:46,480 - DEBUG - send_request_body.complete
+2025-12-07 21:58:46,480 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 21:58:47,578 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'44662'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 20:58:47 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 20:58:47 GMT'), (b'x-amzn-RequestId', b'e7e9ee89-5daf-47d0-9d65-bd8a7ebee9a3'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'44662'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPGVHGWqPHcEAQw='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 946a47118939fc2908c7ce8e46e8d16c.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'E2apVKneXrhNa-V1Xni6T8uduvDbWWz-ykOg83qePfVT6zuMYzKZVg==')])
+2025-12-07 21:58:47,579 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 21:58:47,580 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 21:58:47,736 - DEBUG - receive_response_body.complete
+2025-12-07 21:58:47,737 - DEBUG - response_closed.started
+2025-12-07 21:58:47,737 - DEBUG - response_closed.complete
+2025-12-07 21:58:47,738 - DEBUG - close.started
+2025-12-07 21:58:47,738 - DEBUG - close.complete
+2025-12-07 21:58:47,741 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 21:58:47,742 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 21:58:47,869 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:58:47,869 - INFO - Script started with args: ['/Users/gabriele/Documents/Github/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpguudr5bt.json']
+2025-12-07 21:58:50,775 - DEBUG - Using selector: KqueueSelector
+2025-12-07 21:58:50,775 - INFO - Script started with args: ['/Users/gabriele/Documents/Github/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpguudr5bt.json']
+2025-12-07 21:58:51,078 - INFO - FZF finished. Parsing selections.
+2025-12-07 21:58:51,080 - INFO - Selected 1 papers: [('doi', '10.1136/BMJ.315.7109.629')]
+2025-12-07 21:58:51,082 - INFO - Entering add_to_library loop.
+2025-12-07 21:58:51,084 - INFO - Adding: source=doi, id=10.1136/BMJ.315.7109.629
+2025-12-07 21:58:51,086 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis --config /Users/gabriele/Documents/Github/research/papis.config add --lib main --from doi 10.1136/BMJ.315.7109.629
+2025-12-07 21:58:51,218 - ERROR - CalledProcessError for 10.1136/BMJ.315.7109.629: [ERROR] commands.default: Library 'papers' does not have any folders attached to it. Please create and add the required paths to the configuration file.
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: No such option: --lib (Possible options: --git, --link)
+

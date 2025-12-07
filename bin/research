@@ -1,18 +1,31 @@
 #!/bin/bash
-# Wrapper to run the discovery tool and pipe to papis
+# Research CLI - paper discovery and citation management
 
-REPO_ROOT="$HOME/Documents/Github/research"
+REPO_ROOT="$HOME/Documents/GitHub/research"
 VENV="$REPO_ROOT/.venv"
 PYTHON="$VENV/bin/python"
-DISCOVER_SCRIPT="$REPO_ROOT/scripts/discover.py"
-PAPIS_CONFIG="$REPO_ROOT/papis.config"
 
-# Check if query provided
+# Show usage if no args
 if [ -z "$1" ]; then
-    echo "Usage: research <query>"
-    exit 1
+    echo "Usage:"
+    echo "  research <query>        Search and add papers from Semantic Scholar"
+    echo "  research cite [query]   Search master.bib and copy citation keys"
+    echo ""
+    echo "Examples:"
+    echo "  research \"attention mechanism\"    # Find papers about attention"
+    echo "  research cite                      # Browse all citations"
+    echo "  research cite egger                # Find citations by Egger"
+    exit 0
 fi
 
-# Run discovery script
-"$PYTHON" "$DISCOVER_SCRIPT" "$@"
-
+# Handle subcommands
+case "$1" in
+    cite)
+        shift  # Remove 'cite' from args
+        "$PYTHON" "$REPO_ROOT/scripts/cite.py" "$@"
+        ;;
+    *)
+        # Default: search papers
+        "$PYTHON" "$REPO_ROOT/scripts/discover.py" "$@"
+        ;;
+esac
