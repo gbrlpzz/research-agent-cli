@@ -79,8 +79,16 @@ def search_and_select(query):
         authors_list = [a.name for a in paper.authors]
         authors_short = ", ".join(authors_list[:2]) + (" et al." if len(authors_list) > 2 else "")
         
-        # Display: Index | Year | Citations | Title | Authors
-        display_str = f"{idx} | {year} | {citations:5} cites | {title[:50]:<50} | {authors_short}"
+        # Get URL for the paper
+        url = paper.url or ""
+        if paper.externalIds:
+            if 'DOI' in paper.externalIds:
+                url = f"https://doi.org/{paper.externalIds['DOI']}"
+            elif 'ArXiv' in paper.externalIds:
+                url = f"https://arxiv.org/abs/{paper.externalIds['ArXiv']}"
+        
+        # Display: Index | URL (hidden) | Year | Citations | Title | Authors
+        display_str = f"{idx}|{url}|{year} | {citations:5} cites | {title[:50]:<50} | {authors_short}"
         fzf_input.append(display_str)
         
         # Store data for preview
@@ -88,7 +96,8 @@ def search_and_select(query):
             'title': title,
             'authors': ", ".join(authors_list),
             'abstract': paper.abstract,
-            'year': year
+            'year': year,
+            'url': url
         })
         papers_obj.append(paper)
 
@@ -113,11 +122,12 @@ def search_and_select(query):
             'fzf', 
             '--multi', 
             '--delimiter', '|',
-            '--with-nth', '2..', # Hide index from display (field 1 is index)
+            '--with-nth', '3..', # Hide index and URL from display
             '--preview', preview_cmd,
             '--preview-window', 'right:50%:wrap',
             '--bind', 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all',
-            '--header', 'TAB: Select/Unselect | Ctrl-A: Select All | ENTER: Confirm'
+            '--bind', 'o:execute-silent(open {2})',  # Press 'o' to open URL in browser
+            '--header', 'TAB: Select | o: Open in browser | ENTER: Add to library'
         ]
         
         fzf = subprocess.Popen(fzf_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
@@ -248,8 +258,10 @@ def add_to_library(items):
                     logging.debug(f"Stdout: {result.stdout.strip()}")
                     progress.console.print(f"[dim]{result.stdout.strip()}[/dim]")
                 
-                # Export all bibtex entries to master.bib
+                # Export all bibtex entries to master.bib (delete first to prevent duplicates)
                 master_bib = repo_root / "master.bib"
+                if master_bib.exists():
+                    master_bib.unlink()
                 export_cmd = [papis_cmd, "-l", "main", "export", "--all", "-f", "bibtex", "-o", str(master_bib)]
                 subprocess.run(export_cmd, capture_output=True, text=True, timeout=30)
                 logging.info(f"Updated master.bib")
@@ -287,18 +299,6 @@ if __name__ == "__main__":
         console.print("Usage: python discover.py <search query>")
         sys.exit(1)
 
-    urls = search_and_select(query)
-    
-    if urls:
-        add_to_library(urls)
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        console.print("Usage: python discover.py <search query>")
-        sys.exit(1)
-    
-    query = " ".join(sys.argv[1:])
     urls = search_and_select(query)
     
     if urls:

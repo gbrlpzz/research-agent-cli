@@ -6,8 +6,10 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Papis**, 
 
 - **Smart Discovery**: Search Semantic Scholar via CLI (`research "query"`).
 - **Interactive Selection**: Use `fzf` to multi-select papers from results.
-- **Auto-Archiving**: Automatically downloads PDFs and bibtex to `library/`.
-- **Writing Scaffold**: Automatically creates a `main.typ` and `refs.bib` for every paper you add.
+- **Auto-Archiving**: Automatically downloads PDFs and metadata to `library/`.
+- **Central Bibliography**: All citations exported to `master.bib`.
+- **Citation Search**: Quickly find and copy citation keys (`research cite`).
+- **Open in Browser**: Press `o` while browsing to open papers directly.
 
 ## Setup
 
@@ -15,15 +17,15 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Papis**, 
 
 - `python3`
 - `fzf`
-- `typst`
+- `typst` (optional, for writing)
 - `git`
 
 ### Installation
 
 1.  Clone this repository:
     ```bash
-    git clone <your-repo-url> ~/Documents/Github/research
-    cd ~/Documents/Github/research
+    git clone https://github.com/yourusername/research ~/Documents/GitHub/research
+    cd ~/Documents/GitHub/research
     ```
 
 2.  Install Python dependencies:
@@ -39,50 +41,109 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Papis**, 
     ```
     *Ensure `~/.local/bin` is in your `$PATH`.*
 
+4.  Copy papis config to system location:
+    ```bash
+    mkdir -p ~/Library/Application\ Support/papis
+    cp papis.config ~/Library/Application\ Support/papis/config
+    ```
+
 ## Usage
 
-### 1. Discovery
-Run the `research` command from anywhere:
+### Commands
+
+| Command | Description |
+|---------|-------------|
+| `research <query>` | Search Semantic Scholar, add papers |
+| `research add [id]` | Quick add from DOI/arXiv (or clipboard) |
+| `research cite [query]` | Search library, copy citation keys |
+| `research open [query]` | Search library, open paper in browser |
+
+### 1. Discovery - Add Papers
 
 ```bash
 research "large language models reasoning"
 ```
 
-1.  A list of papers appears (Title, Year, Citations).
-2.  **Tab** to select multiple papers.
-3.  **Enter** to download them.
+1. A list of papers appears (Year, Citations, Title, Authors).
+2. **Tab** to select multiple papers.
+3. **o** to open highlighted paper in browser.
+4. **Enter** to download selected papers.
 
-### 2. Management
-Your papers are stored in `./library`. Use `papis` to manage them (already installed in the venv, or use system papis):
-
-```bash
-# List all papers
-papis list
-
-# Open a paper
-papis open
-```
-
-### 3. Writing
-Every paper added gets a `main.typ` automatically created in its folder.
+### 2. Quick Add
 
 ```bash
-cd library/2023-Smith-reasoning-in-llms
-typst watch main.typ
+# Add by DOI
+research add 10.1038/nature12373
+
+# Add by arXiv ID
+research add 1706.03762
+
+# Add from clipboard (just copy a DOI and run)
+research add
 ```
 
-The `main.typ` is pre-configured to link to your central `master.bib` (managed by Papis).
+### 3. Citation Search
+
+```bash
+# Browse all citations
+research cite
+
+# Pre-filter by author, title, or year
+research cite egger
+research cite 2023
+research cite "meta-analysis"
+```
+
+1. Search/filter interactively with fzf.
+2. **o** to open paper in browser.
+3. **Tab** to multi-select.
+4. **Enter** to copy `@citation_key` to clipboard.
+
+### 4. Open Papers
+
+```bash
+research open                # Browse all
+research open attention      # Filter and open
+```
+
+### 5. Use in Typst
+
+In any Typst document, reference the central bibliography:
+
+```typst
+// In /docs/my-paper/main.typ
+#set document(title: "My Paper")
+
+This is discussed in @Attention_Is_Al_Vaswan_2017.
+
+#bibliography("../../research/master.bib")
+```
+
+**Workflow:**
+1. `research cite attention` → copies `@Attention_Is_Al_Vaswan_2017`
+2. Paste into your `.typ` file
+3. Typst compiles with the reference
 
 ## Directory Structure
 
 ```
 research/
-├── library/            # Where papers live (one folder per paper)
-│   └── 2023-Author-Title/
+├── library/            # Papers (private, gitignored)
+│   └── <papis-id>/
 │       ├── info.yaml   # Metadata
-│       ├── paper.pdf   # The document
-│       └── main.typ    # Your notes/draft
+│       └── paper.pdf   # Document
+├── master.bib          # Bibliography (private, gitignored)
 ├── scripts/            # Python logic
-├── bin/                # Executable entry points
-└── papis.config        # Papis configuration
+│   ├── discover.py     # Paper search & download
+│   ├── add.py          # Quick add from DOI/arXiv
+│   ├── cite.py         # Citation search
+│   └── open.py         # Open in browser
+├── bin/                # Executable
+│   └── research        # CLI wrapper
+├── papis.config        # Papis configuration
+└── requirements.txt    # Python dependencies
 ```
+
+## License
+
+MIT

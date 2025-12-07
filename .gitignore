@@ -1,0 +1,14 @@
+# Private data - not shared publicly
+library/
+master.bib
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Logs
+*.log
+
+# OS
+.DS_Store

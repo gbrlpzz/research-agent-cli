@@ -966,3 +966,80 @@ Usage: papis add [OPTIONS] [FILES]...
 
 Error: No such option: --lib (Possible options: --git, --link)
 
+2025-12-07 22:19:07,327 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:07,327 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', 'test']
+2025-12-07 22:19:07,327 - INFO - Starting search for: test
+2025-12-07 22:19:07,328 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 22:19:07,328 - DEBUG - Headers: {}
+2025-12-07 22:19:07,328 - DEBUG - Payload: None
+2025-12-07 22:19:07,328 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-07 22:19:07,358 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-07 22:19:07,496 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10234d910>
+2025-12-07 22:19:07,496 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x102327890> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-07 22:19:07,617 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10233aaf0>
+2025-12-07 22:19:07,617 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-07 22:19:07,618 - DEBUG - send_request_headers.complete
+2025-12-07 22:19:07,618 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-07 22:19:07,618 - DEBUG - send_request_body.complete
+2025-12-07 22:19:07,618 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-07 22:19:09,073 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'44662'), (b'Connection', b'keep-alive'), (b'Date', b'Sun, 07 Dec 2025 21:19:08 GMT'), (b'x-amzn-Remapped-Date', b'Sun, 07 Dec 2025 21:19:08 GMT'), (b'x-amzn-RequestId', b'736ba84e-838c-4162-bd9c-ddf49c560ba4'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'44662'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VPJT9HiiPHcEHLA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 fd1922963c91836bd3bc6df1671c0612.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'YXIBSfibnGK-DygcUlzvxWtcLp0yTFIT7aXR2uvJbBF1w3wfQMzNzQ==')])
+2025-12-07 22:19:09,074 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-07 22:19:09,074 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-07 22:19:09,223 - DEBUG - receive_response_body.complete
+2025-12-07 22:19:09,224 - DEBUG - response_closed.started
+2025-12-07 22:19:09,224 - DEBUG - response_closed.complete
+2025-12-07 22:19:09,225 - DEBUG - close.started
+2025-12-07 22:19:09,225 - DEBUG - close.complete
+2025-12-07 22:19:09,232 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-07 22:19:09,233 - INFO - Invoking FZF subprocess with preview.
+2025-12-07 22:19:09,357 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:09,357 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:47,193 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:47,193 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '1', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:47,278 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:47,278 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:48,631 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:48,632 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '1', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:48,913 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:48,913 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '2', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:49,140 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:49,140 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '3', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:49,286 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:49,286 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '4', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:49,456 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:49,456 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '5', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:49,624 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:49,624 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '6', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:49,813 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:49,813 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '7', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:49,981 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:49,981 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '8', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:50,149 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:50,149 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '9', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:50,312 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:50,312 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '10', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:50,467 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:50,467 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '11', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:50,624 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:50,624 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '12', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:50,767 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:50,767 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '13', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:50,989 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:50,989 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '14', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:51,148 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:51,149 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '15', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:51,319 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:51,319 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '16', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:51,557 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:51,557 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '17', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:51,896 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:51,896 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '18', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:54,386 - DEBUG - Using selector: KqueueSelector
+2025-12-07 22:19:54,386 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research/scripts/discover.py', '--preview', '17', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn8bn_lo8.json']
+2025-12-07 22:19:54,471 - INFO - FZF finished. Parsing selections.
+2025-12-07 22:19:54,474 - INFO - Selected 1 papers: [('arxiv', '2501.19393')]
+2025-12-07 22:19:54,474 - INFO - Entering add_to_library loop.
+2025-12-07 22:19:54,475 - INFO - Adding: source=arxiv, id=2501.19393
+2025-12-07 22:19:54,476 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis --config /Users/gabriele/Documents/GitHub/research/papis.config -l main add --batch --from arxiv 2501.19393
+2025-12-07 22:20:00,885 - INFO - Finished adding 2501.19393. Return code: 0
+2025-12-07 22:20:01,008 - INFO - Updated master.bib
