@@ -4,7 +4,7 @@ import subprocess
 from pathlib import Path
 from semanticscholar import SemanticScholar
 from rich.console import Console
-from rich.progress import Progress
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
 
 console = Console()
 sch = SemanticScholar()
@@ -82,11 +82,18 @@ def add_to_library(urls):
 
     console.print(f"[bold]Selected {len(urls)} papers. Adding to library...[/bold]")
 
-    with Progress(console=console) as progress:
-        task = progress.add_task("[green]Processing...", total=len(urls))
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeRemainingColumn(),
+        console=console
+    ) as progress:
+        task = progress.add_task("[green]Starting...", total=len(urls))
         
         for url in urls:
-            progress.console.print(f"[dim]Adding {url}...[/dim]")
+            progress.update(task, description=f"[green]Adding {url}...[/green]")
             try:
                 # Run papis add
                 result = subprocess.run(
