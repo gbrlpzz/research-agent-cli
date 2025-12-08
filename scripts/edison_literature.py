@@ -421,13 +421,16 @@ def add_citations_to_library(citations: List[Dict]):
         except Exception as e:
             console.print(f"[red]✗[/red] Failed to add paper: {e}")
     
-    # Update master.bib
-    master_bib = repo_root / "master.bib"
-    if master_bib.exists():
-        master_bib.unlink()
-    export_cmd = [papis_cmd, "-l", "main", "export", "--all", "-f", "bibtex", "-o", str(master_bib)]
-    subprocess.run(export_cmd, capture_output=True, text=True, timeout=30)
-    console.print(f"\\n[green]✓[/green] Updated master.bib")
+    # Update master.bib safely
+    try:
+        sys.path.insert(0, str(repo_root / "scripts"))
+        from utils.sync_bib import sync_master_bib
+        if sync_master_bib():
+             console.print(f"\\n[green]✓[/green] Updated master.bib")
+        else:
+             console.print(f"\\n[red]✗[/red] Failed to update master.bib (see logs)")
+    except Exception as e:
+        console.print(f"\\n[red]✗[/red] Error updating master.bib: {e}")
 
 def main_query(query: str):
     """Main function for Edison literature query."""

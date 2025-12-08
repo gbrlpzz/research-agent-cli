@@ -64,6 +64,24 @@ def sync_master_bib():
             tmp_path.unlink()
             return False
 
+        # Create backup if master.bib exists
+        if MASTER_BIB.exists():
+            import time
+            timestamp = int(time.time())
+            backup_path = MASTER_BIB.with_suffix(f".bib.bak.{timestamp}")
+            shutil.copy2(str(MASTER_BIB), str(backup_path))
+            logging.info(f"Created backup: {backup_path}")
+            
+            # Clean up old backups (keep last 5)
+            backups = sorted(REPO_ROOT.glob("master.bib.bak.*"), key=lambda p: p.stat().st_mtime)
+            while len(backups) > 5:
+                oldest = backups.pop(0)
+                try:
+                    oldest.unlink()
+                    logging.info(f"Removed old backup: {oldest}")
+                except Exception as e:
+                    logging.warning(f"Failed to remove old backup {oldest}: {e}")
+
         # Atomic replacement
         shutil.move(str(tmp_path), str(MASTER_BIB))
         logging.info(f"Successfully updated {MASTER_BIB} ({MASTER_BIB.stat().st_size} bytes)")

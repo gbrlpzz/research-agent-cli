@@ -16,4 +16,4 @@ edison-client
 
 # PaperQA for question-answering on local library
 # pip install paper-qa
-paper-qa
+paper-qaqdrant-client

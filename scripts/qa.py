@@ -85,6 +85,121 @@ def setup_gemini_settings():
     return settings
 
 
+def get_vectordb_path(library_path):
+    """Get path to the Qdrant vector database."""
+    db_path = library_path / ".qa_vectordb"
+    db_path.mkdir(exist_ok=True)
+    return db_path
+
+
+def get_fingerprint_path(library_path):
+    """Get path to fingerprint file for cache invalidation."""
+    return library_path / ".qa_vectordb" / ".fingerprint"
+
+
+def get_pdf_fingerprint(pdf_files):
+    """Create a fingerprint of PDF files for cache invalidation."""
+    import hashlib
+    
+    # Sort by path and combine path + mtime for each file
+    fingerprint_data = []
+    for pdf in sorted(pdf_files, key=lambda p: str(p)):
+        try:
+            mtime = pdf.stat().st_mtime
+            fingerprint_data.append(f"{pdf}:{mtime}")
+        except:
+            fingerprint_data.append(str(pdf))
+    
+    return hashlib.md5("\n".join(fingerprint_data).encode()).hexdigest()
+
+
+def check_fingerprint_valid(library_path, expected_fingerprint):
+    """Check if stored fingerprint matches expected."""
+    fp_path = get_fingerprint_path(library_path)
+    if not fp_path.exists():
+        return False
+    try:
+        stored = fp_path.read_text().strip()
+        return stored == expected_fingerprint
+    except:
+        return False
+
+
+def save_fingerprint(library_path, fingerprint):
+    """Save fingerprint to disk."""
+    fp_path = get_fingerprint_path(library_path)
+    fp_path.parent.mkdir(exist_ok=True)
+    fp_path.write_text(fingerprint)
+
+
+def create_qdrant_docs(library_path, collection_name="research_papers"):
+    """Create a Docs object with Qdrant vector store for persistence."""
+    from paperqa import Docs
+    from paperqa.llms import QdrantVectorStore
+    from qdrant_client import AsyncQdrantClient
+    
+    db_path = get_vectordb_path(library_path)
+    
+    # Create persistent async Qdrant client (local file-based)
+    client = AsyncQdrantClient(path=str(db_path))
+    
+    # Create vector store with the persistent client
+    vector_store = QdrantVectorStore(
+        client=client,
+        collection_name=collection_name
+    )
+    
+    # Create Docs with the persistent vector store
+    docs = Docs(texts_index=vector_store)
+    
+    logging.info(f"Created Qdrant-backed Docs at {db_path}")
+    return docs
+
+
+def load_existing_docs(library_path, collection_name="research_papers"):
+    """Load existing Docs from persistent Qdrant store."""
+    from paperqa.llms import QdrantVectorStore
+    from qdrant_client import AsyncQdrantClient
+    import asyncio
+    
+    db_path = get_vectordb_path(library_path)
+    
+    try:
+        # Create persistent async Qdrant client
+        client = AsyncQdrantClient(path=str(db_path))
+        
+        # Use the built-in load_docs classmethod to restore full Docs state
+        async def async_load():
+            return await QdrantVectorStore.load_docs(
+                client=client,
+                collection_name=collection_name
+            )
+        
+        try:
+            # Try to run the async load
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Can't block in running loop - skip loading
+                logging.info("Event loop already running, cannot load synchronously")
+                return None
+            else:
+                docs = loop.run_until_complete(async_load())
+        except RuntimeError:
+            # No event loop - create one
+            docs = asyncio.run(async_load())
+        
+        if docs and docs.docnames:
+            logging.info(f"Loaded Docs with {len(docs.docnames)} documents from Qdrant")
+            return docs
+        else:
+            logging.info("No documents found in Qdrant store")
+            return None
+            
+    except Exception as e:
+        logging.warning(f"Failed to load existing Qdrant store: {e}")
+        return None
+
+
 def answer_question(question, library_path, filter_pattern=None):
     """Answer a question using papers in the library.
     
@@ -97,9 +212,6 @@ def answer_question(question, library_path, filter_pattern=None):
     
     # Setup settings
     settings = setup_gemini_settings()
-    
-    # Create Docs object
-    docs = Docs()
     
     # Find all PDFs in library
     all_pdf_files = list(library_path.rglob("*.pdf"))
@@ -130,25 +242,48 @@ def answer_question(question, library_path, filter_pattern=None):
     
     console.print(f"\n[dim]Found {len(pdf_files)} PDFs in library[/dim]")
     
-    # Index PDFs with progress
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
-    ) as progress:
-        task = progress.add_task("[cyan]Indexing library (first time is slow)...", total=len(pdf_files))
-        
-        for pdf_path in pdf_files:
-            try:
-                logging.debug(f"Adding PDF: {pdf_path}")
-                docs.add(pdf_path, settings=settings)
-                progress.advance(task)
-            except Exception as e:
-                logging.error(f"Error adding {pdf_path}: {e}", exc_info=True)
-                # Silently skip failed papers - user doesn't need to see each failure
-                progress.advance(task)
+    # Check for persistent vector store (only for non-filtered queries)
+    fingerprint = get_pdf_fingerprint(pdf_files)
     
-    console.print("[green]✓ Library indexed[/green]\n")
+    docs = None
+    if not filter_pattern:
+        # Try to load existing Qdrant store
+        if check_fingerprint_valid(library_path, fingerprint):
+            docs = load_existing_docs(library_path)
+            if docs:
+                console.print("[green]✓ Using persistent vector store (instant!)[/green]\n")
+    
+    if not docs:
+        # Need to (re)index - create new Qdrant-backed Docs
+        if filter_pattern:
+            # For filtered queries, use in-memory (can't easily filter persistent store)
+            from paperqa import Docs
+            docs = Docs()
+        else:
+            # Create persistent Qdrant store
+            docs = create_qdrant_docs(library_path)
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task("[cyan]Indexing library (first time is slow)...", total=len(pdf_files))
+            
+            for pdf_path in pdf_files:
+                try:
+                    logging.debug(f"Adding PDF: {pdf_path}")
+                    docs.add(pdf_path, settings=settings)
+                    progress.advance(task)
+                except Exception as e:
+                    logging.error(f"Error adding {pdf_path}: {e}", exc_info=True)
+                    # Silently skip failed papers - user doesn't need to see each failure
+                    progress.advance(task)
+        
+        # Save fingerprint for next time (only for non-filtered)
+        if not filter_pattern:
+            save_fingerprint(library_path, fingerprint)
+        console.print("[green]✓ Library indexed and stored in vector DB[/green]\n")
     
     # Query
     with console.status("[bold cyan]Querying library with Gemini 2.5 Flash..."):
@@ -249,7 +384,6 @@ def interactive_chat(library_path, filter_pattern=None, export_dir=None):
     
     # Setup
     settings = setup_gemini_settings()
-    docs = Docs()
     
     # Index library (same logic as answer_question)
     all_pdf_files = list(library_path.rglob("*.pdf"))
@@ -263,17 +397,37 @@ def interactive_chat(library_path, filter_pattern=None, export_dir=None):
         pdf_files = all_pdf_files
         console.print(f"[dim]Found {len(pdf_files)} PDFs[/dim]")
     
-    # Index
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-        task = progress.add_task("[cyan]Indexing library...", total=len(pdf_files))
-        for pdf in pdf_files:
-            try:
-                docs.add(pdf, settings=settings)
-            except:
-                pass
-            progress.advance(task)
+    # Check for persistent vector store (only for non-filtered queries)
+    fingerprint = get_pdf_fingerprint(pdf_files)
     
-    console.print("[green]✓ Ready for questions[/green]\n")
+    docs = None
+    if not filter_pattern:
+        # Try to load existing Qdrant store
+        if check_fingerprint_valid(library_path, fingerprint):
+            docs = load_existing_docs(library_path)
+            if docs:
+                console.print("[green]✓ Using persistent vector store (instant!)[/green]\n")
+    
+    if not docs:
+        # Need to (re)index
+        if filter_pattern:
+            docs = Docs()
+        else:
+            docs = create_qdrant_docs(library_path)
+        
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+            task = progress.add_task("[cyan]Indexing library...", total=len(pdf_files))
+            for pdf in pdf_files:
+                try:
+                    docs.add(pdf, settings=settings)
+                except:
+                    pass
+                progress.advance(task)
+        
+        # Save fingerprint (only for non-filtered)
+        if not filter_pattern:
+            save_fingerprint(library_path, fingerprint)
+        console.print("[green]✓ Library indexed and stored in vector DB[/green]\n")
     
     # Chat loop
     while True:
