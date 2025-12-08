@@ -384,14 +384,18 @@ def add_to_library(items):
                     logging.debug(f"Stdout: {result.stdout.strip()}")
                     progress.console.print(f"[dim]{result.stdout.strip()}[/dim]")
                 
-                # Export all bibtex entries to master.bib
-                master_bib = repo_root / "master.bib"
-                if master_bib.exists():
-                    master_bib.unlink()
-                export_cmd = [papis_cmd, "-l", "main", "export", "--all", "-f", "bibtex", "-o", str(master_bib)]
-                subprocess.run(export_cmd, capture_output=True, text=True, timeout=30)
-                logging.info(f"Updated master.bib")
-                
+                # Safe export to master.bib
+                try:
+                    sys.path.insert(0, str(repo_root / "scripts"))
+                    from utils.sync_bib import sync_master_bib
+                    if sync_master_bib():
+                         logging.info(f"Updated master.bib")
+                    else:
+                         logging.error("Failed to update master.bib")
+                         progress.console.print("[yellow]Warning: Failed to update master.bib[/yellow]")
+                except Exception as ex:
+                    logging.error(f"Error calling sync_master_bib: {ex}")
+
             except subprocess.TimeoutExpired:
                 logging.error(f"Timeout expired for {identifier}")
                 progress.console.print(f"[bold red]Timeout adding {identifier}[/bold red]")

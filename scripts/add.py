@@ -48,13 +48,18 @@ def add_paper(source, identifier):
         if result.returncode == 0:
             print("✓ Added successfully")
             
-            # Export to master.bib (delete first to prevent duplicates)
-            master_bib = REPO_ROOT / "master.bib"
-            if master_bib.exists():
-                master_bib.unlink()
-            export_cmd = [str(PAPIS_CMD), "-l", "main", "export", "--all", "-f", "bibtex", "-o", str(master_bib)]
-            subprocess.run(export_cmd, capture_output=True, text=True, timeout=30)
-            print("✓ Updated master.bib")
+            # Safe export to master.bib
+            try:
+                # Import utility dynamically to avoid path issues if run from different CWD
+                sys.path.insert(0, str(REPO_ROOT / "scripts"))
+                from utils.sync_bib import sync_master_bib
+                if sync_master_bib():
+                    print("✓ Updated master.bib")
+                else:
+                    print("✗ Failed to update master.bib (check logs)")
+            except Exception as e:
+                 print(f"✗ Error updating master.bib: {e}")
+
         else:
             print(f"✗ Failed: {result.stderr.strip()}")
     except subprocess.TimeoutExpired:
