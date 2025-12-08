@@ -8,8 +8,8 @@ PYTHON="$VENV/bin/python"
 # Show usage if no args
 if [ -z "$1" ]; then
     echo "Usage:"
-    echo "  research <query>              Search Semantic Scholar and add papers"
-    echo "  research exa <query>          Search with Exa.ai (semantic search, costs credits)"
+    echo "  research <query>              Unified multi-source search (S2 + paper-scraper)"
+    echo "  research exa <query>          Semantic search with Exa.ai (costs credits)"
     echo "  research edison <query>       AI literature synthesis (costs 1 credit)"
     echo "  research edison list          Browse past Edison reports"
     echo "  research edison show <id>     View specific report"
@@ -18,14 +18,15 @@ if [ -z "$1" ]; then
     echo "  research add [id]             Quick add from DOI/arXiv (or clipboard)"
     echo "  research cite [query]         Search library and copy citation keys"
     echo "  research open [query]         Search library and open paper in browser"
+    echo "  research help                 Show interactive tutorial with examples"
     echo ""
     echo "Examples:"
     echo "  research \"attention mechanism\"         # Find papers about attention"
     echo "  research exa \"reasoning in LLMs\"       # Semantic search with Exa.ai"
     echo "  research edison \"few-shot learning\"   # AI synthesis (1 credit)"
-    echo "  research edison list                   # Browse past reports"
     echo "  research add 10.1234/example           # Add paper by DOI"
     echo "  research cite egger                    # Find citations by Egger"
+    echo "  research help                          # Interactive tutorial"
     exit 0
 fi
 
@@ -76,6 +77,9 @@ case "$1" in
     open)
         shift
         "$PYTHON" "$REPO_ROOT/scripts/open.py" "$@"
+        ;;
+    help|--help|-h)
+        "$PYTHON" "$REPO_ROOT/scripts/help.py"
         ;;
     *)
         # Default: search papers

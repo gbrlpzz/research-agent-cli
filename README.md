@@ -89,6 +89,7 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 | `research add [id]` | Quick add from DOI/arXiv | - | Free |
 | `research cite [query]` | Search library, copy citation keys | - | Free |
 | `research open [query>` | Open paper in browser | - | Free |
+| `research help` | Interactive tutorial with examples | - | Free |
 
 **Source Codes**: S2 = Semantic Scholar, PS = paper-scraper (PubMed, arXiv, bioRxiv, Springer)
 
