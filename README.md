@@ -23,7 +23,7 @@ This project coordinates the following tools and libraries:
 | **Search** | **Semantic Scholar API** | Primary academic graph search (~200M papers). | [semanticscholar/semanticscholar](https://github.com/allenai/semanticscholar) |
 | | **Exa.ai SDK** | Neural/semantic search for concept-based queries. | [exa-labs/exa-py](https://github.com/exa-labs/exa-py) |
 | | **Paper-Scraper** | Scraper for PubMed, bioRxiv, Springer, etc. | [blackadad/paper-scraper](https://github.com/blackadad/paper-scraper) |
-| **RAG & AI** | **PaperQA** | ORM for RAG; handles indexing, citation, and prompting. | [whitead/paper-qa](https://github.com/whitead/paper-qa) |
+| **RAG & AI** | **PaperQA** | ORM for RAG; handles indexing, citation, and prompting. | [Future-House/paper-qa](https://github.com/Future-House/paper-qa) |
 | | **Qdrant** | Local vector database for persistent embeddings. | [qdrant/qdrant-client](https://github.com/qdrant/qdrant-client) |
 | | **Google Gemini** | LLM (2.5 Flash) and Embeddings (`text-embedding-004`). | [google/generative-ai-python](https://github.com/google/generative-ai-python) |
 
@@ -95,17 +95,22 @@ research add 1706.03762
 research cite "attention"
 ```
 
-### Knowledge Retrieval (RAG)
-Query your local library. The system creates a persistent vector index in `library/.qa_vectordb`.
+### Knowledge Retrieval (Q&A)
+Query your local library using Retrieval Augmented Generation (RAG).
+
+**Features:**
+- **Zero-Latency**: Uses a local **Qdrant** vector database (stored in `library/.qa_vectordb`) for instant queries.
+- **Smart Indexing**: Automatically re-indexes only when you add or modify PDFs.
+- **Gemini 2.5**: Powered by Google's latest Gemini 2.5 Flash model for high-speed, accurate reasoning.
 
 ```bash
-# Single shot question
+# Single shot question (instant results after first run)
 research qa "How does the attention mechanism differ from RNNs?"
 
-# Interactive chat session
+# Interactive chat session (persists context)
 research qa --chat
 
-# Filter context to specific papers
+# Filter context to specific papers (works with instant search)
 research qa --papers "vaswani" "Explain the transformer architecture"
 ```
 
@@ -128,4 +133,13 @@ research-agent-cli/
 
 ## License
 Apache 2.0
+
+## Changelog
+
+### v0.2.0 - Gemini & Persistence Update
+- **Feature**: Replaced in-memory indexing with **Qdrant** persistent vector storage (`library/.qa_vectordb`).
+- **Performance**: Instant query responses on subsequent runs.
+- **Model**: Upgraded default LLM to **Gemini 2.5 Flash** (Dec 2025).
+- **UX**: Completely silenced verbose logs; added clean progress spinners.
+- **Setup**: Removed OpenAI dependency; now fully usable with just `GEMINI_API_KEY`.
 

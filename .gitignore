@@ -1,6 +1,8 @@
 # Private data - not shared publicly
 library/
 master.bib
+master.bib.bak.1765201959
+master.bib.bak.*
 
 # Environment variables
 .env
