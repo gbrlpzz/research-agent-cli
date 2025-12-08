@@ -99,7 +99,3 @@ See [docs/architecture.md](docs/architecture.md) for a detailed breakdown of the
 - `reports/`: Generated research outputs.
 - `docs/`: Documentation.
 - `templates/`: Typst templates for document generation.
-
-## 📄 License
-
-[MIT](LICENSE)
