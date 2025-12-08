@@ -3,3 +3,6 @@ exa_py
 python-dotenv
 rich
 papis
+# edison-client (may need: uv pip install edison-client OR install from GitHub)
+# If not on PyPI, install with: pip install git+https://github.com/Future-House/edison-client.git
+edison-client

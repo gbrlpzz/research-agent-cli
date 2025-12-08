@@ -8,26 +8,48 @@ PYTHON="$VENV/bin/python"
 # Show usage if no args
 if [ -z "$1" ]; then
     echo "Usage:"
-    echo "  research <query>        Search Semantic Scholar and add papers"
-    echo "  research exa <query>    Search with Exa.ai (semantic search, costs credits)"
-    echo "  research add [id]       Quick add from DOI/arXiv (or clipboard)"
-    echo "  research cite [query]   Search library and copy citation keys"
-    echo "  research open [query]   Search library and open paper in browser"
+    echo "  research <query>              Search Semantic Scholar and add papers"
+    echo "  research exa <query>          Search with Exa.ai (semantic search, costs credits)"
+    echo "  research edison <query>       AI literature synthesis (costs 1 credit)"
+    echo "  research edison list          Browse past Edison reports"
+    echo "  research edison show <id>     View specific report"
+    echo "  research edison cache <query> Check if query cached"
+    echo "  research edison credits       Show credit balance"
+    echo "  research add [id]             Quick add from DOI/arXiv (or clipboard)"
+    echo "  research cite [query]         Search library and copy citation keys"
+    echo "  research open [query]         Search library and open paper in browser"
     echo ""
     echo "Examples:"
-    echo "  research \"attention mechanism\"    # Find papers about attention"
-    echo "  research exa \"reasoning in LLMs\"  # Semantic search with Exa.ai"
-    echo "  research add 10.1234/example      # Add paper by DOI"
-    echo "  research add 2301.00001           # Add paper by arXiv ID"
-    echo "  research add                      # Add from clipboard"
-    echo "  research cite                     # Browse all citations"
-    echo "  research cite egger               # Find citations by Egger"
-    echo "  research open attention           # Open attention paper in browser"
+    echo "  research \"attention mechanism\"         # Find papers about attention"
+    echo "  research exa \"reasoning in LLMs\"       # Semantic search with Exa.ai"
+    echo "  research edison \"few-shot learning\"   # AI synthesis (1 credit)"
+    echo "  research edison list                   # Browse past reports"
+    echo "  research add 10.1234/example           # Add paper by DOI"
+    echo "  research cite egger                    # Find citations by Egger"
     exit 0
 fi
 
 # Handle subcommands
 case "$1" in
+    edison)
+        shift
+        # Edison has sub-subcommands: query (default), list, show, cache, credits
+        if [ -z "$1" ]; then
+            echo "Usage: research edison <query|list|show|cache|credits>"
+            exit 1
+        fi
+        
+        case "$1" in
+            list|show|cache|credits)
+                # v2 features - pass subcommand to Edison script
+                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" "--$1" "${@:2}"
+                ;;
+            *)
+                # Default: treat as query
+                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" "$@"
+                ;;
+        esac
+        ;;
     exa)
         shift
         "$PYTHON" "$REPO_ROOT/scripts/exa_search.py" "$@"
