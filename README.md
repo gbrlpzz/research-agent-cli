@@ -60,14 +60,23 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
       ```
     - **Cost**: Free tier provides 10 credits/month (students get 210 credit bonus)
 
-5.  Link the executable to your path:
+5.  **(Optional) Set up Gemini for question-answering:**
+    - Get your free API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+    - Add to `.env` file:
+      ```bash
+      echo "GEMINI_API_KEY=your_key_here" >> .env
+      ```
+    - **Cost**: Free tier with generous quota (Gemini 2.0 Flash)
+    - **Usage**: Powers `research qa` for answering questions about your library
+
+6.  Link the executable to your path:
     ```bash
     mkdir -p ~/.local/bin
     ln -s $(pwd)/bin/research ~/.local/bin/research
     ```
     *Ensure `~/.local/bin` is in your `$PATH`.*
 
-6.  Copy papis config to system location:
+7.  Copy papis config to system location:
     ```bash
     mkdir -p ~/Library/Application\ Support/papis
     cp papis.config ~/Library/Application\ Support/papis/config
@@ -89,9 +98,11 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 | `research add [id]` | Quick add from DOI/arXiv | - | Free |
 | `research cite [query]` | Search library, copy citation keys | - | Free |
 | `research open [query>` | Open paper in browser | - | Free |
+| `research qa <question>` | Ask questions about your library | Gemini | Free* |
 | `research help` | Interactive tutorial with examples | - | Free |
 
-**Source Codes**: S2 = Semantic Scholar, PS = paper-scraper (PubMed, arXiv, bioRxiv, Springer)
+**Source Codes**: S2 = Semantic Scholar, PS = paper-scraper (PubMed, arXiv, bioRxiv, Springer)  
+**Free***: Requires free Gemini API key (generous quota)
 
 ### 1. Discovery - Unified Multi-Source Search
 

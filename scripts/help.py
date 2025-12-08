@@ -65,6 +65,18 @@ def show_help():
     console.print(management_table)
     console.print()
     
+    # Q&A Commands
+    qa_table = Table(title="🤖 Question Answering (PaperQA + Gemini)", show_header=True, header_style="bold cyan")
+    qa_table.add_column("Command", style="cyan", width=30)
+    qa_table.add_column("Description", style="white")
+    
+    qa_table.add_row(
+        "research qa <question>",
+        "Ask questions about your library\nUses Gemini 2.0 Flash (free tier)"
+    )
+    console.print(qa_table)
+    console.print()
+    
     # Edison Commands
     edison_table = Table(title="🤖 Edison Scientific", show_header=True, header_style="bold blue")
     edison_table.add_column("Command", style="cyan", width=30)
@@ -89,7 +101,11 @@ def show_help():
         "   research cite vaswani\n"
         "   [dim]# Press Enter to copy @citation_key[/dim]\n\n"
         "[cyan]4. AI synthesis:[/cyan]\n"
-        "   research edison \"What are transformers?\"\n",
+        "   research edison \"What are transformers?\"\n"
+        "\n"
+        "[cyan]5. Ask your library:[/cyan]\n"
+        "   research qa \"How does attention work?\"\n"
+        "   [dim]# Requires GEMINI_API_KEY in .env[/dim]\n",
         title="Examples",
         border_style="yellow"
     ))

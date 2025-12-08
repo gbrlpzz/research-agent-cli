@@ -13,3 +13,7 @@ edison-client
 # MUST be installed separately from GitHub:
 # pip install git+https://github.com/blackadad/paper-scraper.git
 # Note: Uses web scraping (legal grey area). Disclaimer shown on first use.
+
+# PaperQA for question-answering on local library
+# pip install paper-qa
+paper-qa

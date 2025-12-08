@@ -18,6 +18,7 @@ if [ -z "$1" ]; then
     echo "  research add [id]             Quick add from DOI/arXiv (or clipboard)"
     echo "  research cite [query]         Search library and copy citation keys"
     echo "  research open [query]         Search library and open paper in browser"
+    echo "  research qa <question>        Ask questions about your library (uses Gemini)"
     echo "  research help                 Show interactive tutorial with examples"
     echo ""
     echo "Examples:"
@@ -77,6 +78,10 @@ case "$1" in
     open)
         shift
         "$PYTHON" "$REPO_ROOT/scripts/open.py" "$@"
+        ;;
+    qa)
+        shift
+        "$PYTHON" "$REPO_ROOT/scripts/qa.py" "$@"
         ;;
     help|--help|-h)
         "$PYTHON" "$REPO_ROOT/scripts/help.py"
