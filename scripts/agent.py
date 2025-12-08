@@ -581,44 +581,47 @@ SYSTEM_PROMPT = """You are an autonomous research agent that produces academic T
 
 ## Available Tools
 
-### 1. discover_papers(query, limit)
+### 1. query_library(question, paper_filter)
+RAG Q&A using PaperQA2 with persistent Qdrant index.
+- START HERE to see what knowledge exists in the library
+- Returns detailed answers with citations from indexed papers
+- Use first to understand current knowledge, then identify gaps
+
+### 2. list_library()
+Show all papers in the library.
+- Check what papers are available before searching for more
+
+### 3. discover_papers(query, limit)
 Search Semantic Scholar + paper-scraper for papers.
-- Use FIRST to find relevant papers
+- Use AFTER querying library to fill knowledge gaps
 - Returns: title, authors, year, abstract, arxiv_id, doi, citations
 - Prioritize high-citation and recent papers
 
-### 2. exa_search(query, limit)  
+### 4. exa_search(query, limit)  
 Neural search via Exa.ai. ⚠️ COSTS CREDITS!
 - Only use when discover_papers doesn't find enough
 - Good for conceptual/semantic queries
 
-### 3. add_paper(identifier, source)
+### 5. add_paper(identifier, source)
 Download paper to library by arXiv ID or DOI.
 - Updates master.bib automatically
 - Add 5-10 MOST RELEVANT papers only
 
-### 4. query_library(question, paper_filter)
-RAG Q&A using PaperQA2 with persistent Qdrant index.
-- Returns detailed answers with citations
-- Use AFTER adding papers
-
-### 5. fuzzy_cite(query)
+### 6. fuzzy_cite(query)
 Find @citation_keys for papers in library.
 - Fuzzy matches author, title, year
 - Returns keys to use in document
 
-### 6. list_library()
-Show all papers in the library.  
-- Check before adding duplicates
+## Workflow (ITERATIVE - RAG First)
 
-## Workflow
-
-1. **Explore**: list_library() to see existing papers
-2. **Search**: discover_papers() with 2-3 queries
-3. **Acquire**: add_paper() for 5-8 best papers
-4. **Research**: query_library() with specific questions
-5. **Cite**: fuzzy_cite() to get correct @keys
-6. **Write**: Output complete Typst document
+1. **Query First**: query_library() with the main topic to see existing knowledge
+2. **Identify Gaps**: Based on the answer, identify what's missing
+3. **Search**: discover_papers() for specific gaps
+4. **Acquire**: add_paper() for the most relevant papers found
+5. **Query Again**: query_library() with more specific questions
+6. **Repeat** steps 2-5 until you have comprehensive coverage
+7. **Cite**: fuzzy_cite() to get correct @keys for papers you'll reference
+8. **Write**: Output complete Typst document
 
 ## Output Format
 
@@ -629,7 +632,7 @@ Show all papers in the library.
   title: "Your Title",
   subtitle: "A Research Report",
   authors: ("Research Agent",),
-  date: "December 2025",
+  date: "CURRENT_DATE",
   abstract: [
     Concise abstract summarizing topic and findings.
   ]
@@ -669,12 +672,18 @@ def run_agent(topic: str) -> str:
     global _used_citation_keys
     _used_citation_keys = set()  # Reset for new run
     
+    # Get current date for the document
+    current_date = datetime.now().strftime("%B %Y")
+    
     console.print(Panel(
         f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
         f"[white]{topic}[/white]\n\n"
         f"[dim]Model: {AGENT_MODEL}[/dim]",
         border_style="cyan"
     ))
+    
+    # Inject current date into system prompt
+    system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date)
     
     contents = [
         types.Content(
@@ -683,11 +692,15 @@ def run_agent(topic: str) -> str:
 
 TOPIC: {topic}
 
-1. Start by checking existing library papers
-2. Search for and add relevant papers
-3. Query the library to synthesize information
-4. Use fuzzy_cite to get correct citation keys
-5. Output a complete Typst document with proper @citations""")]
+IMPORTANT - Follow the RAG-First workflow:
+1. FIRST query_library() with the main topic to see what knowledge already exists
+2. Identify gaps in the existing knowledge
+3. discover_papers() to find papers addressing those gaps
+4. add_paper() for the most relevant papers
+5. query_library() again with more specific questions
+6. Repeat until comprehensive
+7. fuzzy_cite() to get @citation_keys
+8. Output complete Typst document (use date: "{current_date}")""")]
         )
     ]
     
@@ -705,7 +718,7 @@ TOPIC: {topic}
                     model=AGENT_MODEL,
                     contents=contents,
                     config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT,
+                        system_instruction=system_prompt_with_date,
                         tools=TOOLS
                     )
                 )
