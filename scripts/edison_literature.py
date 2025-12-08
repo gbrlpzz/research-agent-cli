@@ -471,9 +471,153 @@ def main_query(query: str):
     console.print("\\n[bold green]✓ Complete![/bold green]")
 
 if __name__ == "__main__":
+    logging.info(f"Edison search script started with args: {sys.argv}")
+    
+    # Handle v2 subcommands
+    if len(sys.argv) >= 2:
+        if sys.argv[1] == '--list':
+            # List all reports
+            if not reports_index_file.exists():
+                console.print("[yellow]No reports found.[/yellow]")
+                console.print(f"Reports will be saved to: {reports_dir}")
+                sys.exit(0)
+            
+            with open(reports_index_file, 'r') as f:
+                index = json.load(f)
+            
+            if not index:
+                console.print("[yellow]No reports found.[/yellow]")
+                sys.exit(0)
+            
+            console.print(f"[bold]Edison Literature Reports ({len(index)} total)[/bold]\n")
+            
+            # Prepare for fzf
+            fzf_input = []
+            for idx, report in enumerate(index):
+                timestamp = datetime.fromisoformat(report['timestamp']) 
+                time_str = timestamp.strftime("%Y-%m-%d %H:%M")
+                papers = report.get('papers_found', 0)
+                tables = report.get('tables_found', 0)
+                query = report['query'][:60]
+                
+                display = f"{idx}|{time_str} | {papers:2}p {tables:1}t | {query}"
+                fzf_input.append(display)
+            
+            # Use fzf to select report
+            try:
+                fzf = subprocess.Popen(
+                    ['fzf', '--header', 'Select report to view | ENTER: Open'],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    text=True
+                )
+                stdout, _ = fzf.communicate(input="\n".join(fzf_input))
+                
+                if stdout.strip():
+                    idx = int(stdout.split('|')[0])
+                    report = index[idx]
+                    report_path = reports_dir / report['report_file']
+                    
+                    # Display report
+                    if report_path.exists():
+                        content = report_path.read_text()
+                        console.print(Markdown(content))
+                    else:
+                        console.print(f"[red]Report file not found:[/red] {report['report_file']}")
+                        
+            except FileNotFoundError:
+                console.print("[bold red]Error:[/bold red] fzf not found")
+                # Fallback: just list them
+                for idx, report in enumerate(index):
+                    console.print(f"{idx}: {report['query']} ({report['timestamp']})")
+            
+            sys.exit(0)
+            
+        elif sys.argv[1] == '--show':
+            # Show specific report by ID
+            if len(sys.argv) < 3:
+                console.print("[red]Usage:[/red] research edison show <id>")
+                sys.exit(1)
+            
+            try:
+                report_id = int(sys.argv[2])
+            except ValueError:
+                console.print(f"[red]Invalid report ID:[/red] {sys.argv[2]}")
+                sys.exit(1)
+            
+            if not reports_index_file.exists():
+                console.print("[yellow]No reports found.[/yellow]")
+                sys.exit(0)
+            
+            with open(reports_index_file, 'r') as f:
+                index = json.load(f)
+            
+            if report_id < 0 or report_id >= len(index):
+                console.print(f"[red]Report ID out of range.[/red] Valid: 0-{len(index)-1}")
+                sys.exit(1)
+            
+            report = index[report_id]
+            report_path = reports_dir / report['report_file']
+            
+            if report_path.exists():
+                content = report_path.read_text()
+                console.print(Markdown(content))
+            else:
+                console.print(f"[red]Report file not found:[/red] {report['report_file']}")
+            
+            sys.exit(0)
+            
+        elif sys.argv[1] == '--cache':
+            # Check if query has been cached
+            if len(sys.argv) < 3:
+                console.print("[red]Usage:[/red] research edison cache <query>")
+                sys.exit(1)
+            
+            query = " ".join(sys.argv[2:])
+            
+            if not reports_index_file.exists():
+                console.print(f"[yellow]Query not cached:[/yellow] {query}")
+                sys.exit(0)
+            
+            with open(reports_index_file, 'r') as f:
+                index = json.load(f)
+            
+            # Fuzzy match queries (case-insensitive)
+            matches = []
+            query_lower = query.lower()
+            for idx, report in enumerate(index):
+                if query_lower in report['query'].lower():
+                    matches.append((idx, report))
+            
+            if not matches:
+                console.print(f"[yellow]Query not cached:[/yellow] {query}")
+                console.print("Run query to generate new report.")
+            else:
+                console.print(f"[green]Found {len(matches)} cached report(s):[/green]\n")
+                for idx, report in matches:
+                    timestamp = datetime.fromisoformat(report['timestamp'])
+                    time_str = timestamp.strftime("%Y-%m-%d %H:%M")
+                    console.print(f"  [{idx}] {time_str}: {report['query']}")
+                console.print(f"\nView with: [cyan]research edison show <id>[/cyan]")
+            
+            sys.exit(0)
+            
+        elif sys.argv[1] == '--credits':
+            console.print("[yellow]ℹ️  Credit balance feature not yet implemented[/yellow]")
+            console.print("Edison API doesn't provide a balance endpoint yet.")
+            console.print("Monitor your usage at: https://platform.edisonscientific.com")
+            sys.exit(0)
+    
     if len(sys.argv) < 2:
         console.print("Usage: research edison <query>")
         sys.exit(1)
     
     query = " ".join(sys.argv[1:])
+    
+    # Safeguard against accidental flag processing as query
+    if query.startswith("-"):
+        console.print(f"[bold red]Invalid query:[/bold red] {query}")
+        console.print("Usage: research edison <query>")
+        sys.exit(1)
+
     main_query(query)

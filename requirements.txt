@@ -3,6 +3,13 @@ exa_py
 python-dotenv
 rich
 papis
+
+# Edison Scientific client
 # edison-client (may need: uv pip install edison-client OR install from GitHub)
 # If not on PyPI, install with: pip install git+https://github.com/Future-House/edison-client.git
 edison-client
+
+# Paper-scraper for multi-publisher search (PubMed, arXiv, bioRxiv, Springer)
+# MUST be installed separately from GitHub:
+# pip install git+https://github.com/blackadad/paper-scraper.git
+# Note: Uses web scraping (legal grey area). Disclaimer shown on first use.

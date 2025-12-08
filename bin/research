@@ -33,16 +33,27 @@ fi
 case "$1" in
     edison)
         shift
-        # Edison has sub-subcommands: query (default), list, show, cache, credits
+        # Check if first arg is a subcommand or a query
         if [ -z "$1" ]; then
             echo "Usage: research edison <query|list|show|cache|credits>"
             exit 1
         fi
         
+        # Check if it's a subcommand (starts with no quotes, matches known commands)
         case "$1" in
-            list|show|cache|credits)
-                # v2 features - pass subcommand to Edison script
-                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" "--$1" "${@:2}"
+            list)
+                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" --list
+                ;;
+            show)
+                shift
+                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" --show "$@"
+                ;;
+            cache)
+                shift
+                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" --cache "$@"
+                ;;
+            credits)
+                "$PYTHON" "$REPO_ROOT/scripts/edison_literature.py" --credits
                 ;;
             *)
                 # Default: treat as query

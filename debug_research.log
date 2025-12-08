@@ -1071,3 +1071,434 @@ Error: No such option: --lib (Possible options: --git, --link)
 2025-12-08 13:37:48,529 - INFO - Invoking FZF subprocess with preview.
 2025-12-08 13:37:48,661 - DEBUG - Using selector: KqueueSelector
 2025-12-08 13:37:48,661 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn_sxctj9.json']
+2025-12-08 14:02:24,656 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:02:24,656 - INFO - Script started with args: ['scripts/discover.py', 'attention mechanism']
+2025-12-08 14:02:24,656 - INFO - Starting unified multi-source search for: attention mechanism
+2025-12-08 14:02:24,657 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention mechanism&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:02:24,657 - DEBUG - Headers: {}
+2025-12-08 14:02:24,657 - DEBUG - Payload: None
+2025-12-08 14:02:24,657 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention mechanism&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:02:24,689 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:02:24,776 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1090e8910>
+2025-12-08 14:02:24,776 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1090a52e0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:02:24,796 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10395a890>
+2025-12-08 14:02:24,797 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:02:24,797 - DEBUG - send_request_headers.complete
+2025-12-08 14:02:24,797 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:02:24,797 - DEBUG - send_request_body.complete
+2025-12-08 14:02:24,797 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:02:25,381 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:02:25 GMT'), (b'x-amz-apigw-id', b'VRTfQFrAPHcESTg='), (b'x-amzn-RequestId', b'49b82823-3a81-4af7-9ae8-43046851faa5'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 b61152e740e230075fb9605e656b9520.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'JxWOz4rjVuDiQ0bblWWfJwOKLidIo5-DgYJ8DZErerhtqq5v0byDDw==')])
+2025-12-08 14:02:25,382 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+mechanism&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-08 14:02:25,382 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:02:25,382 - DEBUG - receive_response_body.complete
+2025-12-08 14:02:25,382 - DEBUG - response_closed.started
+2025-12-08 14:02:25,382 - DEBUG - response_closed.complete
+2025-12-08 14:02:25,382 - DEBUG - close.started
+2025-12-08 14:02:25,382 - DEBUG - close.complete
+2025-12-08 14:02:55,384 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention mechanism&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:02:55,384 - DEBUG - Headers: {}
+2025-12-08 14:02:55,384 - DEBUG - Payload: None
+2025-12-08 14:02:55,384 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention mechanism&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:02:55,395 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:02:55,417 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x109222510>
+2025-12-08 14:02:55,417 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1090a56d0> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:02:55,442 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x105de68d0>
+2025-12-08 14:02:55,442 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:02:55,442 - DEBUG - send_request_headers.complete
+2025-12-08 14:02:55,442 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:02:55,442 - DEBUG - send_request_body.complete
+2025-12-08 14:02:55,442 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:02:55,630 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:02:55 GMT'), (b'x-amz-apigw-id', b'VRTj_EbVvHcEAXQ='), (b'x-amzn-RequestId', b'b54304dd-92a4-4262-87e7-421aadbc43ce'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 65678b013de2c2e6c05b27f6ecb2d78a.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'u0fZuU5QhGrSvjD7G45H_UGFO7CCpcj20wqDaXKFSNs2RckQHlX6CA==')])
+2025-12-08 14:02:55,631 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+mechanism&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-08 14:02:55,631 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:02:55,631 - DEBUG - receive_response_body.complete
+2025-12-08 14:02:55,631 - DEBUG - response_closed.started
+2025-12-08 14:02:55,631 - DEBUG - response_closed.complete
+2025-12-08 14:02:55,632 - DEBUG - close.started
+2025-12-08 14:02:55,632 - DEBUG - close.complete
+2025-12-08 14:05:34,879 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:05:34,880 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', 'attention', 'is', 'all', 'you', 'need']
+2025-12-08 14:05:34,880 - INFO - Starting unified multi-source search for: attention is all you need
+2025-12-08 14:05:34,881 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:05:34,881 - DEBUG - Headers: {}
+2025-12-08 14:05:34,881 - DEBUG - Payload: None
+2025-12-08 14:05:34,881 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:05:34,905 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:05:34,993 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x108eb3b90>
+2025-12-08 14:05:34,993 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10897d370> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:05:35,015 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x107bb72d0>
+2025-12-08 14:05:35,015 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:05:35,015 - DEBUG - send_request_headers.complete
+2025-12-08 14:05:35,015 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:05:35,015 - DEBUG - send_request_body.complete
+2025-12-08 14:05:35,015 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:05:36,873 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'62409'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:05:36 GMT'), (b'x-amzn-Remapped-Date', b'Mon, 08 Dec 2025 13:05:36 GMT'), (b'x-amzn-RequestId', b'897da53f-4d03-4c31-b1a4-29618b64d943'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'62409'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VRT87HHmvHcEVpA='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 2c6b43ece241a6b4a6a59e19ffb626fe.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'4yl734zTLWxqgHalSvQVftuNqM2hhcke2mUyKfm5Pt_MRVwqJY4edQ==')])
+2025-12-08 14:05:36,874 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-08 14:05:36,874 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:05:36,986 - DEBUG - receive_response_body.complete
+2025-12-08 14:05:36,987 - DEBUG - response_closed.started
+2025-12-08 14:05:36,987 - DEBUG - response_closed.complete
+2025-12-08 14:05:36,987 - DEBUG - close.started
+2025-12-08 14:05:36,987 - DEBUG - close.complete
+2025-12-08 14:05:36,995 - INFO - Semantic Scholar returned 20 results
+2025-12-08 14:06:00,376 - INFO - Searching paper-scraper for: attention is all you need
+2025-12-08 14:06:00,379 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:06:39,945 - ERROR - 	Scraper openaccess failed on paper titled 'Attention is not all you need: the complicated case of ethically using large language models in healthcare and medicine'.
+Traceback (most recent call last):
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 167, in link_to_pdf
+    async with session.get(pdf_link, allow_redirects=True) as r:
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 1510, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/utils.py", line 119, in _request
+    response = await super()._request(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 639, in _request
+    raise err_exc_cls(url)
+aiohttp.client_exceptions.InvalidUrlClientError: pdf/main.pdf
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/scraper.py", line 100, in scrape
+    result = await asyncio.wait_for(
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 277, in __step
+    result = coro.send(None)
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 302, in openaccess_scraper
+    await link_to_pdf(url, path, session)
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 175, in link_to_pdf
+    raise RuntimeError(f"Malformed URL {pdf_link!r} from {url}.") from exc
+RuntimeError: Malformed URL 'pdf/main.pdf' from https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10025985.
+2025-12-08 14:06:40,802 - ERROR - 	Scraper pmc failed on paper titled 'Attention is not all you need: the complicated case of ethically using large language models in healthcare and medicine'.
+Traceback (most recent call last):
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1532, in _create_direct_connection
+    hosts = await self._resolve_host(host, port, traces=traces)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1148, in _resolve_host
+    return await asyncio.shield(resolved_host_task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 287, in __await__
+    yield self  # This tells Task to wait for completion.
+    ^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 349, in __wakeup
+    future.result()
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 279, in __step
+    result = coro.throw(exc)
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1179, in _resolve_host_with_throttle
+    addrs = await self._resolver.resolve(host, port, family=self._family)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/resolver.py", line 40, in resolve
+    infos = await self._loop.getaddrinfo(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 868, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 287, in __await__
+    yield self  # This tells Task to wait for completion.
+    ^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 349, in __wakeup
+    future.result()
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/socket.py", line 974, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/scraper.py", line 100, in scrape
+    result = await asyncio.wait_for(
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 279, in __step
+    result = coro.throw(exc)
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 285, in pmc_scraper
+    await pmc_to_pdf(pmc_id, path, session)
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 215, in pmc_to_pdf
+    async with session.get(pdf_url, allow_redirects=True) as r:
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 1510, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/utils.py", line 119, in _request
+    response = await super()._request(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1538, in _create_direct_connection
+    raise ClientConnectorDNSError(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorDNSError: Cannot connect to host www.ncbi.nlm.nih.govpdf:443 ssl:default [nodename nor servname provided, or not known]
+2025-12-08 14:06:42,410 - ERROR - 	Scraper pubmed failed on paper titled 'Attention is not all you need: the complicated case of ethically using large language models in healthcare and medicine'.
+Traceback (most recent call last):
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1532, in _create_direct_connection
+    hosts = await self._resolve_host(host, port, traces=traces)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1148, in _resolve_host
+    return await asyncio.shield(resolved_host_task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 287, in __await__
+    yield self  # This tells Task to wait for completion.
+    ^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 349, in __wakeup
+    future.result()
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 279, in __step
+    result = coro.throw(exc)
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1179, in _resolve_host_with_throttle
+    addrs = await self._resolver.resolve(host, port, family=self._family)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/resolver.py", line 40, in resolve
+    infos = await self._loop.getaddrinfo(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 868, in getaddrinfo
+    return await self.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 287, in __await__
+    yield self  # This tells Task to wait for completion.
+    ^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 349, in __wakeup
+    future.result()
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/socket.py", line 974, in getaddrinfo
+    for res in _socket.getaddrinfo(host, port, family, type, proto, flags):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+socket.gaierror: [Errno 8] nodename nor servname provided, or not known
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/scraper.py", line 100, in scrape
+    result = await asyncio.wait_for(
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 489, in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/futures.py", line 203, in result
+    raise self._exception.with_traceback(self._exception_tb)
+  File "/opt/homebrew/Cellar/python@3.11/3.11.14_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/tasks.py", line 279, in __step
+    result = coro.throw(exc)
+             ^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 293, in pubmed_scraper
+    await pubmed_to_pdf(pubmed_id, path, session)
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 208, in pubmed_to_pdf
+    await pmc_to_pdf(pmc_id, path, session)
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/lib.py", line 215, in pmc_to_pdf
+    async with session.get(pdf_url, allow_redirects=True) as r:
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 1510, in __aenter__
+    self._resp: _RetType = await self._coro
+                           ^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/paperscraper/utils.py", line 119, in _request
+    response = await super()._request(*args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 642, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1209, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/aiohttp/connector.py", line 1538, in _create_direct_connection
+    raise ClientConnectorDNSError(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorDNSError: Cannot connect to host www.ncbi.nlm.nih.govpdf:443 ssl:default [nodename nor servname provided, or not known]
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Attention is All you Need
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Is Space-Time Attention All You Need for Video Understanding?
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Attention Is All You Need In Speech Separation
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Open-Set Recognition: A Good Closed-Set Classifier is All You Need
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Channel Attention Is All You Need for Video Frame Interpolation
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Attention is Not All You Need: Pure Attention Loses Rank Doubly Exponentially with Depth
+2025-12-08 14:06:47,222 - DEBUG - Found paper: TransGeo: Transformer Is All You Need for Cross-view Image Geo-localization
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Fastformer: Additive Attention Can Be All You Need
+2025-12-08 14:06:47,222 - DEBUG - Found paper: CatVTON: Concatenation Is All You Need for Virtual Try-On with Diffusion Models
+2025-12-08 14:06:47,222 - DEBUG - Found paper: CONFORM: Contrast is All You Need For High-Fidelity Text-to-Image Diffusion Models
+2025-12-08 14:06:47,222 - DEBUG - Found paper: [CLS] Attention is All You Need for Training-Free Visual Token Pruning: Make VLM Inference Faster
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Cross-Attention is All You Need: Adapting Pretrained Transformers for Machine Translation
+2025-12-08 14:06:47,222 - DEBUG - Found paper: All You Need Is Feedback: Communication With Block Attention Feedback Codes
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Linear attention is (maybe) all you need (to understand transformer optimization)
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Attention Is Indeed All You Need: Semantically Attention-Guided Decoding for Data-to-Text NLG
+2025-12-08 14:06:47,222 - DEBUG - Found paper: Text-Guided Attention is All You Need for Zero-Shot Robustness in Vision-Language Models
+2025-12-08 14:06:47,222 - INFO - Found 16 papers from paper-scraper
+2025-12-08 14:06:47,225 - INFO - Paper-scraper returned 16 results
+2025-12-08 14:06:47,225 - DEBUG - Merged 20 S2 + 16 PS → 31 unique papers (25 had identifiers)
+2025-12-08 14:06:47,226 - INFO - Combined 31 unique papers
+2025-12-08 14:06:47,227 - INFO - Invoking FZF subprocess with preview.
+2025-12-08 14:06:47,471 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:06:47,471 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpw216yqvu.json']
+2025-12-08 14:08:06,464 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:08:06,464 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpw216yqvu.json']
+2025-12-08 14:08:07,056 - INFO - FZF finished. Parsing selections.
+2025-12-08 14:08:07,059 - INFO - Selected 1 papers: [('arxiv', '1706.03762')]
+2025-12-08 14:08:07,060 - INFO - Entering add_to_library loop.
+2025-12-08 14:08:07,063 - INFO - Adding: source=arxiv, id=1706.03762
+2025-12-08 14:08:07,064 - INFO - Fetching PDF from ArXiv: https://arxiv.org/pdf/1706.03762.pdf
+2025-12-08 14:08:07,067 - DEBUG - Starting new HTTPS connection (1): arxiv.org:443
+2025-12-08 14:08:07,133 - DEBUG - https://arxiv.org:443 "GET /pdf/1706.03762.pdf HTTP/1.1" 301 217
+2025-12-08 14:08:07,154 - DEBUG - https://arxiv.org:443 "GET /pdf/1706.03762 HTTP/1.1" 200 2215244
+2025-12-08 14:08:07,322 - INFO - PDF downloaded to: /var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpwp7nlyy8.pdf
+2025-12-08 14:08:07,327 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research-agent-cli/.venv/bin/papis --config /Users/gabriele/Documents/GitHub/research-agent-cli/papis.config -l main add --batch --from arxiv 1706.03762 --file /var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpwp7nlyy8.pdf
+2025-12-08 14:08:07,508 - ERROR - CalledProcessError for 1706.03762: /Users/gabriele/Documents/GitHub/research-agent-cli/.venv/lib/python3.11/site-packages/isbnlib/registry.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import iter_entry_points
+Usage: papis add [OPTIONS] [FILES]...
+
+Error: No such option: --file Did you mean --file-name?
+
+2025-12-08 14:08:20,786 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:08:20,786 - INFO - Script started with args: ['scripts/discover.py', 'test query']
+2025-12-08 14:08:20,786 - INFO - Starting unified multi-source search for: test query
+2025-12-08 14:08:20,786 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:08:20,786 - DEBUG - Headers: {}
+2025-12-08 14:08:20,786 - DEBUG - Payload: None
+2025-12-08 14:08:20,786 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:08:20,817 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:08:20,894 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x104008f10>
+2025-12-08 14:08:20,895 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10390d490> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:08:20,917 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x100f8d150>
+2025-12-08 14:08:20,917 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:08:20,917 - DEBUG - send_request_headers.complete
+2025-12-08 14:08:20,917 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:08:20,917 - DEBUG - send_request_body.complete
+2025-12-08 14:08:20,917 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:08:21,427 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:08:21 GMT'), (b'x-amz-apigw-id', b'VRUW5FfSPHcEe7Q='), (b'x-amzn-RequestId', b'd31bc817-86f3-471b-9d75-2058e9e85e01'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 785051524e198b20f8b58122667c188e.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'vCb5RHdQPik7vsyRt92l7KO0v8WKstLI01_EbLeaOF98X1eBSvU8pw==')])
+2025-12-08 14:08:21,427 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test+query&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-08 14:08:21,427 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:08:21,427 - DEBUG - receive_response_body.complete
+2025-12-08 14:08:21,427 - DEBUG - response_closed.started
+2025-12-08 14:08:21,427 - DEBUG - response_closed.complete
+2025-12-08 14:08:21,427 - DEBUG - close.started
+2025-12-08 14:08:21,427 - DEBUG - close.complete
+2025-12-08 14:08:51,428 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:08:51,429 - DEBUG - Headers: {}
+2025-12-08 14:08:51,429 - DEBUG - Payload: None
+2025-12-08 14:08:51,429 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:08:51,441 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:08:51,461 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10402c610>
+2025-12-08 14:08:51,461 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10390d490> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:08:51,483 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x102335b10>
+2025-12-08 14:08:51,484 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:08:51,484 - DEBUG - send_request_headers.complete
+2025-12-08 14:08:51,484 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:08:51,484 - DEBUG - send_request_body.complete
+2025-12-08 14:08:51,484 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:08:51,978 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:08:51 GMT'), (b'x-amz-apigw-id', b'VRUbrHquPHcER2A='), (b'x-amzn-RequestId', b'91899a37-ed1f-4113-923c-6237c40e6969'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 5a897fa3742273380e3e2532c7dadcb6.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'FrBmUOF7tqmpcuL0vMLdcH_BKSm2-mTi5IIO7Oi8VXMeslkNaH0G3A==')])
+2025-12-08 14:08:51,978 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test+query&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-08 14:08:51,978 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:08:51,978 - DEBUG - receive_response_body.complete
+2025-12-08 14:08:51,978 - DEBUG - response_closed.started
+2025-12-08 14:08:51,978 - DEBUG - response_closed.complete
+2025-12-08 14:08:51,979 - DEBUG - close.started
+2025-12-08 14:08:51,979 - DEBUG - close.complete
+2025-12-08 14:09:21,980 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:09:21,980 - DEBUG - Headers: {}
+2025-12-08 14:09:21,980 - DEBUG - Payload: None
+2025-12-08 14:09:21,980 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=test query&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:09:21,986 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:09:22,007 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x10403ee50>
+2025-12-08 14:09:22,008 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x10390d490> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:09:22,033 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1040461d0>
+2025-12-08 14:09:22,033 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:09:22,033 - DEBUG - send_request_headers.complete
+2025-12-08 14:09:22,033 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:09:22,033 - DEBUG - send_request_body.complete
+2025-12-08 14:09:22,033 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:09:22,536 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 429, b'', [(b'Content-Type', b'application/json'), (b'Content-Length', b'174'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:09:22 GMT'), (b'x-amz-apigw-id', b'VRUgcHrPPHcEQmQ='), (b'x-amzn-RequestId', b'217c95fb-a6a3-4d46-b48a-88f53819c589'), (b'x-amzn-ErrorType', b'TooManyRequestsException'), (b'X-Cache', b'Error from cloudfront'), (b'Via', b'1.1 f23ba2c965ce44072e54ea2301ccf406.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'mcxMb3TgwynVVmGcwvuMkuwKoPIXqHyNGnJokmUkscpVl-08WpE8Dg==')])
+2025-12-08 14:09:22,537 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=test+query&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 429 "
+2025-12-08 14:09:22,537 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:09:22,538 - DEBUG - receive_response_body.complete
+2025-12-08 14:09:22,538 - DEBUG - response_closed.started
+2025-12-08 14:09:22,538 - DEBUG - response_closed.complete
+2025-12-08 14:09:22,538 - DEBUG - close.started
+2025-12-08 14:09:22,539 - DEBUG - close.complete
+2025-12-08 14:09:49,599 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:09:49,599 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', 'attention', 'is', 'all', 'you', 'need']
+2025-12-08 14:09:49,599 - INFO - Starting unified multi-source search for: attention is all you need
+2025-12-08 14:09:49,599 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:09:49,599 - DEBUG - Headers: {}
+2025-12-08 14:09:49,599 - DEBUG - Payload: None
+2025-12-08 14:09:49,599 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention is all you need&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 14:09:49,624 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 14:09:49,697 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x1033f9110>
+2025-12-08 14:09:49,697 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1030e1490> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 14:09:49,721 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x102547d50>
+2025-12-08 14:09:49,721 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 14:09:49,722 - DEBUG - send_request_headers.complete
+2025-12-08 14:09:49,722 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 14:09:49,722 - DEBUG - send_request_body.complete
+2025-12-08 14:09:49,722 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 14:09:51,443 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'62409'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 13:09:51 GMT'), (b'x-amzn-Remapped-Date', b'Mon, 08 Dec 2025 13:09:51 GMT'), (b'x-amzn-RequestId', b'd53c6bbb-e9eb-4656-a45e-99a9eaead410'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'62409'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VRUkxG0avHcEWug='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 2f9d40e1286737e2a1a91819dee481a8.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'mb_W5VIeyI0Aw_mK4dw9RhkMTRmjz1bNX_21-mrIMJPEPdvMPubRjg==')])
+2025-12-08 14:09:51,444 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=attention+is+all+you+need&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-08 14:09:51,444 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 14:09:51,549 - DEBUG - receive_response_body.complete
+2025-12-08 14:09:51,550 - DEBUG - response_closed.started
+2025-12-08 14:09:51,550 - DEBUG - response_closed.complete
+2025-12-08 14:09:51,550 - DEBUG - close.started
+2025-12-08 14:09:51,550 - DEBUG - close.complete
+2025-12-08 14:09:51,554 - INFO - Semantic Scholar returned 20 results
+2025-12-08 14:09:51,555 - INFO - Searching paper-scraper for: attention is all you need
+2025-12-08 14:09:51,556 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:09:56,130 - WARNING - Hit a service limit per status 429 with message {"message": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form", "code": "429"}, sleeping 0.11-sec before retry 1.
+2025-12-08 14:10:00,141 - WARNING - Hit a service limit per status 429 with message {"message": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form", "code": "429"}, sleeping 0.28-sec before retry 2.
+2025-12-08 14:10:03,828 - WARNING - Hit a service limit per status 429 with message {"message": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form", "code": "429"}, sleeping 0.42-sec before retry 3.
+2025-12-08 14:10:08,129 - WARNING - Hit a service limit per status 429 with message {"message": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form", "code": "429"}, sleeping 0.81-sec before retry 4.
+2025-12-08 14:10:11,751 - WARNING - Hit a service limit per status 429 with message {"message": "Too Many Requests. Please wait and try again or apply for a key for higher rate limits. https://www.semanticscholar.org/product/api#api-key-form", "code": "429"}, sleeping 1.61-sec before retry 5.
+2025-12-08 14:10:15,761 - ERROR - Error searching paper-scraper: Failed to avoid a service limit across 5 retries.
+2025-12-08 14:10:15,761 - INFO - Paper-scraper returned 0 results
+2025-12-08 14:10:15,762 - DEBUG - Merged 20 S2 + 0 PS → 20 unique papers (19 had identifiers)
+2025-12-08 14:10:15,765 - INFO - Combined 20 unique papers
+2025-12-08 14:10:15,767 - INFO - Invoking FZF subprocess with preview.
+2025-12-08 14:10:15,968 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:10:15,968 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpmeaukf51.json']
+2025-12-08 14:10:18,057 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:10:18,057 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '1', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpmeaukf51.json']
+2025-12-08 14:10:19,280 - DEBUG - Using selector: KqueueSelector
+2025-12-08 14:10:19,281 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpmeaukf51.json']
+2025-12-08 14:10:20,781 - INFO - FZF finished. Parsing selections.
+2025-12-08 14:10:20,783 - INFO - Selected 1 papers: [('arxiv', '2010.13154')]
+2025-12-08 14:10:20,784 - INFO - Entering add_to_library loop.
+2025-12-08 14:10:20,787 - INFO - Adding: source=arxiv, id=2010.13154
+2025-12-08 14:10:20,787 - INFO - Fetching PDF from ArXiv: https://arxiv.org/pdf/2010.13154.pdf
+2025-12-08 14:10:20,790 - DEBUG - Starting new HTTPS connection (1): arxiv.org:443
+2025-12-08 14:10:20,871 - DEBUG - https://arxiv.org:443 "GET /pdf/2010.13154.pdf HTTP/1.1" 301 217
+2025-12-08 14:10:20,896 - DEBUG - https://arxiv.org:443 "GET /pdf/2010.13154 HTTP/1.1" 200 271339
+2025-12-08 14:10:20,956 - INFO - PDF downloaded to: /var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpax15kxg7.pdf
+2025-12-08 14:10:20,960 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research-agent-cli/.venv/bin/papis --config /Users/gabriele/Documents/GitHub/research-agent-cli/papis.config -l main add --batch --from arxiv 2010.13154 --file-name /var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpax15kxg7.pdf
+2025-12-08 14:10:22,081 - INFO - Finished adding 2010.13154. Return code: 0
+2025-12-08 14:10:22,185 - INFO - Updated master.bib

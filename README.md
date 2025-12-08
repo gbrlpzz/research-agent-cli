@@ -209,14 +209,15 @@ research-agent-cli/
 │       └── reports_index.json
 ├── master.bib                 # Central bibliography (gitignored)
 ├── scripts/                   # Python logic
-│   ├── discover.py           # Semantic Scholar search
+│   ├── discover.py           # Unified multi-source search (S2 + PS)
 │   ├── exa_search.py         # Exa.ai semantic search
 │   ├── edison_literature.py  # Edison AI synthesis
 │   ├── add.py                # Quick add from DOI/arXiv
 │   ├── cite.py               # Citation search
 │   ├── open.py               # Open in browser
 │   └── utils/
-│       └── pdf_fetcher.py    # PDF download utility
+│       ├── pdf_fetcher.py    # PDF download utility
+│       └── scraper_client.py # Paper-scraper integration
 ├── bin/
 │   └── research              # CLI wrapper
 ├── papis.config              # Papis configuration
