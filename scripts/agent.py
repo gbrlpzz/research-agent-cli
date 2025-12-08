@@ -129,12 +129,21 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     except Exception as e:
         console.print(f"[yellow]S2 error: {e}[/yellow]")
     
-    # 2. Search paper-scraper
+    # 2. Search paper-scraper (with timeout to prevent blocking)
     console.print("[dim]  → paper-scraper...[/dim]")
     try:
+        import concurrent.futures
         sys.path.insert(0, str(REPO_ROOT / "scripts"))
         from utils import scraper_client
-        ps_results = scraper_client.search_papers(query, limit=10)
+        
+        # Run with timeout to prevent blocking on network issues
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(scraper_client.search_papers, query, 10)
+            try:
+                ps_results = future.result(timeout=15)  # 15 second timeout
+            except concurrent.futures.TimeoutError:
+                console.print("[dim]paper-scraper timed out, continuing with S2 results[/dim]")
+                ps_results = []
         
         for paper in ps_results:
             arxiv_id = paper.get('arxiv_id')
