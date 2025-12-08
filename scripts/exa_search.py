@@ -12,6 +12,10 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
 import logging
 
+# Add parent directory to path for utils
+sys.path.insert(0, str(Path(__file__).parent))
+from utils.pdf_fetcher import fetch_pdf
+
 # Setup logging
 logging.basicConfig(
     filename='debug_research.log',
@@ -287,6 +291,13 @@ def add_to_library(items):
             progress.update(task, description=f"[green]Adding {source}:{identifier}...[/green]")
             logging.info(f"Adding: source={source}, id={identifier}")
             
+            # Try to fetch PDF first
+            pdf_path = None
+            if source == 'arxiv':
+                pdf_path = fetch_pdf(arxiv_id=identifier)
+            elif source == 'doi':
+                pdf_path = fetch_pdf(doi=identifier)
+            
             cmd = [papis_cmd, "--config", str(papis_config), "-l", "main", "add", "--batch"]
             
             if source == 'arxiv':
@@ -296,6 +307,10 @@ def add_to_library(items):
             else:
                 # Fallback for generic URL
                 cmd.append(identifier)
+            
+            # Add PDF if we got one
+            if pdf_path:
+                cmd.extend(["--file", str(pdf_path)])
 
             try:
                 progress.console.print(f"[dim]Executing papis: {' '.join(cmd)}[/dim]")
@@ -329,6 +344,13 @@ def add_to_library(items):
             except Exception as e:
                 logging.error(f"Exception for {identifier}: {e}")
                 progress.console.print(f"[bold red]Error with {identifier}:[/bold red] {e}")
+            
+            # Cleanup temp PDF if exists
+            if pdf_path and pdf_path.exists():
+                try:
+                    pdf_path.unlink()
+                except:
+                    pass
             
             progress.advance(task)
 

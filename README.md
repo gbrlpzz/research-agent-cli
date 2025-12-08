@@ -1,24 +1,28 @@
 # Research Agent CLI
 
-A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**, **Papis**, and **Typst**.
+A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**, **Edison Scientific**, **Papis**, and **Typst**.
 
 ## Features
 
-- **Dual Search Modes**: Academic search via Semantic Scholar OR semantic search via Exa.ai
-- **Smart Discovery**: Search Semantic Scholar via CLI (`research "query"`).
-- **Semantic Search**: Neural search with Exa.ai (`research exa "query"`).
-- **Interactive Selection**: Use `fzf` to multi-select papers from results.
-- **Auto-Archiving**: Automatically downloads PDFs and metadata to `library/`.
-- **Central Bibliography**: All citations exported to `master.bib`.
-- **Citation Search**: Quickly find and copy citation keys (`research cite`).
-- **Open in Browser**: Press `o` while browsing to open papers directly.
+- **Triple Search Modes**: 
+  - Academic search via Semantic Scholar (free)
+  - Semantic/neural search via Exa.ai (1,000 free credits)
+  - AI literature synthesis via Edison Scientific (10 free credits/month)
+- **Automatic PDF Fetching**: Downloads PDFs from ArXiv and Unpaywall for all papers
+- **Smart Discovery**: Search papers via CLI with multiple AI-powered backends
+- **Interactive Selection**: Use `fzf` to multi-select papers from results
+- **Auto-Archiving**: Automatically downloads PDFs and metadata to `library/`
+- **Central Bibliography**: All citations exported to `master.bib`
+- **Citation Search**: Quickly find and copy citation keys (`research cite`)
+- **Literature Reports**: Edison generates comprehensive synthesis reports with tables
+- **Open in Browser**: Press `o` while browsing to open papers directly
 
 ## Setup
 
 ### Prerequisites
 
-- `python3`
-- `fzf`
+- **Python 3.11+** (required for Edison Scientific client)
+- `fzf` (for interactive paper selection)
 - `typst` (optional, for writing)
 - `git`
 
@@ -32,7 +36,8 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 
 2.  Install Python dependencies:
     ```bash
-    python3 -m venv .venv
+    # Use Python 3.11 or higher
+    python3.11 -m venv .venv
     .venv/bin/pip install -r requirements.txt
     ```
 
@@ -42,16 +47,24 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
       ```bash
       echo "EXA_API_KEY=your_key_here" > .env
       ```
-    - **Note**: Free tier provides 1,000 credits; paid plans start at $49/month
+    - **Cost**: Free tier provides 1,000 credits
 
-4.  Link the executable to your path:
+4.  **(Optional) Set up Edison Scientific for AI literature synthesis:**
+    - Get your API key from [Edison Platform](https://platform.edisonscientific.com/profile)
+    - Add to `.env` file:
+      ```bash
+      echo "EDISON_API_KEY=your_key_here" >> .env
+      ```
+    - **Cost**: Free tier provides 10 credits/month (students get 210 credit bonus)
+
+5.  Link the executable to your path:
     ```bash
     mkdir -p ~/.local/bin
     ln -s $(pwd)/bin/research ~/.local/bin/research
     ```
     *Ensure `~/.local/bin` is in your `$PATH`.*
 
-5.  Copy papis config to system location:
+6.  Copy papis config to system location:
     ```bash
     mkdir -p ~/Library/Application\ Support/papis
     cp papis.config ~/Library/Application\ Support/papis/config
@@ -61,38 +74,53 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `research <query>` | Search Semantic Scholar, add papers (free) |
-| `research exa <query>` | Search with Exa.ai semantic search (costs credits) |
-| `research add [id]` | Quick add from DOI/arXiv (or clipboard) |
-| `research cite [query]` | Search library, copy citation keys |
-| `research open [query]` | Search library, open paper in browser |
+| Command | Description | Cost |
+|---------|-------------|------|
+| `research <query>` | Search Semantic Scholar, add papers | Free |
+| `research exa <query>` | Search with Exa.ai semantic search | 1 credit/query |
+| `research edison <query>` | AI literature synthesis with citations | 1 credit/query |
+| `research edison list` | Browse past Edison reports | Free |
+| `research edison show <id>` | View specific report | Free |
+| `research edison cache <query>` | Check if query cached | Free |
+| `research edison credits` | Show credit balance | Free |
+| `research add [id]` | Quick add from DOI/arXiv (or clipboard) | Free |
+| `research cite [query]` | Search library, copy citation keys | Free |
+| `research open [query]` | Search library, open paper in browser | Free |
 
 ### 1. Discovery - Add Papers
 
-**Semantic Scholar (keyword search, free):**
+**Semantic Scholar (keyword search, free, with PDFs):**
 ```bash
 research "large language models reasoning"
 ```
 
-**Exa.ai (neural/semantic search, costs credits):**
+**Exa.ai (neural/semantic search, costs 1 credit, with PDFs):**
 ```bash
 research exa "papers about reasoning similar to chain-of-thought"
 ```
 
-1. A list of papers appears (Year, Citations/Relevance, Title, Authors).
-2. **Tab** to select multiple papers.
-3. **o** to open highlighted paper in browser.
-4. **Enter** to download selected papers.
+**Edison Scientific (AI synthesis, costs 1 credit, generates comprehensive reports):**
+```bash
+research edison "What are the latest advances in few-shot learning?"
+```
+
+For all search modes:  
+1. A list of papers appears (Year, Citations/Relevance, Title, Authors)
+2. **Tab** to select multiple papers
+3. **o** to open highlighted paper in browser
+4. **Enter** to download selected papers (PDFs fetched automatically when available)
+
+**PDF Fetching**: The system automatically attempts to download PDFs from:
+- **ArXiv**: Direct PDF download
+- **Unpaywall**: Free, legal open-access PDFs for DOIs
 
 ### 2. Quick Add
 
 ```bash
-# Add by DOI
+# Add by DOI (with PDF if available)
 research add 10.1038/nature12373
 
-# Add by arXiv ID
+# Add by arXiv ID (with PDF)
 research add 1706.03762
 
 # Add from clipboard (just copy a DOI and run)
@@ -144,35 +172,115 @@ This is discussed in @Attention_Is_Al_Vaswan_2017.
 ## Directory Structure
 
 ```
-research/
-├── library/            # Papers (private, gitignored)
-│   └── <papis-id>/
-│       ├── info.yaml   # Metadata
-│       └── paper.pdf   # Document
-├── master.bib          # Bibliography (private, gitignored)
-├── scripts/            # Python logic
-│   ├── discover.py     # Paper search & download
-│   ├── add.py          # Quick add from DOI/arXiv
-│   ├── cite.py         # Citation search
-│   └── open.py         # Open in browser
-├── bin/                # Executable
-│   └── research        # CLI wrapper
-├── papis.config        # Papis configuration
-└── requirements.txt    # Python dependencies
+research-agent-cli/
+├── library/                    # Papers (private, gitignored)
+│   ├── <papis-id>/
+│   │   ├── info.yaml          # Metadata
+│   │   └── paper.pdf          # Document (auto-fetched)
+│   └── edison_reports/        # Edison literature reports
+│       ├── <timestamp>_<query>.md
+│       ├── tables/            # Extracted CSV tables
+│       └── reports_index.json
+├── master.bib                 # Central bibliography (gitignored)
+├── scripts/                   # Python logic
+│   ├── discover.py           # Semantic Scholar search
+│   ├── exa_search.py         # Exa.ai semantic search
+│   ├── edison_literature.py  # Edison AI synthesis
+│   ├── add.py                # Quick add from DOI/arXiv
+│   ├── cite.py               # Citation search
+│   ├── open.py               # Open in browser
+│   └── utils/
+│       └── pdf_fetcher.py    # PDF download utility
+├── bin/
+│   └── research              # CLI wrapper
+├── papis.config              # Papis configuration
+└── requirements.txt          # Python dependencies
 ```
 
 ## Implementation Notes
 
+### Automatic PDF Fetching
+
+All search modes (Semantic Scholar, Exa.ai, Edison) now automatically fetch PDFs when adding papers:
+
+**Sources** (in priority order):
+1. **ArXiv**: Direct PDF download from `arxiv.org/pdf/<id>.pdf`
+2. **Unpaywall API**: Free, legal open-access PDFs for DOIs
+3. Falls back gracefully if no PDF available
+
+**How it works**:
+- When you select papers to add, PDFs are fetched before calling papis
+- Download progress shown in terminal
+- PDFs automatically attached to papis entries
+- Temporary files cleaned up after import
+
+**Example output**:
+```
+Attempting PDF download from ArXiv...
+✓ PDF downloaded from ArXiv
+Adding arxiv:2301.00001...
+```
+
+### Edison Scientific Integration
+
+Edison provides AI-powered literature synthesis with comprehensive reports:
+
+**Features**:
+- AI-synthesized answers with citations
+- Automatic table extraction (markdown + CSV)
+- Citation parsing with DOI/ArXiv extraction
+- Report storage in `library/edison_reports/`
+- Integration with papis/master.bib workflow
+
+**API Details**:
+- Uses `edison-client` package
+- **Cost**: 1 credit per query
+- Free tier: 10 credits/month (students get 210 credit signup bonus)
+- Reports include synthesis, citations, tables, and metadata
+
+**Example Report Structure**:
+```markdown
+# Literature Report: few-shot learning
+
+**Generated**: 2024-12-08 14:00:00
+**Credits Used**: 1
+
+## Synthesis
+[AI-generated synthesis...]
+
+## Cited Papers
+- [1] Author et al. (Year). Title.
+  - DOI: 10.1234/example
+  - ArXiv: 2301.00001
+
+## Tables
+Table 1: `tables/20241208_140000_table1.csv`
+| Method | Accuracy | Year |
+|--------|----------|------|
+...
+```
+
 ### Exa.ai Integration
 
-The Exa.ai integration uses semantic/neural search to complement Semantic Scholar's keyword-based academic search:
+Exa.ai provides semantic/neural search to complement Semantic Scholar's keyword-based search:
 
 - **API**: Uses `exa_py` SDK with `search_and_contents()` method
-- **Filtering**: Restricts results to `category="research paper"` and academic domains (arxiv.org, doi.org, nature.com, etc.)
-- **Metadata Extraction**: Automatically extracts DOI/ArXiv IDs from URLs for papis integration
-- **Cost**: Free tier provides 1,000 credits; monitor usage at [Exa.ai Dashboard](https://dashboard.exa.ai)
+- **Filtering**: Restricts results to `category="research paper"` and academic domains
+- **Metadata Extraction**: Automatically extracts DOI/ArXiv IDs from URLs
+- **Cost**: 1 credit per query (free tier: 1,000 credits)
 
-**Note**: The Exa.ai API parameters may change. Current implementation works with `exa_py` v2.0.1.
+### Python Version Requirement
+
+**Important**: Edison Scientific client requires **Python 3.11 or higher**. Make sure to use:
+```bash
+python3.11 -m venv .venv
+# or python3.12, python3.13, etc.
+```
+
+If you don't have Python 3.11+, install via homebrew:
+```bash
+brew install python@3.11
+```
 
 ## License
 

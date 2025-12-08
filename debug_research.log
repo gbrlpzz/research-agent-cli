@@ -1043,3 +1043,31 @@ Error: No such option: --lib (Possible options: --git, --link)
 2025-12-07 22:19:54,476 - DEBUG - Executing: /Users/gabriele/Documents/GitHub/research/.venv/bin/papis --config /Users/gabriele/Documents/GitHub/research/papis.config -l main add --batch --from arxiv 2501.19393
 2025-12-07 22:20:00,885 - INFO - Finished adding 2501.19393. Return code: 0
 2025-12-07 22:20:01,008 - INFO - Updated master.bib
+2025-12-08 13:37:47,585 - DEBUG - Using selector: KqueueSelector
+2025-12-08 13:37:47,586 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', 'papere']
+2025-12-08 13:37:47,586 - INFO - Starting search for: papere
+2025-12-08 13:37:47,586 - DEBUG - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=papere&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 13:37:47,586 - DEBUG - Headers: {}
+2025-12-08 13:37:47,586 - DEBUG - Payload: None
+2025-12-08 13:37:47,586 - DEBUG - cURL command: curl -X GET https://api.semanticscholar.org/graph/v1/paper/search?query=papere&fields=abstract,authors,citationCount,citationStyles,corpusId,externalIds,fieldsOfStudy,influentialCitationCount,isOpenAccess,journal,openAccessPdf,paperId,publicationDate,publicationTypes,publicationVenue,referenceCount,s2FieldsOfStudy,title,url,venue,year&offset=0&limit=20
+2025-12-08 13:37:47,615 - DEBUG - connect_tcp.started host='api.semanticscholar.org' port=443 local_address=None timeout=30 socket_options=None
+2025-12-08 13:37:47,689 - DEBUG - connect_tcp.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x107528bd0>
+2025-12-08 13:37:47,690 - DEBUG - start_tls.started ssl_context=<ssl.SSLContext object at 0x1075d6690> server_hostname='api.semanticscholar.org' timeout=30
+2025-12-08 13:37:47,713 - DEBUG - start_tls.complete return_value=<httpcore._backends.anyio.AnyIOStream object at 0x105168c10>
+2025-12-08 13:37:47,713 - DEBUG - send_request_headers.started request=<Request [b'GET']>
+2025-12-08 13:37:47,713 - DEBUG - send_request_headers.complete
+2025-12-08 13:37:47,713 - DEBUG - send_request_body.started request=<Request [b'GET']>
+2025-12-08 13:37:47,713 - DEBUG - send_request_body.complete
+2025-12-08 13:37:47,713 - DEBUG - receive_response_headers.started request=<Request [b'GET']>
+2025-12-08 13:37:48,519 - DEBUG - receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Content-Type', b'application/json'), (b'Content-Length', b'34122'), (b'Connection', b'keep-alive'), (b'Date', b'Mon, 08 Dec 2025 12:37:48 GMT'), (b'x-amzn-Remapped-Date', b'Mon, 08 Dec 2025 12:37:48 GMT'), (b'x-amzn-RequestId', b'6cead095-c638-4de2-8278-bb45c2461ad5'), (b'Access-Control-Allow-Origin', b'*'), (b'x-amzn-Remapped-Content-Length', b'34122'), (b'x-amzn-Remapped-Connection', b'keep-alive'), (b'x-amz-apigw-id', b'VRP4dE4EPHcEUMQ='), (b'x-amzn-Remapped-Server', b'gunicorn'), (b'X-Cache', b'Miss from cloudfront'), (b'Via', b'1.1 f92e634cae29c615cbe8f686d8333cf6.cloudfront.net (CloudFront)'), (b'X-Amz-Cf-Pop', b'MXP64-P1'), (b'X-Amz-Cf-Id', b'kXNxxfa4l7LXLDrZV8jADInCULWmuHasuJbLWYIF04wTR1oqKB-shw==')])
+2025-12-08 13:37:48,520 - INFO - HTTP Request: GET https://api.semanticscholar.org/graph/v1/paper/search?query=papere&fields=abstract%2Cauthors%2CcitationCount%2CcitationStyles%2CcorpusId%2CexternalIds%2CfieldsOfStudy%2CinfluentialCitationCount%2CisOpenAccess%2Cjournal%2CopenAccessPdf%2CpaperId%2CpublicationDate%2CpublicationTypes%2CpublicationVenue%2CreferenceCount%2Cs2FieldsOfStudy%2Ctitle%2Curl%2Cvenue%2Cyear&offset=0&limit=20 "HTTP/1.1 200 OK"
+2025-12-08 13:37:48,520 - DEBUG - receive_response_body.started request=<Request [b'GET']>
+2025-12-08 13:37:48,522 - DEBUG - receive_response_body.complete
+2025-12-08 13:37:48,522 - DEBUG - response_closed.started
+2025-12-08 13:37:48,522 - DEBUG - response_closed.complete
+2025-12-08 13:37:48,522 - DEBUG - close.started
+2025-12-08 13:37:48,522 - DEBUG - close.complete
+2025-12-08 13:37:48,528 - INFO - Search returned (generator). Processing first 20 results.
+2025-12-08 13:37:48,529 - INFO - Invoking FZF subprocess with preview.
+2025-12-08 13:37:48,661 - DEBUG - Using selector: KqueueSelector
+2025-12-08 13:37:48,661 - INFO - Script started with args: ['/Users/gabriele/Documents/GitHub/research-agent-cli/scripts/discover.py', '--preview', '0', '/var/folders/yk/4_ysm4397c313kwrc2q92l0w0000gn/T/tmpn_sxctj9.json']
