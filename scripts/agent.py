@@ -487,6 +487,65 @@ def list_library() -> List[Dict[str, str]]:
     return papers
 
 
+def validate_citations(citation_keys: List[str]) -> Dict[str, Any]:
+    """
+    Validate that citation keys exist in the library.
+    
+    Use this BEFORE writing the final document to ensure all @keys are valid.
+    Invalid keys will cause compilation errors.
+    
+    Args:
+        citation_keys: List of citation keys to validate (without @ symbol)
+                      e.g., ["vaswani2017attention", "devlin2018bert"]
+    
+    Returns:
+        Dict with 'valid' keys, 'invalid' keys, and 'suggestions' for invalid ones
+    """
+    import yaml
+    
+    console.print(f"[dim]🔍 Validating {len(citation_keys)} citations...[/dim]")
+    
+    # Build library of all valid keys
+    library_keys = {}
+    for info_file in LIBRARY_PATH.rglob("info.yaml"):
+        try:
+            with open(info_file) as f:
+                data = yaml.safe_load(f)
+            key = data.get('ref', '')
+            if key:
+                library_keys[key.lower()] = key
+        except:
+            pass
+    
+    valid = []
+    invalid = []
+    suggestions = {}
+    
+    for key in citation_keys:
+        key_lower = key.lower()
+        if key_lower in library_keys:
+            valid.append(library_keys[key_lower])
+        else:
+            invalid.append(key)
+            # Find similar keys
+            for lib_key in library_keys.values():
+                if any(part in lib_key.lower() for part in key_lower.split('_')):
+                    suggestions[key] = lib_key
+                    break
+    
+    if invalid:
+        console.print(f"[yellow]⚠ {len(invalid)} invalid keys: {invalid[:5]}[/yellow]")
+    else:
+        console.print(f"[green]✓ All {len(valid)} citations valid[/green]")
+    
+    return {
+        "valid": valid,
+        "invalid": invalid,
+        "suggestions": suggestions,
+        "all_library_keys": list(library_keys.values())[:20]
+    }
+
+
 # ============================================================================
 # TOOL DECLARATIONS FOR GEMINI FUNCTION CALLING
 # ============================================================================
@@ -543,13 +602,28 @@ TOOLS = [
         ),
         types.FunctionDeclaration(
             name="fuzzy_cite",
-            description="Fuzzy search for @citation_keys. Use before writing to get correct keys.",
+            description="Fuzzy search for @citation_keys. Returns keys that ACTUALLY exist in the library.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
                     "query": types.Schema(type=types.Type.STRING, description="Author, title, year, or keyword")
                 },
                 required=["query"]
+            )
+        ),
+        types.FunctionDeclaration(
+            name="validate_citations",
+            description="Validate citation keys before writing. Use to ensure all @keys exist in library.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "citation_keys": types.Schema(
+                        type=types.Type.ARRAY,
+                        items=types.Schema(type=types.Type.STRING),
+                        description="List of citation keys to validate"
+                    )
+                },
+                required=["citation_keys"]
             )
         ),
         types.FunctionDeclaration(
@@ -570,6 +644,7 @@ TOOL_FUNCTIONS = {
     "add_paper": add_paper,
     "query_library": query_library,
     "fuzzy_cite": fuzzy_cite,
+    "validate_citations": validate_citations,
     "list_library": list_library
 }
 
@@ -578,6 +653,8 @@ TOOL_FUNCTIONS = {
 # ============================================================================
 
 SYSTEM_PROMPT = """You are an autonomous research agent that produces academic Typst documents.
+
+You are a RIGOROUS SCHOLAR. Every claim must be grounded. Every citation must be verified.
 
 ## Available Tools
 
@@ -610,7 +687,13 @@ Download paper to library by arXiv ID or DOI.
 ### 6. fuzzy_cite(query)
 Find @citation_keys for papers in library.
 - Fuzzy matches author, title, year
-- Returns keys to use in document
+- Returns ONLY keys that actually exist
+- ALWAYS use this before citing
+
+### 7. validate_citations(citation_keys)
+Validate a list of citation keys before writing.
+- Returns valid/invalid keys and suggestions
+- Use this to double-check your citations
 
 ## Workflow (ITERATIVE - RAG First)
 
@@ -620,8 +703,9 @@ Find @citation_keys for papers in library.
 4. **Acquire**: add_paper() for the most relevant papers found
 5. **Query Again**: query_library() with more specific questions
 6. **Repeat** steps 2-5 until you have comprehensive coverage
-7. **Cite**: fuzzy_cite() to get correct @keys for papers you'll reference
-8. **Write**: Output complete Typst document
+7. **Cite**: fuzzy_cite() for EACH paper you want to cite
+8. **Validate**: validate_citations() to verify all keys exist
+9. **Write**: Output complete Typst document
 
 ## Output Format
 
@@ -656,12 +740,40 @@ Summary and future directions.
 #bibliography("refs.bib")
 ```
 
-## Rules
-- Use @citation_key format for ALL citations
-- Use fuzzy_cite() to verify exact keys before writing
-- Be thorough and scholarly
-- Synthesize information across sources
-- Aim for 1500-2500 words"""
+## ACADEMIC RIGOR RULES (STRICT)
+
+### Citation Discipline
+- NEVER make factual claims without a citation
+- ONLY use @citation_keys that were returned by fuzzy_cite()
+- If fuzzy_cite() returns no matches, DO NOT cite that paper
+- Every paragraph should have at least one citation
+- Use multiple citations when synthesizing across sources: @key1 @key2 @key3
+
+### Research Integrity
+- Base ALL claims on query_library() responses
+- Do NOT invent facts, statistics, or paper claims
+- If the library lacks information, explicitly state: "Further research is needed"
+- Distinguish between what papers claim vs. what is established fact
+
+### Critical Analysis
+- Compare and contrast findings across papers
+- Identify limitations and gaps in the literature
+- Note methodological differences between studies
+- Present multiple perspectives when they exist
+
+### Writing Standards
+- Use formal academic tone (no colloquialisms)
+- Avoid hedging language unless uncertainty is warranted
+- Be precise with terminology
+- Define technical terms on first use
+
+### Quality Checklist (verify before outputting)
+1. Every factual claim has a citation
+2. All @keys were verified via fuzzy_cite()
+3. Abstract reflects actual findings from RAG
+4. No speculative claims without caveats
+5. Limitations are acknowledged"""
+
 
 # ============================================================================
 # AGENT LOOP
