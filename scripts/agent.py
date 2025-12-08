@@ -5,7 +5,7 @@ Autonomous Research Agent
 
 An agentic research assistant that autonomously:
 1. Plans research by decomposing topics into questions
-2. Searches for academic papers via Semantic Scholar
+2. Searches for academic papers (Semantic Scholar + paper-scraper + Exa.ai)
 3. Acquires papers by downloading PDFs to the library
 4. Synthesizes information using PaperQA2 RAG with persistent Qdrant
 5. Generates a Typst document with proper citations
@@ -20,7 +20,7 @@ Usage:
 Output:
     reports/<timestamp>_<topic>/
     ├── lib.typ      # Template (from templates/typst-template/)
-    ├── refs.bib     # Citations (from master.bib)
+    ├── refs.bib     # Citations (filtered to cited papers only)
     ├── main.typ     # Generated document
     └── main.pdf     # Compiled PDF
 """
@@ -33,7 +33,7 @@ import shutil
 import re
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
 
 # Suppress verbose logging
 os.environ['LITELLM_LOG'] = 'ERROR'
@@ -64,34 +64,45 @@ client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 AGENT_MODEL = "gemini-3-pro-preview"
 FLASH_MODEL = "gemini-2.5-flash"  # For RAG (faster)
 
+# Global state for tracking which papers were used
+_used_citation_keys: Set[str] = set()
+
+
 # ============================================================================
 # TOOL FUNCTIONS - Wrapping existing CLI infrastructure
 # ============================================================================
 
-def search_papers(query: str, limit: int = 10) -> List[Dict[str, Any]]:
+def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     """
-    Search for academic papers using Semantic Scholar.
+    Search for academic papers using BOTH Semantic Scholar AND paper-scraper.
     
-    Use this tool FIRST to discover relevant papers on a topic before
-    adding them to the library.
+    This is the unified discovery tool that combines multiple sources:
+    - Semantic Scholar (~200M papers, citation counts)
+    - Paper-scraper (PubMed, bioRxiv, Springer, arXiv)
+    
+    Use this tool FIRST to discover relevant papers before adding them.
     
     Args:
         query: Search query string describing the research topic
                (e.g., "transformer attention mechanism", "vision transformers")
-        limit: Maximum number of results to return (default: 10)
+        limit: Maximum number of results to return (default: 15)
     
     Returns:
-        List of paper metadata with: title, authors, year, abstract, arxiv_id, doi, citations
+        List of paper metadata with: title, authors, year, abstract, arxiv_id, doi, citations, source
     """
     from semanticscholar import SemanticScholar
     import itertools
     
-    console.print(f"[dim]🔍 Searching: {query}[/dim]")
-    sch = SemanticScholar()
+    console.print(f"[dim]🔍 Unified search: {query}[/dim]")
     
+    papers = []
+    seen_ids = set()
+    
+    # 1. Search Semantic Scholar
+    console.print("[dim]  → Semantic Scholar...[/dim]")
+    sch = SemanticScholar()
     try:
         results = sch.search_paper(query, limit=limit)
-        papers = []
         for paper in itertools.islice(results, limit):
             arxiv_id = None
             doi = None
@@ -99,20 +110,112 @@ def search_papers(query: str, limit: int = 10) -> List[Dict[str, Any]]:
                 arxiv_id = paper.externalIds.get('ArXiv')
                 doi = paper.externalIds.get('DOI')
             
+            # Dedup key
+            key = doi or arxiv_id or paper.title[:50]
+            if key in seen_ids:
+                continue
+            seen_ids.add(key)
+            
             papers.append({
                 'title': paper.title,
                 'authors': [a.name for a in paper.authors][:3],
                 'year': paper.year,
-                'abstract': paper.abstract[:500] if paper.abstract else None,
+                'abstract': paper.abstract[:400] if paper.abstract else None,
                 'arxiv_id': arxiv_id,
                 'doi': doi,
-                'citations': paper.citationCount or 0
+                'citations': paper.citationCount or 0,
+                'source': 'S2'
+            })
+    except Exception as e:
+        console.print(f"[yellow]S2 error: {e}[/yellow]")
+    
+    # 2. Search paper-scraper
+    console.print("[dim]  → paper-scraper...[/dim]")
+    try:
+        sys.path.insert(0, str(REPO_ROOT / "scripts"))
+        from utils import scraper_client
+        ps_results = scraper_client.search_papers(query, limit=10)
+        
+        for paper in ps_results:
+            arxiv_id = paper.get('arxiv_id')
+            doi = paper.get('doi')
+            
+            key = doi or arxiv_id or paper.get('title', '')[:50]
+            if key in seen_ids:
+                continue
+            seen_ids.add(key)
+            
+            papers.append({
+                'title': paper.get('title', 'Unknown'),
+                'authors': paper.get('authors', [])[:3],
+                'year': paper.get('year'),
+                'abstract': paper.get('abstract', '')[:400] if paper.get('abstract') else None,
+                'arxiv_id': arxiv_id,
+                'doi': doi,
+                'citations': 0,
+                'source': 'PS'
+            })
+    except Exception as e:
+        console.print(f"[dim]paper-scraper: {e}[/dim]")
+    
+    console.print(f"[green]✓ Found {len(papers)} unique papers[/green]")
+    return papers[:limit]
+
+
+def exa_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    """
+    Neural/semantic search using Exa.ai for concept-based discovery.
+    
+    ⚠️ COSTS CREDITS - Use sparingly! Only when:
+    - discover_papers doesn't find relevant results
+    - You need conceptual/semantic matching beyond keywords
+    - Looking for recent or obscure papers
+    
+    Args:
+        query: Natural language query (can be more conceptual)
+        limit: Max results (default: 5 to conserve credits)
+    
+    Returns:
+        List of paper metadata
+    """
+    console.print(f"[dim]🧠 Exa.ai search (costs credits): {query}[/dim]")
+    
+    try:
+        from exa_py import Exa
+        exa_key = os.getenv('EXA_API_KEY')
+        if not exa_key:
+            return [{"error": "EXA_API_KEY not configured"}]
+        
+        exa = Exa(api_key=exa_key)
+        results = exa.search_and_contents(
+            query,
+            type="neural",
+            use_autoprompt=True,
+            num_results=limit,
+            text={"max_characters": 500}
+        )
+        
+        papers = []
+        for r in results.results:
+            # Try to extract arxiv ID from URL
+            arxiv_id = None
+            if 'arxiv.org' in r.url:
+                match = re.search(r'(\d{4}\.\d{4,5})', r.url)
+                if match:
+                    arxiv_id = match.group(1)
+            
+            papers.append({
+                'title': r.title,
+                'url': r.url,
+                'abstract': r.text[:400] if r.text else None,
+                'arxiv_id': arxiv_id,
+                'source': 'Exa'
             })
         
-        console.print(f"[green]✓ Found {len(papers)} papers[/green]")
+        console.print(f"[green]✓ Exa found {len(papers)} results[/green]")
         return papers
     except Exception as e:
-        console.print(f"[red]Search error: {e}[/red]")
+        console.print(f"[red]Exa error: {e}[/red]")
         return []
 
 
@@ -121,7 +224,7 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     Add a paper to the local library by its identifier.
     
     Downloads the PDF via papis and updates master.bib automatically.
-    Use this after finding relevant papers via search_papers.
+    Use this after finding relevant papers via discover_papers.
     
     Args:
         identifier: Paper identifier - either:
@@ -130,7 +233,7 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
         source: Source type - "arxiv", "doi", or "auto" (auto-detect from format)
     
     Returns:
-        Dict with 'status' ("success" or "error") and details
+        Dict with 'status' ("success" or "error") and 'citation_key' if successful
     """
     # Auto-detect source
     if source == "auto":
@@ -215,14 +318,13 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     db_path = LIBRARY_PATH / ".qa_vectordb"
     fp_path = db_path / ".fingerprint"
     
-    # Generate fingerprint
-    fingerprint_data = sorted([f"{p}:{p.stat().st_mtime}" for p in pdfs])
+    # Generate fingerprint from PDF paths only (not mtime for stability)
+    fingerprint_data = sorted([str(p) for p in pdfs])
     current_fp = hashlib.md5("\n".join(fingerprint_data).encode()).hexdigest()
     
     docs = None
-    use_cached = False
     
-    # Try to load existing store
+    # Try to load existing store (only for non-filtered queries)
     if not paper_filter and fp_path.exists():
         try:
             stored_fp = fp_path.read_text().strip()
@@ -244,7 +346,6 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
                     docs = asyncio.run(load_docs())
                 
                 if docs and docs.docnames:
-                    use_cached = True
                     console.print(f"[green]✓ Using cached index ({len(docs.docnames)} docs)[/green]")
         except Exception as e:
             console.print(f"[dim]Cache miss: {e}[/dim]")
@@ -264,7 +365,7 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
             docs = Docs(texts_index=vector_store)
         
         console.print(f"[dim]Indexing {len(pdfs)} papers...[/dim]")
-        for pdf in pdfs[:20]:  # Limit for performance
+        for pdf in pdfs[:25]:  # Reasonable limit
             try:
                 docs.add(pdf, settings=settings)
             except:
@@ -274,6 +375,7 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         if not paper_filter:
             fp_path.parent.mkdir(exist_ok=True)
             fp_path.write_text(current_fp)
+            console.print(f"[green]✓ Index saved for future queries[/green]")
     
     # Query
     try:
@@ -293,46 +395,54 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         return {"answer": f"Query error: {e}", "sources": []}
 
 
-def get_citation_keys(query: str) -> List[Dict[str, str]]:
+def fuzzy_cite(query: str) -> List[Dict[str, str]]:
     """
-    Search the library for papers and return their citation keys.
+    Fuzzy search for citation keys in the library.
     
-    Use these keys with @key syntax in the final Typst document.
+    Uses fuzzy matching to find papers even with partial or misspelled queries.
+    Returns citation keys to use as @citation_key in the Typst document.
     
     Args:
-        query: Search term to match against papers
-               (author name, title keyword, year, etc.)
+        query: Search term - author name, title fragment, year, keyword
+               (e.g., "vaswani", "attention", "2017", "transformer")
     
     Returns:
-        List of dicts with: citation_key, title, authors, year
-        Use the citation_key as @citation_key in the document
+        List of matching papers with: citation_key, title, authors, year
+        Track these keys - they will be included in refs.bib
     """
+    global _used_citation_keys
     import yaml
     
-    console.print(f"[dim]📚 Finding citations: {query}[/dim]")
+    console.print(f"[dim]📚 Fuzzy cite search: {query}[/dim]")
     
     results = []
     query_lower = query.lower()
+    query_parts = query_lower.split()
     
     for info_file in LIBRARY_PATH.rglob("info.yaml"):
         try:
             with open(info_file) as f:
                 data = yaml.safe_load(f)
             
-            searchable = f"{data.get('ref', '')} {data.get('title', '')} {data.get('author', '')}".lower()
+            # Build searchable text
+            searchable = f"{data.get('ref', '')} {data.get('title', '')} {data.get('author', '')} {data.get('year', '')}".lower()
             
-            if query_lower in searchable:
+            # Fuzzy match: all query parts must appear somewhere
+            if all(part in searchable for part in query_parts):
+                citation_key = data.get('ref', 'unknown')
                 results.append({
-                    "citation_key": data.get('ref', 'unknown'),
-                    "title": data.get('title', 'Unknown')[:80],
-                    "authors": data.get('author', 'Unknown')[:50],
+                    "citation_key": citation_key,
+                    "title": data.get('title', 'Unknown')[:70],
+                    "authors": data.get('author', 'Unknown')[:40],
                     "year": str(data.get('year', ''))
                 })
+                # Track for refs.bib filtering
+                _used_citation_keys.add(citation_key)
         except:
             pass
     
-    console.print(f"[green]✓ Found {len(results)} citations[/green]")
-    return results[:15]
+    console.print(f"[green]✓ Found {len(results)} matches[/green]")
+    return results[:10]
 
 
 def list_library() -> List[Dict[str, str]]:
@@ -357,8 +467,8 @@ def list_library() -> List[Dict[str, str]]:
             
             papers.append({
                 "citation_key": data.get('ref', 'unknown'),
-                "title": data.get('title', 'Unknown')[:80],
-                "authors": data.get('author', 'Unknown')[:50],
+                "title": data.get('title', 'Unknown')[:70],
+                "authors": data.get('author', 'Unknown')[:40],
                 "year": str(data.get('year', ''))
             })
         except:
@@ -375,55 +485,67 @@ def list_library() -> List[Dict[str, str]]:
 TOOLS = [
     types.Tool(function_declarations=[
         types.FunctionDeclaration(
-            name="search_papers",
-            description="Search for academic papers on Semantic Scholar. Use FIRST to discover relevant papers before adding them.",
+            name="discover_papers",
+            description="Search for papers using Semantic Scholar + paper-scraper. Use FIRST to find papers.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
                     "query": types.Schema(type=types.Type.STRING, description="Search query for the topic"),
-                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 10)")
+                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 15)")
+                },
+                required=["query"]
+            )
+        ),
+        types.FunctionDeclaration(
+            name="exa_search",
+            description="Neural search via Exa.ai. COSTS CREDITS - use only when discover_papers isn't enough.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "query": types.Schema(type=types.Type.STRING, description="Conceptual search query"),
+                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 5)")
                 },
                 required=["query"]
             )
         ),
         types.FunctionDeclaration(
             name="add_paper",
-            description="Add a paper to the library by arXiv ID or DOI. Downloads PDF and updates master.bib. Use after search_papers.",
+            description="Add a paper to library by arXiv ID or DOI. Downloads PDF and updates master.bib.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "identifier": types.Schema(type=types.Type.STRING, description="arXiv ID (e.g., '1706.03762') or DOI (e.g., '10.1038/...')"),
-                    "source": types.Schema(type=types.Type.STRING, description="'arxiv', 'doi', or 'auto' (default: auto)")
+                    "identifier": types.Schema(type=types.Type.STRING, description="arXiv ID or DOI"),
+                    "source": types.Schema(type=types.Type.STRING, description="'arxiv', 'doi', or 'auto'")
                 },
                 required=["identifier"]
             )
         ),
         types.FunctionDeclaration(
             name="query_library",
-            description="Ask a research question using RAG (PaperQA2) with persistent vector store. Returns detailed answer with citations. Use AFTER adding papers.",
+            description="Ask a research question using PaperQA2 RAG. Uses persistent Qdrant index.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "question": types.Schema(type=types.Type.STRING, description="Specific research question to answer"),
-                    "paper_filter": types.Schema(type=types.Type.STRING, description="Optional filter by keyword (author, title word)")
+                    "question": types.Schema(type=types.Type.STRING, description="Research question"),
+                    "paper_filter": types.Schema(type=types.Type.STRING, description="Optional keyword filter")
                 },
                 required=["question"]
             )
         ),
         types.FunctionDeclaration(
-            name="get_citation_keys",
-            description="Find @citation_keys for papers in library to use in the Typst document. Search by author, title, or year.",
+            name="fuzzy_cite",
+            description="Fuzzy search for @citation_keys. Use before writing to get correct keys.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "query": types.Schema(type=types.Type.STRING, description="Search term (author name, title keyword, year)")
+                    "query": types.Schema(type=types.Type.STRING, description="Author, title, year, or keyword")
                 },
                 required=["query"]
             )
         ),
         types.FunctionDeclaration(
             name="list_library",
-            description="List all papers currently in the library. Use to see what's available before adding more.",
+            description="List all papers in the library. Check existing papers before adding more.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={},
@@ -434,10 +556,11 @@ TOOLS = [
 ]
 
 TOOL_FUNCTIONS = {
-    "search_papers": search_papers,
+    "discover_papers": discover_papers,
+    "exa_search": exa_search,
     "add_paper": add_paper,
     "query_library": query_library,
-    "get_citation_keys": get_citation_keys,
+    "fuzzy_cite": fuzzy_cite,
     "list_library": list_library
 }
 
@@ -445,72 +568,61 @@ TOOL_FUNCTIONS = {
 # SYSTEM PROMPT
 # ============================================================================
 
-SYSTEM_PROMPT = """You are an autonomous research agent that produces comprehensive academic Typst documents.
-
-## Your Mission
-Given a research topic, you will:
-1. Search for relevant papers
-2. Add the most important ones to the library
-3. Query the library using RAG to synthesize information
-4. Generate a complete, well-cited Typst document
+SYSTEM_PROMPT = """You are an autonomous research agent that produces academic Typst documents.
 
 ## Available Tools
 
-### 1. search_papers(query, limit)
-Search Semantic Scholar for academic papers.
-- Use FIRST to discover relevant work on the topic
+### 1. discover_papers(query, limit)
+Search Semantic Scholar + paper-scraper for papers.
+- Use FIRST to find relevant papers
 - Returns: title, authors, year, abstract, arxiv_id, doi, citations
-- Prioritize papers with high citation counts and recent publication dates
+- Prioritize high-citation and recent papers
 
-### 2. add_paper(identifier, source)
-Download a paper to the library. Uses papis and updates master.bib.
-- Input: arXiv ID (e.g., "1706.03762") or DOI
-- Only add the 5-10 MOST RELEVANT papers (quality over quantity)
-- Wait for each add to complete before querying
+### 2. exa_search(query, limit)  
+Neural search via Exa.ai. ⚠️ COSTS CREDITS!
+- Only use when discover_papers doesn't find enough
+- Good for conceptual/semantic queries
 
-### 3. query_library(question, paper_filter)
-Ask questions about library papers using PaperQA2 RAG.
-- Uses persistent Qdrant vector database for fast queries
-- Returns detailed answers with source citations
-- Use AFTER adding papers to get synthesized insights
+### 3. add_paper(identifier, source)
+Download paper to library by arXiv ID or DOI.
+- Updates master.bib automatically
+- Add 5-10 MOST RELEVANT papers only
 
-### 4. get_citation_keys(query)
-Find @citation_keys for papers in the library.
-- Search by author name, title keyword, or year
-- Use these keys in the Typst document as @citation_key
+### 4. query_library(question, paper_filter)
+RAG Q&A using PaperQA2 with persistent Qdrant index.
+- Returns detailed answers with citations
+- Use AFTER adding papers
 
-### 5. list_library()
-List all papers currently available in the library.
-- Use to check existing resources before adding more
+### 5. fuzzy_cite(query)
+Find @citation_keys for papers in library.
+- Fuzzy matches author, title, year
+- Returns keys to use in document
+
+### 6. list_library()
+Show all papers in the library.  
+- Check before adding duplicates
 
 ## Workflow
 
-1. **Explore**: Use list_library() to see existing papers
-2. **Search**: Use search_papers() for 2-3 targeted queries on the topic
-3. **Acquire**: Use add_paper() for the 5-8 most important papers found
-4. **Research**: Use query_library() multiple times with specific questions:
-   - "What is the main contribution of X?"
-   - "How does Y compare to Z?"
-   - "What are the limitations of this approach?"
-5. **Cite**: Use get_citation_keys() to find proper keys for papers you reference
-6. **Write**: Generate the complete Typst document
+1. **Explore**: list_library() to see existing papers
+2. **Search**: discover_papers() with 2-3 queries
+3. **Acquire**: add_paper() for 5-8 best papers
+4. **Research**: query_library() with specific questions
+5. **Cite**: fuzzy_cite() to get correct @keys
+6. **Write**: Output complete Typst document
 
 ## Output Format
-
-When you have gathered sufficient information, output the COMPLETE Typst document.
-The document MUST follow this exact structure:
 
 ```typst
 #import "lib.typ": project
 
 #show: project.with(
-  title: "Your Descriptive Title",
+  title: "Your Title",
   subtitle: "A Research Report",
   authors: ("Research Agent",),
   date: "December 2025",
   abstract: [
-    A concise abstract summarizing the topic, key findings, and conclusions.
-    Should be 3-5 sentences.
+    Concise abstract summarizing topic and findings.
   ]
 )
 
@@ -518,55 +630,36 @@ The document MUST follow this exact structure:
 #pagebreak()
 
 = Introduction
-Opening paragraph introducing the topic and its importance.
-Brief overview of what the document covers.
+Content with @citation_key references...
 
 = Background
-Foundational concepts needed to understand the topic.
-Use citations like @citation_key throughout.
+More content with citations @key1 @key2...
 
-= Main Section Title
-Core content with multiple subsections as needed.
-
-== Subsection
-Detailed analysis and synthesis of the literature.
-
-= Discussion
-Analysis of findings, implications, and connections.
+= Analysis
+Detailed synthesis...
 
 = Conclusion
-Summary of key points and potential future directions.
+Summary and future directions.
 
 #bibliography("refs.bib")
 ```
 
-## Citation Rules
-- ALWAYS use @citation_key format for citations
-- Only cite papers that are actually in the library
-- Use get_citation_keys() to verify the exact key format
-- Integrate citations naturally into the text
-
-## Quality Standards
-- Be thorough and scholarly in tone
-- Support all claims with citations
-- Synthesize information across multiple sources
-- Include critical analysis, not just summaries
-- Aim for 1500-2500 words of content"""
+## Rules
+- Use @citation_key format for ALL citations
+- Use fuzzy_cite() to verify exact keys before writing
+- Be thorough and scholarly
+- Synthesize information across sources
+- Aim for 1500-2500 words"""
 
 # ============================================================================
 # AGENT LOOP
 # ============================================================================
 
 def run_agent(topic: str) -> str:
-    """
-    Run the research agent on a topic.
+    """Run the research agent on a topic."""
+    global _used_citation_keys
+    _used_citation_keys = set()  # Reset for new run
     
-    Args:
-        topic: Research topic to investigate
-        
-    Returns:
-        Typst document content as a string
-    """
     console.print(Panel(
         f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
         f"[white]{topic}[/white]\n\n"
@@ -574,23 +667,24 @@ def run_agent(topic: str) -> str:
         border_style="cyan"
     ))
     
-    # Build conversation with user message
     contents = [
         types.Content(
             role="user",
-            parts=[types.Part(text=f"""Research the following topic and produce a comprehensive academic document:
+            parts=[types.Part(text=f"""Research this topic and produce a Typst document:
 
 TOPIC: {topic}
 
-Begin by exploring the current library, then search for and add relevant papers.
-Use the query_library tool to synthesize information from the papers.
-Finally, output a complete, well-structured Typst document with proper citations.""")]
+1. Start by checking existing library papers
+2. Search for and add relevant papers
+3. Query the library to synthesize information
+4. Use fuzzy_cite to get correct citation keys
+5. Output a complete Typst document with proper @citations""")]
         )
     ]
     
     console.print("\n[bold]Starting autonomous research...[/bold]\n")
     
-    max_iterations = 30
+    max_iterations = 35
     iteration = 0
     
     while iteration < max_iterations:
@@ -610,26 +704,20 @@ Finally, output a complete, well-structured Typst document with proper citations
                 console.print(f"[red]API error: {e}[/red]")
                 break
         
-        # Check for function calls
         if response.candidates and response.candidates[0].content.parts:
             parts = response.candidates[0].content.parts
             function_calls = [p for p in parts if p.function_call]
             
             if function_calls:
-                # Add assistant response to conversation
-                contents.append(types.Content(
-                    role="model",
-                    parts=parts
-                ))
+                contents.append(types.Content(role="model", parts=parts))
                 
-                # Execute each function call
                 function_response_parts = []
                 for part in function_calls:
                     fc = part.function_call
                     func_name = fc.name
                     func_args = dict(fc.args) if fc.args else {}
                     
-                    console.print(f"[yellow]→ {func_name}({json.dumps(func_args, default=str)[:100]})[/yellow]")
+                    console.print(f"[yellow]→ {func_name}({json.dumps(func_args, default=str)[:80]})[/yellow]")
                     
                     if func_name in TOOL_FUNCTIONS:
                         try:
@@ -646,55 +734,67 @@ Finally, output a complete, well-structured Typst document with proper citations
                         ))
                     )
                 
-                # Add function responses
-                contents.append(types.Content(
-                    role="user",
-                    parts=function_response_parts
-                ))
+                contents.append(types.Content(role="user", parts=function_response_parts))
             else:
-                # No function calls - check for final document
                 text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
                 
-                # Check if this is a complete Typst document
                 if "#import" in text and "project.with" in text and "#bibliography" in text:
                     console.print("[green]✓ Document generated[/green]")
-                    # Extract the typst code block if wrapped
                     if "```typst" in text:
                         match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
                         if match:
                             return match.group(1).strip()
                     return text
                 
-                # Show partial response
-                console.print(f"[dim]{text[:200]}...[/dim]")
+                console.print(f"[dim]{text[:150]}...[/dim]")
                 
-                # Prompt to continue
-                contents.append(types.Content(
-                    role="model",
-                    parts=parts
-                ))
+                contents.append(types.Content(role="model", parts=parts))
                 contents.append(types.Content(
                     role="user",
-                    parts=[types.Part(text="Continue with the next step. When you have sufficient research, output the complete Typst document.")]
+                    parts=[types.Part(text="Continue. Output the complete Typst document when ready.")]
                 ))
         else:
             console.print("[yellow]Empty response, retrying...[/yellow]")
     
-    console.print("[yellow]Warning: Reached iteration limit[/yellow]")
     return "// Agent did not produce a document within iteration limit"
 
 
-def generate_report(topic: str) -> Path:
-    """
-    Generate a complete research report on a topic.
+def filter_bibtex_to_cited(master_bib_path: Path, cited_keys: Set[str]) -> str:
+    """Filter master.bib to only include entries that were cited."""
+    if not master_bib_path.exists():
+        return "% No references\n"
     
-    Args:
-        topic: Research topic
-        
-    Returns:
-        Path to the generated report directory
-    """
-    # Ensure reports directory exists
+    content = master_bib_path.read_text()
+    
+    # Parse bibtex entries
+    pattern = r'(@\w+\{([^,]+),.*?\n\})'
+    matches = re.findall(pattern, content, re.DOTALL)
+    
+    filtered_entries = []
+    for full_entry, key in matches:
+        key = key.strip()
+        if key in cited_keys or not cited_keys:
+            filtered_entries.append(full_entry)
+    
+    if not filtered_entries:
+        # Fallback: return all entries if no matches
+        return content
+    
+    return "\n\n".join(filtered_entries) + "\n"
+
+
+def extract_citations_from_typst(typst_content: str) -> Set[str]:
+    """Extract all @citation_key references from Typst content."""
+    # Match @key patterns (not in code blocks)
+    pattern = r'@([a-zA-Z][a-zA-Z0-9_-]*)'
+    matches = re.findall(pattern, typst_content)
+    return set(matches)
+
+
+def generate_report(topic: str) -> Path:
+    """Generate a complete research report on a topic."""
+    global _used_citation_keys
+    
     REPORTS_PATH.mkdir(parents=True, exist_ok=True)
     
     # Run agent
@@ -711,22 +811,26 @@ def generate_report(topic: str) -> Path:
     # Copy template library
     if (TEMPLATE_PATH / "lib.typ").exists():
         shutil.copy(TEMPLATE_PATH / "lib.typ", report_dir / "lib.typ")
-        console.print(f"[dim]Copied lib.typ from template[/dim]")
-    else:
-        console.print(f"[yellow]Warning: Template not found at {TEMPLATE_PATH}[/yellow]")
+        console.print(f"[dim]✓ Copied lib.typ[/dim]")
     
-    # Copy master.bib as refs.bib
+    # Extract cited keys from document
+    doc_citations = extract_citations_from_typst(typst_content)
+    all_cited = _used_citation_keys | doc_citations
+    
+    console.print(f"[dim]Cited keys: {all_cited}[/dim]")
+    
+    # Create filtered refs.bib with only cited papers
     if MASTER_BIB.exists():
-        shutil.copy(MASTER_BIB, report_dir / "refs.bib")
-        console.print(f"[dim]Copied master.bib as refs.bib[/dim]")
+        filtered_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+        (report_dir / "refs.bib").write_text(filtered_bib)
+        console.print(f"[green]✓ Created refs.bib (filtered to cited papers)[/green]")
     else:
-        (report_dir / "refs.bib").write_text("% No references available\n")
-        console.print(f"[yellow]Warning: master.bib not found[/yellow]")
+        (report_dir / "refs.bib").write_text("% No references\n")
     
     # Write main.typ
     main_typ = report_dir / "main.typ"
     main_typ.write_text(typst_content)
-    console.print(f"[green]✓ Created {main_typ.name}[/green]")
+    console.print(f"[green]✓ Created main.typ[/green]")
     
     # Compile to PDF
     console.print("[dim]Compiling to PDF...[/dim]")
@@ -741,21 +845,18 @@ def generate_report(topic: str) -> Path:
         if result.returncode == 0:
             console.print(f"[green]✓ Compiled main.pdf[/green]")
         else:
-            console.print(f"[yellow]Compilation warning: {result.stderr[:200]}[/yellow]")
+            console.print(f"[yellow]Compilation: {result.stderr[:150]}[/yellow]")
     except FileNotFoundError:
-        console.print("[yellow]typst not found - install with: brew install typst[/yellow]")
-    except subprocess.TimeoutExpired:
-        console.print("[yellow]Compilation timeout[/yellow]")
+        console.print("[yellow]typst not found - install: brew install typst[/yellow]")
     except Exception as e:
-        console.print(f"[yellow]Compilation error: {e}[/yellow]")
+        console.print(f"[yellow]Compile error: {e}[/yellow]")
     
-    # Summary
     console.print(Panel(
         f"[bold green]📄 Report Generated[/bold green]\n\n"
-        f"📁 Location: [cyan]{report_dir}[/cyan]\n"
-        f"� Document: main.typ\n"
-        f"📚 References: refs.bib\n"
-        f"📖 PDF: main.pdf",
+        f"📁 {report_dir}\n"
+        f"📝 main.typ\n"
+        f"📚 refs.bib (filtered)\n"
+        f"📖 main.pdf",
         border_style="green"
     ))
     
@@ -775,18 +876,10 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   research agent "Impact of attention mechanisms on NLP"
-  research agent "Vision Transformers vs CNNs for image classification"
-  research agent "Few-shot learning in large language models"
-  
-The agent will:
-  1. Search for relevant papers on Semantic Scholar
-  2. Add the best papers to the library (with PDFs)
-  3. Query the papers using PaperQA2 RAG
-  4. Generate a complete Typst document with citations
-  5. Compile to PDF (requires: brew install typst)
+  research agent "Vision Transformers vs CNNs"
         """
     )
-    parser.add_argument('topic', nargs='+', help='Research topic to investigate')
+    parser.add_argument('topic', nargs='+', help='Research topic')
     
     args = parser.parse_args()
     topic = " ".join(args.topic)
@@ -796,8 +889,7 @@ The agent will:
         sys.exit(1)
     
     if not os.getenv('GEMINI_API_KEY'):
-        console.print("[red]Error: GEMINI_API_KEY not set in .env[/red]")
-        console.print("Get a free key at: https://aistudio.google.com/app/apikey")
+        console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         sys.exit(1)
     
     generate_report(topic)
