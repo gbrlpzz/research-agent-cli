@@ -41,9 +41,10 @@ os.environ['LITELLM_LOG'] = 'ERROR'
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from google import genai
 from google.genai import types
+import logging
 
 # Setup
 console = Console()
@@ -66,6 +67,36 @@ FLASH_MODEL = "gemini-2.5-flash"  # For RAG (faster)
 
 # Global state for tracking which papers were used
 _used_citation_keys: Set[str] = set()
+
+# Debug logger (set per session)
+_debug_logger: Optional[logging.Logger] = None
+
+
+def setup_debug_log(report_dir: Path) -> logging.Logger:
+    """Setup debug logging to a file in the report directory."""
+    log_file = report_dir / "artifacts" / "debug.log"
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    logger = logging.getLogger(f"agent_{report_dir.name}")
+    logger.setLevel(logging.DEBUG)
+    
+    # Clear any existing handlers
+    logger.handlers = []
+    
+    # File handler for debug log
+    fh = logging.FileHandler(log_file)
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(logging.Formatter('%(asctime)s | %(levelname)s | %(message)s'))
+    logger.addHandler(fh)
+    
+    return logger
+
+
+def log_debug(msg: str):
+    """Log debug message to file only."""
+    global _debug_logger
+    if _debug_logger:
+        _debug_logger.debug(msg)
 
 
 # ============================================================================
@@ -1227,14 +1258,14 @@ Use date: "{current_date}" in the document.
 # MULTI-PHASE ORCHESTRATOR
 # ============================================================================
 
-def generate_report(topic: str, max_revisions: int = 2) -> Path:
+def generate_report(topic: str, max_revisions: int = 3) -> Path:
     """Generate a research report with planning, review, and revision phases."""
-    global _used_citation_keys
+    global _used_citation_keys, _debug_logger
     _used_citation_keys = set()
     
     REPORTS_PATH.mkdir(parents=True, exist_ok=True)
     
-    # Create report directory early for artifacts
+    # Create report directory early
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     topic_slug = "".join(c if c.isalnum() or c == " " else "" for c in topic[:40])
     topic_slug = topic_slug.strip().replace(" ", "_").lower()
@@ -1242,48 +1273,66 @@ def generate_report(topic: str, max_revisions: int = 2) -> Path:
     report_dir = REPORTS_PATH / report_name
     report_dir.mkdir(parents=True, exist_ok=True)
     
+    # Create artifacts subfolder
+    artifacts_dir = report_dir / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Setup debug logging
+    _debug_logger = setup_debug_log(report_dir)
+    log_debug(f"Starting research session: {topic}")
+    log_debug(f"Max revisions: {max_revisions}")
+    
     # ========== PHASE 1: PLANNING ==========
-    console.print("\n" + "="*60)
-    console.print("[bold]PHASE 1: RESEARCH PLANNING[/bold]")
-    console.print("="*60 + "\n")
+    console.print(Panel(
+        f"[bold blue]Phase 1: Research Planning[/bold blue]",
+        border_style="blue", width=60
+    ))
     
     research_plan = create_research_plan(topic)
     
-    # Save plan
-    (report_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
+    # Save plan to artifacts
+    (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
+    log_debug(f"Research plan created: {json.dumps(research_plan)}")
     
     # ========== PHASE 2: RESEARCH & WRITE ==========
-    console.print("\n" + "="*60)
-    console.print("[bold]PHASE 2: RESEARCH & WRITING[/bold]")
-    console.print("="*60 + "\n")
+    console.print(Panel(
+        f"[bold cyan]Phase 2: Research & Writing[/bold cyan]",
+        border_style="cyan", width=60
+    ))
     
-    # Inject plan into agent
     typst_content = run_agent(topic, research_plan=research_plan)
+    
+    # Save initial draft
+    (artifacts_dir / "draft_initial.typ").write_text(typst_content)
+    log_debug("Initial draft complete")
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
     reviews = []
     
     for revision_round in range(1, max_revisions + 1):
-        console.print("\n" + "="*60)
-        console.print(f"[bold]PHASE 3.{revision_round}: PEER REVIEW[/bold]")
-        console.print("="*60 + "\n")
+        console.print(Panel(
+            f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]",
+            border_style="magenta", width=60
+        ))
         
         review_result = peer_review(typst_content, topic, revision_round)
         reviews.append(review_result)
         
-        # Save review
-        review_file = report_dir / f"peer_review_r{revision_round}.md"
-        review_file.write_text(f"# Peer Review - Round {revision_round}\n\n{review_result['review']}")
+        # Save review to artifacts
+        review_file = artifacts_dir / f"peer_review_r{revision_round}.md"
+        review_file.write_text(f"# Peer Review - Round {revision_round}\n\n**Verdict**: {review_result['verdict'].upper()}\n\n{review_result['review']}")
+        log_debug(f"Review {revision_round}: {review_result['verdict']}")
         
         # Check if accepted
         if review_result['verdict'] == 'accept':
-            console.print("[bold green]✓ Paper accepted![/bold green]")
+            console.print("[bold green]✓ Paper accepted by reviewer![/bold green]")
             break
         
         # ========== PHASE 4: REVISION ==========
-        console.print("\n" + "="*60)
-        console.print(f"[bold]PHASE 4.{revision_round}: REVISION[/bold]")
-        console.print("="*60 + "\n")
+        console.print(Panel(
+            f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]",
+            border_style="yellow", width=60
+        ))
         
         typst_content = revise_document(
             typst_content, 
@@ -1292,70 +1341,71 @@ def generate_report(topic: str, max_revisions: int = 2) -> Path:
             research_plan
         )
         
-        # Save draft
-        draft_file = report_dir / f"draft_r{revision_round}.typ"
+        # Save draft to artifacts
+        draft_file = artifacts_dir / f"draft_r{revision_round}.typ"
         draft_file.write_text(typst_content)
+        log_debug(f"Revision {revision_round} complete")
     
     # ========== FINAL OUTPUT ==========
-    console.print("\n" + "="*60)
-    console.print("[bold]FINAL OUTPUT[/bold]")
-    console.print("="*60 + "\n")
+    console.print(Panel(
+        f"[bold green]Finalizing Output[/bold green]",
+        border_style="green", width=60
+    ))
     
     # Copy template
     if (TEMPLATE_PATH / "lib.typ").exists():
         shutil.copy(TEMPLATE_PATH / "lib.typ", report_dir / "lib.typ")
-        console.print("[dim]✓ Copied lib.typ[/dim]")
     
     # Extract and filter citations
     doc_citations = extract_citations_from_typst(typst_content)
     all_cited = _used_citation_keys | doc_citations
-    
-    console.print(f"[dim]Cited keys: {all_cited}[/dim]")
+    log_debug(f"Cited keys: {all_cited}")
     
     # Create filtered refs.bib
     if MASTER_BIB.exists():
         filtered_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
         (report_dir / "refs.bib").write_text(filtered_bib)
-        console.print("[green]✓ Created refs.bib (filtered)[/green]")
     else:
         (report_dir / "refs.bib").write_text("% No references\n")
     
     # Write final main.typ
     main_typ = report_dir / "main.typ"
     main_typ.write_text(typst_content)
-    console.print("[green]✓ Created main.typ[/green]")
     
     # Compile to PDF
-    console.print("[dim]Compiling to PDF...[/dim]")
-    try:
-        result = subprocess.run(
-            ["typst", "compile", "main.typ"],
-            cwd=report_dir,
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
-        if result.returncode == 0:
-            console.print("[green]✓ Compiled main.pdf[/green]")
-        else:
-            console.print(f"[yellow]Compilation: {result.stderr[:150]}[/yellow]")
-    except FileNotFoundError:
-        console.print("[yellow]typst not found - install: brew install typst[/yellow]")
-    except Exception as e:
-        console.print(f"[yellow]Compile error: {e}[/yellow]")
+    with console.status("[dim]Compiling PDF..."):
+        try:
+            result = subprocess.run(
+                ["typst", "compile", "main.typ"],
+                cwd=report_dir,
+                capture_output=True,
+                text=True,
+                timeout=60
+            )
+            if result.returncode != 0:
+                log_debug(f"Typst error: {result.stderr}")
+        except FileNotFoundError:
+            log_debug("typst not found")
+        except Exception as e:
+            log_debug(f"Compile error: {e}")
     
     # Summary
+    console.print("\n" + "="*60)
     console.print(Panel(
-        f"[bold green]📄 Research Complete[/bold green]\n\n"
-        f"📁 {report_dir}\n"
-        f"📋 research_plan.json\n"
-        f"📝 main.typ (final)\n"
-        f"🔍 peer_review_r*.md ({len(reviews)} reviews)\n"
-        f"📚 refs.bib (filtered)\n"
-        f"📖 main.pdf",
+        f"[bold green]✓ Research Complete[/bold green]\n\n"
+        f"[white]Topic:[/white] {topic[:50]}...\n"
+        f"[white]Reviews:[/white] {len(reviews)} rounds\n"
+        f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n\n"
+        f"[dim]Output:[/dim]\n"
+        f"  � main.typ\n"
+        f"  � main.pdf\n"
+        f"  📚 refs.bib\n"
+        f"  📁 artifacts/ (plans, drafts, reviews)\n\n"
+        f"[dim]{report_dir}[/dim]",
         border_style="green"
     ))
     
+    log_debug(f"Session complete: {report_dir}")
     return report_dir
 
 
@@ -1372,12 +1422,13 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   research agent "Impact of attention mechanisms on NLP"
-  research agent --revisions 3 "Vision Transformers"
+  research agent -r 5 "Vision Transformers vs CNNs"
+  research agent --revisions 1 "Quick research topic"
         """
     )
     parser.add_argument('topic', nargs='+', help='Research topic')
-    parser.add_argument('--revisions', '-r', type=int, default=2,
-                       help='Max peer review rounds (default: 2)')
+    parser.add_argument('--revisions', '-r', type=int, default=3,
+                       help='Max peer review rounds (default: 3)')
     
     args = parser.parse_args()
     topic = " ".join(args.topic)
