@@ -47,121 +47,110 @@ def preview_paper(index, temp_file_path):
     except Exception as e:
         print(f"Error reading preview: {e}")
 
-def _merge_and_deduplicate(s2_results, ps_results):
-    """
-    Merge and deduplicate results from Semantic Scholar and paper-scraper.
-    
-    Deduplication strategy:
-    - Use DOI or arXiv ID as unique identifier
-    - If a paper appears in both sources, prefer S2 (better metadata)
-    - Papers without identifiers are kept as unique
-    
-    Returns list of dicts: [{'source': 's2'|'ps', 'source_tag': 'S2'|'PS', 'paper': <paper_obj>}]
-    """
-    seen_identifiers = set()
-    merged = []
-    
-    # Process S2 results first (higher priority)
-    for paper in s2_results:
-        # Extract identifiers
-        doi = None
-        arxiv_id = None
-        
-        if paper.externalIds:
-            doi = paper.externalIds.get('DOI')
-            arxiv_id = paper.externalIds.get('ArXiv')
-        
-        # Create unique key
-        key = None
-        if doi:
-            key = f"doi:{doi}"
-        elif arxiv_id:
-            key = f"arxiv:{arxiv_id}"
-        
-        # Add if unique or no identifier
-        if key is None or key not in seen_identifiers:
-            if key:
-                seen_identifiers.add(key)
-            merged.append({
-                'source': 's2',
-                'source_tag': 'S2',
-                'paper': paper
-            })
-    
-    # Process paper-scraper results (deduplicate against S2)
-    for paper in ps_results:
-        doi = paper.get('doi')
-        arxiv_id = paper.get('arxiv_id')
-        
-        key = None
-        if doi:
-            key = f"doi:{doi}"
-        elif arxiv_id:
-            key = f"arxiv:{arxiv_id}"
-        
-        # Only add if not already seen
-        if key is None or key not in seen_identifiers:
-            if key:
-                seen_identifiers.add(key)
-            merged.append({
-                'source': 'ps',
-                'source_tag': 'PS',
-                'paper': paper
-            })
-    
-    logging.debug(f"Merged {len(s2_results)} S2 + {len(ps_results)} PS → {len(merged)} unique papers ({len(seen_identifiers)} had identifiers)")
-    return merged
-
-
 def search_and_select(query):
-    logging.info(f"Starting unified multi-source search for: {query}")
+    # Use centralized discovery utility
+    sys.path.insert(0, str(Path(__file__).parent))
+    from utils.discovery import search_papers
     
-    s2_results = []
-    ps_results = []
-    
-    # Use progress indicator for searches
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console
-    ) as progress:
-        # Search Semantic Scholar
-        s2_task = progress.add_task("[cyan]Searching Semantic Scholar...", total=None)
-        try:
-            results = sch.search_paper(query, limit=20)
-            s2_results = list(itertools.islice(results, 20))
-            progress.update(s2_task, description=f"[green]✓ Semantic Scholar: {len(s2_results)} results")
-            logging.info(f"Semantic Scholar returned {len(s2_results)} results")
-        except Exception as e:
-            progress.update(s2_task, description=f"[yellow]⚠ Semantic Scholar: Error")
-            console.print(f"[yellow]Warning - Semantic Scholar error:[/yellow] {e}")
-            logging.error(f"Semantic Scholar error: {e}")
-        finally:
-            progress.remove_task(s2_task)
-        
-        # Search paper-scraper (if available)
-        ps_task = progress.add_task("[cyan]Searching paper-scraper...", total=None)
-        try:
-            ps_results = scraper_client.search_papers(query, limit=15)
-            progress.update(ps_task, description=f"[green]✓ Paper-scraper: {len(ps_results)} results")
-            logging.info(f"Paper-scraper returned {len(ps_results)} results")
-        except Exception as e:
-            progress.update(ps_task, description=f"[yellow]⚠ Paper-scraper: Error")
-            console.print(f"[yellow]Warning - paper-scraper error:[/yellow] {e}")
-            logging.error(f"Paper-scraper error: {e}")
-        finally:
-            progress.remove_task(ps_task)
-    
-    # Combine and deduplicate results
-    all_papers = _merge_and_deduplicate(s2_results, ps_results)
+    # 20 results by default from search_papers
+    all_papers = search_papers(query)
     
     if not all_papers:
-        console.print("[bold red]No results found from any source.[/bold red]")
-        logging.info("No results found from any source.")
         return None
     
-    console.print(f"[bold green]✓ Found {len(all_papers)} unique papers ({len(s2_results)} from S2, {len(ps_results)} from PS)[/bold green]")
-    logging.info(f"Combined {len(all_papers)} unique papers")
+    # Prepare data for FZF
+    # Note: search_papers returns list of dicts. We need to adapt it back for FZF display if needed,
+    # or just use the dicts directly since search_papers standardizes output.
+    
+    fzf_input = []
+    papers_data = [] # List of dicts for JSON serialization
+    papers_obj = []  # List of dicts for returning
+    
+    for idx, paper in enumerate(all_papers):
+        title = paper['title']
+        authors = ", ".join(paper['authors'])
+        year = paper['year'] or "????"
+        abstract = paper['abstract']
+        source_tag = paper['source']
+        url = paper['url'] or ""
+        citations = paper['citations']
+        
+        # Format display string
+        # Display: Index | URL (hidden) | Source Tag | Year | Citations | Title | Authors
+        display_str = f"{idx}|{url}|[{source_tag}] {year} | {citations:5} cites | {title[:45]:<45} | {authors[:30]}"
+        fzf_input.append(display_str)
+        
+        # Store for preview
+        papers_data.append({
+            'title': title,
+            'authors': authors,
+            'abstract': abstract,
+            'year': str(year),
+            'url': url
+        })
+        papers_obj.append(paper) # It is already a dict
+        
+    if not fzf_input:
+        return None
+        
+    # Create temp file for preview
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.json') as tmp_file:
+        json.dump(papers_data, tmp_file)
+        tmp_path = tmp_file.name
+
+    # Invoke FZF
+    try:
+        logging.info("Invoking FZF subprocess with preview.")
+        preview_cmd = f'"{sys.executable}" "{os.path.abspath(__file__)}" --preview {{1}} "{tmp_path}"'
+        
+        fzf_args = [
+            'fzf', 
+            '--multi', 
+            '--delimiter', '|',
+            '--with-nth', '3..', # Hide index and URL from display
+            '--preview', preview_cmd,
+            '--preview-window', 'right:50%:wrap',
+            '--bind', 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all',
+            '--bind', 'o:execute-silent(open {2})',
+            '--bind', 'q:abort',
+            '--header', 'TAB: Select | o: Open in browser | q: Quit | ENTER: Add to library'
+        ]
+        
+        fzf = subprocess.Popen(fzf_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        stdout, _ = fzf.communicate(input="\n".join(fzf_input))
+        logging.info("FZF finished. Parsing selections.")
+        selections = stdout.strip().split('\n')
+    except FileNotFoundError:
+        console.print("[bold red]Error:[/bold red] fzf not found. Please install fzf.")
+        os.unlink(tmp_path)
+        return None
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+    
+    # Process selections
+    selected_urls = []
+    for line in selections:
+        if not line: continue
+        try:
+            parts = line.split('|')
+            idx = int(parts[0].strip())
+            
+            if 0 <= idx < len(papers_obj):
+                paper = papers_obj[idx]
+                
+                # Extract identifier based on priority
+                if paper.get('arxiv_id'):
+                    selected_urls.append(('arxiv', paper['arxiv_id']))
+                elif paper.get('doi'):
+                    selected_urls.append(('doi', paper['doi']))
+                elif paper.get('url'):
+                    selected_urls.append(('url', paper['url']))
+                    
+        except ValueError:
+            continue
+            
+    return selected_urls
 
     # Prepare data for FZF and temporary storage
     fzf_input = []
