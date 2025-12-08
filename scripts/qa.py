@@ -7,8 +7,13 @@ Supports subset filtering, answer export, and interactive chat.
 import sys
 import os
 import argparse
+import warnings
 from pathlib import Path
 from datetime import datetime
+
+# Suppress LiteLLM verbose logging BEFORE any imports that use it
+os.environ['LITELLM_LOG'] = 'ERROR'
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -21,12 +26,29 @@ import logging
 console = Console()
 load_dotenv()
 
-# Logging
+# Suppress litellm verbose output
+try:
+    import litellm
+    litellm.suppress_debug_info = True
+    litellm.set_verbose = False
+except:
+    pass
+
+# Logging to file only (not console)
 logging.basicConfig(
     filename='debug_research.log',
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# Suppress paper-qa's verbose logging to console
+logging.getLogger('paperqa').setLevel(logging.WARNING)
+logging.getLogger('litellm').setLevel(logging.ERROR)
+
+# Suppress deprecation warnings from paperqa
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='paperqa')
+warnings.filterwarnings('ignore', message='.*synchronous.*deprecated.*')
+warnings.filterwarnings('ignore', message='coroutine.*was never awaited')
 
 def setup_gemini_settings():
     """Configure paper-qa to use Gemini."""
@@ -44,11 +66,18 @@ def setup_gemini_settings():
     # Set environment variable for litellm
     os.environ['GEMINI_API_KEY'] = gemini_key
     
+    # Ensure litellm stays quiet
+    try:
+        import litellm
+        litellm.set_verbose = False
+    except:
+        pass
+    
     # Configure settings for Gemini
     settings = Settings()
-    settings.llm = "gemini/gemini-2.0-flash-exp"  # Fast and free
-    settings.summary_llm = "gemini/gemini-2.0-flash-exp"
-    settings.embedding = "text-embedding-3-small"  # Uses OpenAI embeddings (cheap)
+    settings.llm = "gemini/gemini-2.5-flash"  # Gemini 2.5 Flash
+    settings.summary_llm = "gemini/gemini-2.5-flash"
+    settings.embedding = "gemini/text-embedding-004"  # Use Gemini embeddings (free) instead of OpenAI
     settings.answer.answer_max_sources = 5
     settings.answer.evidence_k = 10
     
@@ -115,14 +144,14 @@ def answer_question(question, library_path, filter_pattern=None):
                 docs.add(pdf_path, settings=settings)
                 progress.advance(task)
             except Exception as e:
-                logging.error(f"Error adding {pdf_path}: {e}")
-                progress.console.print(f"[yellow]Skip: {pdf_path.name}[/yellow]")
+                logging.error(f"Error adding {pdf_path}: {e}", exc_info=True)
+                # Silently skip failed papers - user doesn't need to see each failure
                 progress.advance(task)
     
     console.print("[green]✓ Library indexed[/green]\n")
     
     # Query
-    with console.status("[bold cyan]Querying library with Gemini..."):
+    with console.status("[bold cyan]Querying library with Gemini 2.5 Flash..."):
         try:
             response = docs.query(question, settings=settings)
             logging.info(f"Query successful: {question}")
@@ -310,7 +339,7 @@ Examples:
     
     # Chat mode
     if args.chat:
-        console.print(f"\n[bold]Starting Interactive Chat with Gemini 2.0 Flash...[/bold]")
+        console.print(f"\n[bold]Starting Interactive Chat with Gemini 2.5 Flash...[/bold]")
         interactive_chat(library_path, args.papers, args.export)
     else:
         # Single question mode
@@ -319,7 +348,7 @@ Examples:
             sys.exit(1)
         
         question = " ".join(args.question)
-        console.print(f"\n[bold]Querying library with Gemini 2.0 Flash...[/bold]")
+        console.print(f"\n[bold]Querying library with Gemini 2.5 Flash...[/bold]")
         
         # Get answer
         response = answer_question(question, library_path, args.papers)

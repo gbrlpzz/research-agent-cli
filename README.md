@@ -75,11 +75,11 @@ Combines multi-source paper search, automatic PDF fetching, citation management,
 5.  **(Optional) Set up Gemini for question-answering:**
     - Get your free API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
     - Add to `.env` file:
-      ```bash
-      echo "GEMINI_API_KEY=your_key_here" >> .env
-      ```
-    - **Cost**: Free tier with generous quota (Gemini 2.0 Flash)
-    - **Usage**: Powers `research qa` for answering questions about your library
+    -   ```bash
+        echo "GEMINI_API_KEY=your_key_here" >> .env
+        ```
+    - **Cost**: **Completely Free** (Uses Gemini 2.5 Flash + Gemini Embeddings)
+    - **Usage**: Powers `research qa` to answer questions with citations from your local library
 
 6.  Link the executable to your path:
     ```bash
@@ -222,6 +222,29 @@ This is discussed in @Attention_Is_Al_Vaswan_2017.
 2. Paste into your `.typ` file
 3. Typst compiles with the reference
 
+### 6. Knowledge Retrieval (Q&A)
+
+Ask complex questions about your entire PDF library. The agent reads papers, extracts evidence, and synthesizes an answer with citations.
+
+```bash
+research qa "How does the attention mechanism differ from RNNs?"
+```
+
+**What happens**:
+1. ⠋ Indexes your new PDFs (using free Gemini embeddings)
+2. ⠋ Selects relevant passages using vector search
+3. 🤖 Synthesizes an answer using **Gemini 2.5 Flash**
+
+**Example Output**:
+```
+Answer:
+The attention mechanism allows modeling of dependencies without regard to their distance in the input or output sequences [1]. Unlike RNNs, which process data sequentially and preclude parallelization, the Transformer architecture relies entirely on attention to draw global dependencies between input and output [1][2]. This allows for significantly more parallelization and faster training times [1].
+
+Sources:
+[1] Attention Is All You Need - Vaswani et al. (Relevance: 10.00)
+[2] Transformers in Vision - Smith et al. (Relevance: 8.50)
+```
+
 ## Directory Structure
 
 ```
@@ -339,8 +362,12 @@ brew install python@3.11
 ## Changelog
 
 ### 2025-12-08
-- **Fixed**: Corrected papis CLI flag from `--file` to `--file-name` in `discover.py`, resolving "No such option: --file" error when adding papers to library
-- **Improved**: PDF fetching now properly attaches downloaded PDFs to papis entries
+- **QA Overhaul**: Refactored `research qa` for a cleaner, unified UX.
+  - Replaced verbose debug logs with sleek spinners.
+  - Switched to **Gemini Embeddings** (`text-embedding-004`), making the QA feature **100% free** (no OpenAI key required).
+  - Upgraded to **Gemini 2.5 Flash** (brand new Dec 2025!) for faster, smarter answers.
+- **Fixed**: Corrected papis CLI flag from `--file` to `--file-name` in `discover.py`.
+- **Improved**: PDF fetching now properly attaches downloaded PDFs to papis entries.
 
 ## License
 
