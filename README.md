@@ -1,145 +1,105 @@
 # Research Agent CLI
 
-A terminal-based research pipeline for discovery, acquisition, management, and synthesis of academic literature.
+> **Autonomous Research Assistant & Paper Writer**
 
-## Architecture Overview
+The Research Agent CLI is a powerful tool that autonomously conducts academic research, manages your bibliography, and synthesizes findings into high-quality Typst documents. Powered by Google's Gemini 3 Pro and PaperQA2.
 
-The system operates as a unified pipeline:
+## 🚀 Features
 
-1.  **Discovery**: Aggregates results from Semantic Scholar, Exa.ai (neural search), and Paper-Scraper (publisher direct).
-2.  **Acquisition**: Automatically resolves and downloads PDFs via ArXiv, Unpaywall, or direct scraping.
-3.  **Management**: Organizes metadata and files using `papis`, exposing a local API for citation and retrieval.
-4.  **Synthesis (RAG)**: Indexes local PDFs into a Qdrant vector database and uses Google Gemini (2.5 Flash) for retrieval-augmented generation.
+- **Autonomous Research**: Give it a topic, and it plans, searches, reads, and synthesizes information.
+- **Multi-Source Discovery**: Finds papers via Semantic Scholar, Exa.ai, and custom scrapers.
+- **PDF Fetching**: Automatically downloads PDFs from ArXiv, Unpaywall (open access), and Sci-Hub (fallback).
+- **Local Library**: Manages a local PDF library using `papis` and `master.bib`.
+- **RAG-Powered**: Uses PaperQA2 + Qdrant for deep, evidence-based answers from your library.
+- **Citation Management**: Automatically handles BibTeX citations and verifies them before writing.
+- **Typst Output**: Generates beautiful, publication-ready PDFs using a custom Typst template.
 
-## Tool Reference & Technologies
+## 🛠️ Installation
 
-This project coordinates the following tools and libraries:
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/yourusername/research-agent-cli.git
+   cd research-agent-cli
+   ```
 
-| Component | Tool / Library | Purpose | Source |
-| :--- | :--- | :--- | :--- |
-| **Core Logic** | **Python 3.11+** | Runtime environment. | [python.org](https://www.python.org/) |
-| | **Papis** | Underlying bibliography and document manager. | [papis/papis](https://github.com/papis/papis) |
-| | **FZF** | Command-line fuzzy finder for interactive selection. | [junegunn/fzf](https://github.com/junegunn/fzf) |
-| **Search** | **Semantic Scholar API** | Primary academic graph search (~200M papers). | [semanticscholar/semanticscholar](https://github.com/allenai/semanticscholar) |
-| | **Exa.ai SDK** | Neural/semantic search for concept-based queries. | [exa-labs/exa-py](https://github.com/exa-labs/exa-py) |
-| | **Paper-Scraper** | Scraper for PubMed, bioRxiv, Springer, etc. | [blackadad/paper-scraper](https://github.com/blackadad/paper-scraper) |
-| **RAG & AI** | **PaperQA** | ORM for RAG; handles indexing, citation, and prompting. | [Future-House/paper-qa](https://github.com/Future-House/paper-qa) |
-| | **Qdrant** | Local vector database for persistent embeddings. | [qdrant/qdrant-client](https://github.com/qdrant/qdrant-client) |
-| | **Google Gemini** | LLM (2.5 Flash) and Embeddings (`text-embedding-004`). | [google/generative-ai-python](https://github.com/google/generative-ai-python) |
+2. **Set up the environment**:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
-## Installation
+3. **Configure Environment Variables**:
+   Create a `.env` file in the root directory:
+   ```env
+   GEMINI_API_KEY=your_gemini_key
+   EXA_API_KEY=your_exa_key (optional)
+   SEMANTIC_SCHOLAR_API_KEY=your_key (optional)
+   ```
 
-### Prerequisites
--   **Python 3.11+**
--   `fzf` installed on your system path.
--   `git`
+4. **Dependencies**:
+   - Ensure `typst` is installed and in your PATH.
+   - Ensure `papis` is installed (included in requirements).
 
-### Setup
+## 📖 Usage
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/gbrlpzz/research-agent-cli ~/Documents/GitHub/research-agent-cli
-    cd ~/Documents/GitHub/research-agent-cli
-    ```
+### Run the Agent
 
-2.  **Initialize environment:**
-    ```bash
-    python3.11 -m venv .venv
-    source .venv/bin/activate
-    pip install -r requirements.txt
-    ```
-
-3.  **Configure Environment Variables:**
-    Create a `.env` file in the root directory:
-    ```bash
-    # Required for RAG/QA
-    GEMINI_API_KEY=your_gemini_key
-
-    # Optional for Semantic Search
-    EXA_API_KEY=your_exa_key
-    ```
-    *Note: Gemini API is currently free.*
-
-4.  **System Integration (Optional):**
-    Link the binary to your path and configure Papis:
-    ```bash
-    mkdir -p ~/.local/bin
-    ln -s $(pwd)/bin/research ~/.local/bin/research
-    
-    mkdir -p ~/Library/Application\ Support/papis
-    cp papis.config ~/Library/Application\ Support/papis/config
-    ```
-
-## Usage
-
-### Discovery
-Unified search across all configured providers.
+To start a new autonomous research task:
 
 ```bash
-# Standard search (Semantic Scholar + Paper-Scraper)
-research "large language models reasoning"
-
-# Neural/Semantic search (Exa.ai) - requires credit
-research exa "papers about chain of thought reasoning"
+research agent "The impact of attention mechanisms on NLP"
 ```
 
-### Management
-Add papers via identifier or manage citations.
+The agent will:
+1. Search for relevant papers.
+2. Download them to your library.
+3. Read and synthesize the content.
+4. Generate a report in `reports/<timestamp>_<topic>/`.
+
+### Subcommands
+
+The CLI provides several tools to manage your research:
+
+| Command | Description |
+|---------|-------------|
+| `research <query>` | Discover papers using Unified Search (Semantic Scholar + Paper-Scraper) |
+| `research agent <topic>` | Run the autonomous research agent |
+| `research qa <question>` | Ask detailed questions about your library (RAG-powered) |
+| `research add <id>` | Add a paper by DOI or arXiv ID |
+| `research cite [query]` | Search library and copy citation keys (@key) to clipboard |
+| `research open [query]` | Open a paper from your library in the browser |
+| `research exa <query>` | Perform a semantic/neural search using Exa.ai (costs credits) |
+| `research edison <query>` | Generate an AI literature synthesis (costs 1 credit) |
+
+### Examples
 
 ```bash
-# Add by DOI or ArXiv ID (auto-fetches PDF)
-research add 10.1038/nature12373
-research add 1706.03762
+# Add a paper by DOI
+research add 10.1234/example
 
-# Interactive citation search (copies @key to clipboard)
-research cite "attention"
+# Search for papers about vision transformers
+research "vision transformers"
+
+# Ask a question to your library
+research qa "How does self-attention differ from LSTM?"
+
+# Find a citation key for "Vaswani"
+research cite vaswani
 ```
 
-### Knowledge Retrieval (Q&A)
-Query your local library using Retrieval Augmented Generation (RAG).
+## 🏗️ Architecture
 
-**Features:**
-- **Zero-Latency**: Uses a local **Qdrant** vector database (stored in `library/.qa_vectordb`) for instant queries.
-- **Smart Indexing**: Automatically re-indexes only when you add or modify PDFs.
-- **Gemini 2.5**: Powered by Google's latest Gemini 2.5 Flash model for high-speed, accurate reasoning.
+See [docs/architecture.md](docs/architecture.md) for a detailed breakdown of the system components.
 
-```bash
-# Single shot question (instant results after first run)
-research qa "How does the attention mechanism differ from RNNs?"
+## 📂 Directory Structure
 
-# Interactive chat session (persists context)
-research qa --chat
+- `scripts/`: Python source code.
+- `library/`: Your local collection of papers (PDFs).
+- `reports/`: Generated research outputs.
+- `docs/`: Documentation.
+- `templates/`: Typst templates for document generation.
 
-# Filter context to specific papers (works with instant search)
-research qa --papers "vaswani" "Explain the transformer architecture"
-```
+## 📄 License
 
-## Directory Structure
-
-```text
-research-agent-cli/
-├── bin/                    # Executable entry points
-├── library/                # Document storage (gitignored)
-│   ├── .qa_vectordb/       # Qdrant persistent vector store
-│   └── <paper_id>/         # Papis document folders (info.yaml + PDF)
-├── scripts/                # Python implementation
-│   ├── discover.py         # Search & Deduplication logic
-│   ├── qa.py               # RAG implementation (PaperQA + Gemini)
-│   └── utils/              # PDF fetching and helpers
-├── master.bib              # Auto-generated BibTeX for external usage
-├── papis.config            # Papis configuration file
-└── requirements.txt        # Dependency definitions
-```
-
-## License
-Apache 2.0
-
-## Changelog
-
-### v0.2.0 - Gemini & Persistence Update
-- **Feature**: Replaced in-memory indexing with **Qdrant** persistent vector storage (`library/.qa_vectordb`).
-- **Performance**: Instant query responses on subsequent runs.
-- **Model**: Upgraded default LLM to **Gemini 2.5 Flash** (Dec 2025).
-- **UX**: Completely silenced verbose logs; added clean progress spinners.
-- **Setup**: Removed OpenAI dependency; now fully usable with just `GEMINI_API_KEY`.
-
+[MIT](LICENSE)
