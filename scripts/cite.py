@@ -112,10 +112,11 @@ def main():
         # Build fzf command
         fzf_cmd = ['fzf', '--multi', '--delimiter', '|',
              '--with-nth', '4..', 
-             '--header', 'TAB: Select | o: Open in browser | ENTER: Copy citation',
+             '--header', 'TAB: Select | o: Open in browser | q: Quit | ENTER: Copy citation',
              '--preview', preview_cmd,
              '--preview-window', 'right:50%:wrap',
-             '--bind', 'o:execute-silent(open {3})']
+             '--bind', 'o:execute-silent(open {3})',
+             '--bind', 'q:abort']
         
         if query:
             fzf_cmd.extend(['-q', query])

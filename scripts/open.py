@@ -78,8 +78,9 @@ def main():
     
     # Build fzf command
     fzf_cmd = ['fzf', '--delimiter', '\t',
-         '--with-nth', '3..', 
-         '--header', 'Select paper to open in browser',
+         '--with-nth', '2..',
+         '--header', 'Select paper to open in browser | q: Quit',
+         '--bind', 'q:abort',
          '--preview', 'echo "URL: {2}"',
          '--preview-window', 'up:1']
     

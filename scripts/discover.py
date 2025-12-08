@@ -242,7 +242,8 @@ def search_and_select(query):
             '--preview-window', 'right:50%:wrap',
             '--bind', 'ctrl-a:select-all,ctrl-d:deselect-all,ctrl-t:toggle-all',
             '--bind', 'o:execute-silent(open {2})',  # Press 'o' to open URL in browser
-            '--header', 'TAB: Select | o: Open in browser | ENTER: Add to library'
+            '--bind', 'q:abort',  # Press 'q' to quit
+            '--header', 'TAB: Select | o: Open in browser | q: Quit | ENTER: Add to library'
         ]
         
         fzf = subprocess.Popen(fzf_args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
