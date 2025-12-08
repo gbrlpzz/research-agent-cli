@@ -111,6 +111,9 @@ Combines multi-source paper search, automatic PDF fetching, citation management,
 | `research cite [query]` | Search library, copy citation keys | - | Free |
 | `research open [query>` | Open paper in browser | - | Free |
 | `research qa <question>` | Ask questions about your library | Gemini | Free* |
+| `research qa --papers <pattern> <question>` | Query specific papers only | Gemini | Free* |
+| `research qa --export <dir> <question>` | Save answer to markdown file | Gemini | Free* |
+| `research qa --chat` | Interactive Q&A session | Gemini | Free* |
 | `research help` | Interactive tutorial with examples | - | Free |
 
 **Source Codes**: S2 = Semantic Scholar, PS = paper-scraper (PubMed, arXiv, bioRxiv, Springer)  

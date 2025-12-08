@@ -2,13 +2,18 @@
 """
 Question-answering system using paper-qa with Gemini.
 Queries all PDFs in the local library to answer questions with citations.
+Supports subset filtering, answer export, and interactive chat.
 """
 import sys
 import os
+import argparse
 from pathlib import Path
+from datetime import datetime
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Prompt
+from rich.markdown import Markdown
 from dotenv import load_dotenv
 import logging
 
@@ -51,8 +56,14 @@ def setup_gemini_settings():
     return settings
 
 
-def answer_question(question, library_path):
-    """Answer a question using papers in the library."""
+def answer_question(question, library_path, filter_pattern=None):
+    """Answer a question using papers in the library.
+    
+    Args:
+        question: Question to answer
+        library_path: Path to library directory
+        filter_pattern: Optional pattern to filter papers (e.g., 'vaswani' or 'attention')
+    """
     from paperqa import Docs
     
     # Setup settings
@@ -62,7 +73,25 @@ def answer_question(question, library_path):
     docs = Docs()
     
     # Find all PDFs in library
-    pdf_files = list(library_path.rglob("*.pdf"))
+    all_pdf_files = list(library_path.rglob("*.pdf"))
+    
+    # Filter PDFs if pattern provided
+    if filter_pattern:
+        pdf_files = []
+        pattern_lower = filter_pattern.lower()
+        for pdf in all_pdf_files:
+            # Check if pattern matches directory name or filename
+            if pattern_lower in pdf.parent.name.lower() or pattern_lower in pdf.name.lower():
+                pdf_files.append(pdf)
+        
+        if not pdf_files:
+            console.print(f"[yellow]No PDFs matching '{filter_pattern}' found[/yellow]")
+            console.print(f"[dim]Found {len(all_pdf_files)} total PDFs in library[/dim]")
+            sys.exit(1)
+        
+        console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+    else:
+        pdf_files = all_pdf_files
     
     if not pdf_files:
         console.print("[bold red]No PDFs found in library/[/bold red]")
@@ -104,7 +133,48 @@ def answer_question(question, library_path):
             sys.exit(1)
 
 
-def format_answer(response):
+def export_answer(response, export_dir):
+    """Export answer to markdown file."""
+    export_path = Path(export_dir)
+    export_path.mkdir(parents=True, exist_ok=True)
+    
+    # Generate filename from question and timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    question_slug = "".join(c if c.isalnum() or c in " -_" else "" for c in response.question[:50])
+    question_slug = question_slug.replace(" ", "_").lower()
+    filename = f"{timestamp}_{question_slug}.md"
+    filepath = export_path / filename
+    
+    # Create markdown content
+    content = f"""# Q&A Session - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+## Question
+
+{response.question}
+
+## Answer
+
+{response.formatted_answer or response.answer}
+
+## Sources
+
+"""
+    
+    if hasattr(response, 'contexts') and response.contexts:
+        for idx, context in enumerate(response.contexts[:5], 1):
+            source_name = context.text.name if hasattr(context.text, 'name') else "Unknown"
+            content += f"{idx}. {source_name}"
+            if hasattr(context, 'score'):
+                content += f" (Relevance: {context.score:.2f})"
+            content += "\n"
+    
+    # Write to file
+    filepath.write_text(content)
+    console.print(f"\n[green]✓ Exported to:[/green] {filepath}")
+    return filepath
+
+
+def format_answer(response, export_dir=None):
     """Format the answer with citations for display."""
     # Question
     console.print(Panel(
@@ -131,18 +201,104 @@ def format_answer(response):
     # Stats
     if hasattr(response, 'context'):
         console.print(f"[dim]Used {len(response.context.split())} words from sources[/dim]")
+    
+    # Export if requested
+    if export_dir:
+        export_answer(response, export_dir)
+
+
+def interactive_chat(library_path, filter_pattern=None, export_dir=None):
+    """Interactive chat interface for follow-up questions."""
+    from paperqa import Docs
+    
+    console.print(Panel(
+        "[bold cyan]Interactive Q&A Chat[/bold cyan]\n"
+        "Ask questions about your library. Type 'exit' or 'quit' to stop.",
+        border_style="cyan"
+    ))
+    console.print()
+    
+    # Setup
+    settings = setup_gemini_settings()
+    docs = Docs()
+    
+    # Index library (same logic as answer_question)
+    all_pdf_files = list(library_path.rglob("*.pdf"))
+    
+    if filter_pattern:
+        pdf_files = [p for p in all_pdf_files 
+                     if filter_pattern.lower() in p.parent.name.lower() or 
+                        filter_pattern.lower() in p.name.lower()]
+        console.print(f"[cyan]Using {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+    else:
+        pdf_files = all_pdf_files
+        console.print(f"[dim]Found {len(pdf_files)} PDFs[/dim]")
+    
+    # Index
+    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+        task = progress.add_task("[cyan]Indexing library...", total=len(pdf_files))
+        for pdf in pdf_files:
+            try:
+                docs.add(pdf, settings=settings)
+            except:
+                pass
+            progress.advance(task)
+    
+    console.print("[green]✓ Ready for questions[/green]\n")
+    
+    # Chat loop
+    while True:
+        try:
+            question = Prompt.ask("[bold cyan]?[/bold cyan]").strip()
+            
+            if question.lower() in ['exit', 'quit', 'q']:
+                console.print("[dim]Goodbye![/dim]")
+                break
+            
+            if not question:
+                continue
+            
+            # Query
+            with console.status("[cyan]Thinking..."):
+                response = docs.query(question, settings=settings)
+            
+            # Display
+            console.print()
+            console.print("[bold green]Answer:[/bold green]")
+            console.print(response.formatted_answer or response.answer)
+            console.print()
+            
+            # Export if requested
+            if export_dir:
+                export_answer(response, export_dir)
+            
+        except KeyboardInterrupt:
+            console.print("\n[dim]Interrupted. Goodbye![/dim]")
+            break
+        except Exception as e:
+            console.print(f"[red]Error: {e}[/red]")
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        console.print("Usage: python qa.py <question>")
-        console.print("\nExamples:")
-        console.print('  research qa "What is attention mechanism?"')
-        console.print('  research qa "How do transformers work?"')
-        sys.exit(1)
+    # Parse arguments
+    parser = argparse.ArgumentParser(
+        description="Ask questions about your research library",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  research qa "What is attention mechanism?"
+  research qa --papers vaswani "How does attention work?"
+  research qa --export qa_sessions "What are transformers?"
+  research qa --chat
+  research qa --chat --papers attention --export sessions/
+        """
+    )
+    parser.add_argument('question', nargs='*', help='Question to ask')
+    parser.add_argument('--papers', '-p', help='Filter to papers matching this pattern (author, title, etc.)')
+    parser.add_argument('--export', '-e', help='Export answers to this directory')
+    parser.add_argument('--chat', '-c', action='store_true', help='Start interactive chat mode')
     
-    # Get question from args
-    question = " ".join(sys.argv[1:])
+    args = parser.parse_args()
     
     # Find library directory
     repo_root = Path(__file__).resolve().parent.parent
@@ -152,10 +308,21 @@ if __name__ == "__main__":
         console.print(f"[bold red]Library directory not found:[/bold red] {library_path}")
         sys.exit(1)
     
-    console.print(f"\n[bold]Querying library with Gemini 2.0 Flash...[/bold]")
-    
-    # Get answer
-    response = answer_question(question, library_path)
-    
-    # Display result
-    format_answer(response)
+    # Chat mode
+    if args.chat:
+        console.print(f"\n[bold]Starting Interactive Chat with Gemini 2.0 Flash...[/bold]")
+        interactive_chat(library_path, args.papers, args.export)
+    else:
+        # Single question mode
+        if not args.question:
+            parser.print_help()
+            sys.exit(1)
+        
+        question = " ".join(args.question)
+        console.print(f"\n[bold]Querying library with Gemini 2.0 Flash...[/bold]")
+        
+        # Get answer
+        response = answer_question(question, library_path, args.papers)
+        
+        # Display result
+        format_answer(response, args.export)
