@@ -176,4 +176,5 @@ The Exa.ai integration uses semantic/neural search to complement Semantic Schola
 
 ## License
 
-MIT
+Apache 2.0 See License
+Copyright (C) 2025 Gabriele Pizzi
