@@ -4,8 +4,11 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 
 ## Features
 
+- **Unified Multi-Source Search**: Single command searches Semantic Scholar AND paper-scraper simultaneously
+- **Smart Deduplication**: Automatically merges duplicate results from different sources  
+- **Source Transparency**: Each result tagged with origin ([S2] = Semantic Scholar, [PS] = paper-scraper)
 - **Triple Search Modes**: 
-  - Academic search via Semantic Scholar (free)
+  - Free unified search: Semantic Scholar + paper-scraper (PubMed, arXiv, bioRxiv)
   - Semantic/neural search via Exa.ai (1,000 free credits)
   - AI literature synthesis via Edison Scientific (10 free credits/month)
 - **Automatic PDF Fetching**: Downloads PDFs from ArXiv and Unpaywall for all papers
@@ -74,45 +77,68 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 
 ### Commands
 
-| Command | Description | Cost |
-|---------|-------------|------|
-| `research <query>` | Search Semantic Scholar, add papers | Free |
-| `research exa <query>` | Search with Exa.ai semantic search | 1 credit/query |
-| `research edison <query>` | AI literature synthesis with citations | 1 credit/query |
-| `research edison list` | Browse past Edison reports | Free |
-| `research edison show <id>` | View specific report | Free |
-| `research edison cache <query>` | Check if query cached | Free |
-| `research edison credits` | Show credit balance | Free |
-| `research add [id]` | Quick add from DOI/arXiv (or clipboard) | Free |
-| `research cite [query]` | Search library, copy citation keys | Free |
-| `research open [query]` | Search library, open paper in browser | Free |
+| Command | Description | Sources | Cost |
+|---------|-------------|---------|------|
+| `research <query>` | Unified multi-source search | S2 + PS | Free |
+| `research exa <query>` | Semantic/neural search | Exa.ai | 1 credit |
+| `research edison <query>` | AI literature synthesis | Edison | 1 credit |
+| `research edison list` | Browse past Edison reports | - | Free |
+| `research edison show <id>` | View specific report | - | Free |
+| `research edison cache <query>` | Check if query cached | - | Free |
+| `research edison credits` | Show credit balance | - | Free |
+| `research add [id]` | Quick add from DOI/arXiv | - | Free |
+| `research cite [query]` | Search library, copy citation keys | - | Free |
+| `research open [query>` | Open paper in browser | - | Free |
 
-### 1. Discovery - Add Papers
+**Source Codes**: S2 = Semantic Scholar, PS = paper-scraper (PubMed, arXiv, bioRxiv, Springer)
 
-**Semantic Scholar (keyword search, free, with PDFs):**
+### 1. Discovery - Unified Multi-Source Search
+
+**Default search (searches ALL free sources simultaneously):**
 ```bash
 research "large language models reasoning"
 ```
 
-**Exa.ai (neural/semantic search, costs 1 credit, with PDFs):**
+**What happens**:
+1. 🔄 Searches Semantic Scholar (~200M academic papers)
+2. 🔄 Searches paper-scraper (PubMed, arXiv, bioRxiv, Springer)
+3. ✓ Merges and deduplicates results by DOI/arXiv ID
+4. 📊 Shows unified results with source tags: `[S2]` or `[PS]`
+
+**Example output**:
+```
+⠋ Searching Semantic Scholar...
+✓ Semantic Scholar: 15 results
+⠋ Searching paper-scraper...
+✓ Paper-scraper: 8 results
+✓ Found 21 unique papers (15 from S2, 8 from PS)
+
+[S2] 2017 |  8642 cites | Attention Is All You Need - Vaswani et al.
+[PS] 2023 |       --    | Transformers in Vision - Smith et al.
+```
+
+**Alternative search modes:**
+
+**Exa.ai (neural/semantic search, costs 1 credit):**
 ```bash
 research exa "papers about reasoning similar to chain-of-thought"
 ```
 
-**Edison Scientific (AI synthesis, costs 1 credit, generates comprehensive reports):**
+**Edison Scientific (AI synthesis, costs 1 credit):**
 ```bash
 research edison "What are the latest advances in few-shot learning?"
 ```
 
-For all search modes:  
-1. A list of papers appears (Year, Citations/Relevance, Title, Authors)
+**Interactive selection**:  
+1. Results appear in fzf with source tags and metadata
 2. **Tab** to select multiple papers
 3. **o** to open highlighted paper in browser
-4. **Enter** to download selected papers (PDFs fetched automatically when available)
+4. **Enter** to download selected papers
 
-**PDF Fetching**: The system automatically attempts to download PDFs from:
+**PDF Fetching**: Automatic downloads from:
 - **ArXiv**: Direct PDF download
 - **Unpaywall**: Free, legal open-access PDFs for DOIs
+- **Paper-scraper**: Downloads when available
 
 ### 2. Quick Add
 
@@ -281,6 +307,12 @@ If you don't have Python 3.11+, install via homebrew:
 ```bash
 brew install python@3.11
 ```
+
+## Changelog
+
+### 2025-12-08
+- **Fixed**: Corrected papis CLI flag from `--file` to `--file-name` in `discover.py`, resolving "No such option: --file" error when adding papers to library
+- **Improved**: PDF fetching now properly attaches downloaded PDFs to papis entries
 
 ## License
 
