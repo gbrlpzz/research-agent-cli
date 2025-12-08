@@ -26,8 +26,8 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**,
 
 1.  Clone this repository:
     ```bash
-    git clone https://github.com/yourusername/research ~/Documents/GitHub/research
-    cd ~/Documents/GitHub/research
+    git clone https://github.com/gbrlpzz/research-agent-cli ~/Documents/GitHub/research-agent-cli
+    cd ~/Documents/GitHub/research-agent-cli
     ```
 
 2.  Install Python dependencies:
@@ -160,6 +160,19 @@ research/
 ├── papis.config        # Papis configuration
 └── requirements.txt    # Python dependencies
 ```
+
+## Implementation Notes
+
+### Exa.ai Integration
+
+The Exa.ai integration uses semantic/neural search to complement Semantic Scholar's keyword-based academic search:
+
+- **API**: Uses `exa_py` SDK with `search_and_contents()` method
+- **Filtering**: Restricts results to `category="research paper"` and academic domains (arxiv.org, doi.org, nature.com, etc.)
+- **Metadata Extraction**: Automatically extracts DOI/ArXiv IDs from URLs for papis integration
+- **Cost**: Free tier provides 1,000 credits; monitor usage at [Exa.ai Dashboard](https://dashboard.exa.ai)
+
+**Note**: The Exa.ai API parameters may change. Current implementation works with `exa_py` v2.0.1.
 
 ## License
 
