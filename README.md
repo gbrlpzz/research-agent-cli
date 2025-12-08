@@ -18,7 +18,7 @@ The Research Agent CLI is a powerful tool that autonomously conducts academic re
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/yourusername/research-agent-cli.git
+   git clone https://github.com/gbrlpzz/research-agent-cli.git
    cd research-agent-cli
    ```
 
