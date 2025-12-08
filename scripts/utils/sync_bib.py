@@ -68,12 +68,17 @@ def sync_master_bib():
         if MASTER_BIB.exists():
             import time
             timestamp = int(time.time())
-            backup_path = MASTER_BIB.with_suffix(f".bib.bak.{timestamp}")
+            
+            # Create backup directory if it doesn't exist
+            backup_dir = REPO_ROOT / ".backups"
+            backup_dir.mkdir(exist_ok=True)
+            
+            backup_path = backup_dir / f"master.bib.bak.{timestamp}"
             shutil.copy2(str(MASTER_BIB), str(backup_path))
             logging.info(f"Created backup: {backup_path}")
             
             # Clean up old backups (keep last 5)
-            backups = sorted(REPO_ROOT.glob("master.bib.bak.*"), key=lambda p: p.stat().st_mtime)
+            backups = sorted(backup_dir.glob("master.bib.bak.*"), key=lambda p: p.stat().st_mtime)
             while len(backups) > 5:
                 oldest = backups.pop(0)
                 try:
