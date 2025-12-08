@@ -9,6 +9,7 @@ PYTHON="$VENV/bin/python"
 if [ -z "$1" ]; then
     echo "Usage:"
     echo "  research <query>              Unified multi-source search (S2 + paper-scraper)"
+    echo "  research agent <topic>        Autonomous research agent (produces Typst docs)"
     echo "  research exa <query>          Semantic search with Exa.ai (costs credits)"
     echo "  research edison <query>       AI literature synthesis (costs 1 credit)"
     echo "  research edison list          Browse past Edison reports"
@@ -23,6 +24,7 @@ if [ -z "$1" ]; then
     echo ""
     echo "Examples:"
     echo "  research \"attention mechanism\"         # Find papers about attention"
+    echo "  research agent \"impact of transformers\" # Full research report"
     echo "  research exa \"reasoning in LLMs\"       # Semantic search with Exa.ai"
     echo "  research edison \"few-shot learning\"   # AI synthesis (1 credit)"
     echo "  research add 10.1234/example           # Add paper by DOI"
@@ -30,6 +32,7 @@ if [ -z "$1" ]; then
     echo "  research help                          # Interactive tutorial"
     exit 0
 fi
+
 
 # Handle subcommands
 case "$1" in
@@ -66,6 +69,10 @@ case "$1" in
     exa)
         shift
         "$PYTHON" "$REPO_ROOT/scripts/exa_search.py" "$@"
+        ;;
+    agent)
+        shift
+        "$PYTHON" "$REPO_ROOT/scripts/agent.py" "$@"
         ;;
     add)
         shift

@@ -15,5 +15,6 @@ edison-client
 # Note: Uses web scraping (legal grey area). Disclaimer shown on first use.
 
 # PaperQA for question-answering on local library
-# pip install paper-qa
-paper-qaqdrant-client
+# PaperQA for question-answering on local library
+paper-qa>=5.0.0
+qdrant-client
