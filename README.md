@@ -1,24 +1,36 @@
 # Research Agent CLI
 
-A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**, **Edison Scientific**, **Papis**, and **Typst**.
+**A complete terminal-first research pipeline** — from discovery to understanding.
 
-## Features
+Combines multi-source paper search, automatic PDF fetching, citation management, and AI-powered question answering into a unified CLI workflow.
 
-- **Unified Multi-Source Search**: Single command searches Semantic Scholar AND paper-scraper simultaneously
-- **Smart Deduplication**: Automatically merges duplicate results from different sources  
-- **Source Transparency**: Each result tagged with origin ([S2] = Semantic Scholar, [PS] = paper-scraper)
-- **Triple Search Modes**: 
-  - Free unified search: Semantic Scholar + paper-scraper (PubMed, arXiv, bioRxiv)
-  - Semantic/neural search via Exa.ai (1,000 free credits)
-  - AI literature synthesis via Edison Scientific (10 free credits/month)
-- **Automatic PDF Fetching**: Downloads PDFs from ArXiv and Unpaywall for all papers
-- **Smart Discovery**: Search papers via CLI with multiple AI-powered backends
-- **Interactive Selection**: Use `fzf` to multi-select papers from results
-- **Auto-Archiving**: Automatically downloads PDFs and metadata to `library/`
-- **Central Bibliography**: All citations exported to `master.bib`
-- **Citation Search**: Quickly find and copy citation keys (`research cite`)
-- **Literature Reports**: Edison generates comprehensive synthesis reports with tables
-- **Open in Browser**: Press `o` while browsing to open papers directly
+## What It Does
+
+### 🔍 **Discovery & Collection**
+- **Unified Multi-Source Search**: Single command queries Semantic Scholar + paper-scraper (PubMed, arXiv, bioRxiv, Springer)
+- **Smart Deduplication**: Automatically merges duplicates by DOI/arXiv ID
+- **Source Transparency**: Results tagged with origin ([S2], [PS])
+- **Alternative Backends**: Semantic search via Exa.ai, AI synthesis via Edison Scientific
+- **Automatic PDF Fetching**: Downloads from ArXiv, Unpaywall, and paper-scraper
+- **Interactive Selection**: Multi-select papers with `fzf`, open in browser with `o`
+
+### 📚 **Library Management**
+- **Auto-Archiving**: PDFs and metadata saved to local `library/` directory
+- **Central Bibliography**: All citations auto-exported to `master.bib`
+- **Citation Search**: Quickly find and copy BibTeX keys for Typst/LaTeX
+- **Papis Integration**: Powerful metadata management and organization
+
+### 🤖 **AI-Powered Understanding**
+- **Question Answering**: Ask questions about your local library using Gemini
+- **Cited Responses**: Answers include source papers and page numbers
+- **Interactive Chat**: Follow-up questions in terminal (coming soon)
+- **Export Capability**: Save Q&A sessions to dedicated directory
+
+### ⚡ **Key Features**
+- Progress indicators with spinners and checkmarks
+- Graceful degradation (works even if sources fail)
+- Free tier available for all features
+- Works offline for cached queries and local library
 
 ## Setup
 
