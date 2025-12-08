@@ -1,7 +1,7 @@
 #!/bin/bash
 # Research CLI - paper discovery and citation management
 
-REPO_ROOT="$HOME/Documents/GitHub/research"
+REPO_ROOT="$HOME/Documents/GitHub/research-agent-cli"
 VENV="$REPO_ROOT/.venv"
 PYTHON="$VENV/bin/python"
 
@@ -9,12 +9,14 @@ PYTHON="$VENV/bin/python"
 if [ -z "$1" ]; then
     echo "Usage:"
     echo "  research <query>        Search Semantic Scholar and add papers"
+    echo "  research exa <query>    Search with Exa.ai (semantic search, costs credits)"
     echo "  research add [id]       Quick add from DOI/arXiv (or clipboard)"
     echo "  research cite [query]   Search library and copy citation keys"
     echo "  research open [query]   Search library and open paper in browser"
     echo ""
     echo "Examples:"
     echo "  research \"attention mechanism\"    # Find papers about attention"
+    echo "  research exa \"reasoning in LLMs\"  # Semantic search with Exa.ai"
     echo "  research add 10.1234/example      # Add paper by DOI"
     echo "  research add 2301.00001           # Add paper by arXiv ID"
     echo "  research add                      # Add from clipboard"
@@ -26,6 +28,10 @@ fi
 
 # Handle subcommands
 case "$1" in
+    exa)
+        shift
+        "$PYTHON" "$REPO_ROOT/scripts/exa_search.py" "$@"
+        ;;
     add)
         shift
         "$PYTHON" "$REPO_ROOT/scripts/add.py" "$@"

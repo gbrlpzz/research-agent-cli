@@ -1,4 +1,4 @@
-#!/Users/gabriele/Documents/GitHub/research/.venv/bin/python3
+#!/Users/gabriele/Documents/GitHub/research-agent-cli/.venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

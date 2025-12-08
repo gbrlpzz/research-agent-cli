@@ -1,10 +1,12 @@
 # Research Agent CLI
 
-A terminal-first research pipeline integrating **Semantic Scholar**, **Papis**, and **Typst**.
+A terminal-first research pipeline integrating **Semantic Scholar**, **Exa.ai**, **Papis**, and **Typst**.
 
 ## Features
 
+- **Dual Search Modes**: Academic search via Semantic Scholar OR semantic search via Exa.ai
 - **Smart Discovery**: Search Semantic Scholar via CLI (`research "query"`).
+- **Semantic Search**: Neural search with Exa.ai (`research exa "query"`).
 - **Interactive Selection**: Use `fzf` to multi-select papers from results.
 - **Auto-Archiving**: Automatically downloads PDFs and metadata to `library/`.
 - **Central Bibliography**: All citations exported to `master.bib`.
@@ -34,14 +36,22 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Papis**, 
     .venv/bin/pip install -r requirements.txt
     ```
 
-3.  Link the executable to your path:
+3.  **(Optional) Set up Exa.ai for semantic search:**
+    - Get your API key from [Exa.ai Dashboard](https://dashboard.exa.ai)
+    - Create a `.env` file in the repo root:
+      ```bash
+      echo "EXA_API_KEY=your_key_here" > .env
+      ```
+    - **Note**: Free tier provides 1,000 credits; paid plans start at $49/month
+
+4.  Link the executable to your path:
     ```bash
     mkdir -p ~/.local/bin
     ln -s $(pwd)/bin/research ~/.local/bin/research
     ```
     *Ensure `~/.local/bin` is in your `$PATH`.*
 
-4.  Copy papis config to system location:
+5.  Copy papis config to system location:
     ```bash
     mkdir -p ~/Library/Application\ Support/papis
     cp papis.config ~/Library/Application\ Support/papis/config
@@ -53,18 +63,25 @@ A terminal-first research pipeline integrating **Semantic Scholar**, **Papis**, 
 
 | Command | Description |
 |---------|-------------|
-| `research <query>` | Search Semantic Scholar, add papers |
+| `research <query>` | Search Semantic Scholar, add papers (free) |
+| `research exa <query>` | Search with Exa.ai semantic search (costs credits) |
 | `research add [id]` | Quick add from DOI/arXiv (or clipboard) |
 | `research cite [query]` | Search library, copy citation keys |
 | `research open [query]` | Search library, open paper in browser |
 
 ### 1. Discovery - Add Papers
 
+**Semantic Scholar (keyword search, free):**
 ```bash
 research "large language models reasoning"
 ```
 
-1. A list of papers appears (Year, Citations, Title, Authors).
+**Exa.ai (neural/semantic search, costs credits):**
+```bash
+research exa "papers about reasoning similar to chain-of-thought"
+```
+
+1. A list of papers appears (Year, Citations/Relevance, Title, Authors).
 2. **Tab** to select multiple papers.
 3. **o** to open highlighted paper in browser.
 4. **Enter** to download selected papers.

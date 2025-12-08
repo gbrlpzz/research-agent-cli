@@ -1,3 +1,5 @@
 semanticscholar
+exa_py
+python-dotenv
 rich
 papis
