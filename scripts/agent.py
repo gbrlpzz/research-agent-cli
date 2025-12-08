@@ -779,8 +779,8 @@ Summary and future directions.
 # AGENT LOOP
 # ============================================================================
 
-def run_agent(topic: str) -> str:
-    """Run the research agent on a topic."""
+def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None) -> str:
+    """Run the research agent on a topic with optional research plan."""
     global _used_citation_keys
     _used_citation_keys = set()  # Reset for new run
     
@@ -797,13 +797,24 @@ def run_agent(topic: str) -> str:
     # Inject current date into system prompt
     system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date)
     
+    # Build user prompt with optional research plan
+    plan_section = ""
+    if research_plan:
+        plan_section = f"""
+RESEARCH PLAN:
+- Main Question: {research_plan.get('main_question', topic)}
+- Sub-questions: {', '.join(research_plan.get('sub_questions', [])[:3])}
+- Key Concepts: {', '.join(research_plan.get('key_concepts', [])[:5])}
+- Search Queries: {', '.join(research_plan.get('search_queries', [])[:3])}
+"""
+    
     contents = [
         types.Content(
             role="user",
             parts=[types.Part(text=f"""Research this topic and produce a Typst document:
 
 TOPIC: {topic}
-
+{plan_section}
 IMPORTANT - Follow the RAG-First workflow:
 1. FIRST query_library() with the main topic to see what knowledge already exists
 2. Identify gaps in the existing knowledge
@@ -925,16 +936,305 @@ def extract_citations_from_typst(typst_content: str) -> Set[str]:
     return set(matches)
 
 
-def generate_report(topic: str) -> Path:
-    """Generate a complete research report on a topic."""
+# ============================================================================
+# RESEARCH PLANNER
+# ============================================================================
+
+PLANNER_PROMPT = """You are a research planning assistant. Given a topic, create a structured research plan.
+
+Output a JSON research plan with:
+1. "main_question": The central research question
+2. "sub_questions": 3-5 specific questions to investigate
+3. "key_concepts": Important terms/concepts to search for
+4. "expected_sections": Proposed document structure
+5. "search_queries": 3-4 specific search queries for academic databases
+
+Be specific and academic. Output ONLY valid JSON, no markdown."""
+
+def create_research_plan(topic: str) -> Dict[str, Any]:
+    """Create a structured research plan before starting research."""
+    console.print(Panel(
+        f"[bold blue]📋 Research Planner[/bold blue]\n\n"
+        f"Creating research plan for:\n[white]{topic}[/white]",
+        border_style="blue"
+    ))
+    
+    response = client.models.generate_content(
+        model=AGENT_MODEL,
+        contents=[types.Content(
+            role="user",
+            parts=[types.Part(text=f"Create a research plan for: {topic}")]
+        )],
+        config=types.GenerateContentConfig(
+            system_instruction=PLANNER_PROMPT
+        )
+    )
+    
+    text = response.candidates[0].content.parts[0].text
+    
+    # Extract JSON
+    try:
+        # Try to find JSON in the response
+        if "```json" in text:
+            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+        elif "```" in text:
+            json_match = re.search(r'```\s*(.*?)\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+        
+        plan = json.loads(text)
+        console.print("[green]✓ Research plan created[/green]")
+        
+        # Display plan
+        console.print(f"\n[bold]Main Question:[/bold] {plan.get('main_question', 'N/A')}")
+        if plan.get('sub_questions'):
+            console.print("[bold]Sub-questions:[/bold]")
+            for i, q in enumerate(plan['sub_questions'][:5], 1):
+                console.print(f"  {i}. {q}")
+        
+        return plan
+    except json.JSONDecodeError:
+        console.print("[yellow]Could not parse plan, using defaults[/yellow]")
+        return {
+            "main_question": topic,
+            "sub_questions": [topic],
+            "key_concepts": [],
+            "expected_sections": ["Introduction", "Background", "Analysis", "Conclusion"],
+            "search_queries": [topic]
+        }
+
+
+# ============================================================================
+# PEER REVIEWER
+# ============================================================================
+
+REVIEWER_PROMPT = """You are a rigorous academic peer reviewer. You review research documents with strict standards.
+
+Your review must assess:
+
+## 1. SCIENTIFIC RIGOR
+- Are all claims properly supported by citations?
+- Is the methodology (if applicable) sound?
+- Are limitations acknowledged?
+
+## 2. ARGUMENTATION
+- Is the thesis clear and well-supported?
+- Is the logical flow coherent?
+- Are counter-arguments addressed?
+
+## 3. CITATION QUALITY
+- Are citations appropriate and sufficient?
+- Are primary sources used where needed?
+- Is there over-reliance on any single source?
+
+## 4. COMPLETENESS
+- Are all major aspects of the topic covered?
+- Are there obvious gaps in the literature review?
+- Is the scope appropriate?
+
+## 5. WRITING QUALITY
+- Is the academic tone consistent?
+- Is technical terminology used correctly?
+- Is the structure clear?
+
+Output a STRUCTURED REVIEW with:
+1. **Overall Assessment**: Accept / Minor Revisions / Major Revisions / Reject
+2. **Strengths**: 2-3 bullet points
+3. **Critical Issues**: Specific problems that MUST be fixed
+4. **Suggestions**: Optional improvements
+5. **Missing Content**: Topics/sources that should be added
+6. **Specific Line Edits**: Concrete changes needed
+
+Be constructive but rigorous. Academic excellence is the standard."""
+
+
+def peer_review(document: str, topic: str, revision_num: int = 1) -> Dict[str, Any]:
+    """Run peer review on a document. Returns structured feedback."""
+    console.print(Panel(
+        f"[bold magenta]🔍 Peer Review (Round {revision_num})[/bold magenta]\n\n"
+        f"Reviewing document on: [white]{topic[:50]}...[/white]",
+        border_style="magenta"
+    ))
+    
+    response = client.models.generate_content(
+        model=AGENT_MODEL,
+        contents=[types.Content(
+            role="user",
+            parts=[types.Part(text=f"""Review this academic document:
+
+TOPIC: {topic}
+
+DOCUMENT:
+```typst
+{document}
+```
+
+Provide a structured peer review following your guidelines.""")]
+        )],
+        config=types.GenerateContentConfig(
+            system_instruction=REVIEWER_PROMPT
+        )
+    )
+    
+    review_text = response.candidates[0].content.parts[0].text
+    
+    # Determine verdict
+    verdict = "minor_revisions"
+    if "Accept" in review_text and "Major" not in review_text:
+        verdict = "accept"
+    elif "Major Revisions" in review_text or "Major revisions" in review_text:
+        verdict = "major_revisions"
+    elif "Reject" in review_text:
+        verdict = "reject"
+    
+    console.print(f"[bold]Verdict: {verdict.upper()}[/bold]")
+    
+    # Show summary
+    lines = review_text.split('\n')[:15]
+    for line in lines:
+        if line.strip():
+            console.print(f"[dim]{line}[/dim]")
+    
+    return {
+        "verdict": verdict,
+        "review": review_text,
+        "revision_number": revision_num
+    }
+
+
+# ============================================================================
+# REVISION AGENT
+# ============================================================================
+
+REVISION_PROMPT = """You are revising an academic document based on peer review feedback.
+
+Your task:
+1. Read the ORIGINAL document carefully
+2. Study the PEER REVIEW feedback
+3. Create an IMPLEMENTATION PLAN addressing each issue
+4. Output the REVISED document
+
+Address ALL critical issues raised. Maintain academic rigor.
+Keep all existing citations but add more where needed.
+Output the complete revised Typst document."""
+
+
+def revise_document(original: str, review: str, topic: str, research_plan: Dict) -> str:
+    """Revise document based on peer review feedback."""
+    console.print(Panel(
+        f"[bold yellow]✏️ Revision Phase[/bold yellow]\n\n"
+        f"Addressing peer review feedback...",
+        border_style="yellow"
+    ))
+    
+    current_date = datetime.now().strftime("%B %Y")
+    
+    contents = [
+        types.Content(
+            role="user",
+            parts=[types.Part(text=f"""Revise this document based on peer review.
+
+TOPIC: {topic}
+
+RESEARCH PLAN:
+{json.dumps(research_plan, indent=2)}
+
+ORIGINAL DOCUMENT:
+```typst
+{original}
+```
+
+PEER REVIEW:
+{review}
+
+First, create a brief IMPLEMENTATION PLAN (3-5 bullet points).
+Then output the complete REVISED Typst document.
+Use date: "{current_date}" in the document.
+""")]
+        )
+    ]
+    
+    # Run revision loop
+    for iteration in range(15):
+        with console.status(f"[cyan]Revising (step {iteration + 1})..."):
+            try:
+                response = client.models.generate_content(
+                    model=AGENT_MODEL,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=REVISION_PROMPT,
+                        tools=TOOLS
+                    )
+                )
+            except Exception as e:
+                console.print(f"[red]API error: {e}[/red]")
+                return original
+        
+        if response.candidates and response.candidates[0].content.parts:
+            parts = response.candidates[0].content.parts
+            function_calls = [p for p in parts if p.function_call]
+            
+            if function_calls:
+                contents.append(types.Content(role="model", parts=parts))
+                
+                function_response_parts = []
+                for part in function_calls:
+                    fc = part.function_call
+                    func_name = fc.name
+                    func_args = dict(fc.args) if fc.args else {}
+                    
+                    console.print(f"[yellow]→ {func_name}({json.dumps(func_args, default=str)[:60]})[/yellow]")
+                    
+                    if func_name in TOOL_FUNCTIONS:
+                        try:
+                            result = TOOL_FUNCTIONS[func_name](**func_args)
+                        except Exception as e:
+                            result = {"error": str(e)}
+                    else:
+                        result = {"error": f"Unknown function: {func_name}"}
+                    
+                    function_response_parts.append(
+                        types.Part(function_response=types.FunctionResponse(
+                            name=func_name,
+                            response={"result": json.dumps(result, default=str)}
+                        ))
+                    )
+                
+                contents.append(types.Content(role="user", parts=function_response_parts))
+            else:
+                text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
+                
+                if "#import" in text and "project.with" in text:
+                    console.print("[green]✓ Revision complete[/green]")
+                    if "```typst" in text:
+                        match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
+                        if match:
+                            return match.group(1).strip()
+                    return text
+                
+                contents.append(types.Content(role="model", parts=parts))
+                contents.append(types.Content(
+                    role="user",
+                    parts=[types.Part(text="Continue. Output the complete revised Typst document.")]
+                ))
+    
+    return original  # Fallback
+
+
+# ============================================================================
+# MULTI-PHASE ORCHESTRATOR
+# ============================================================================
+
+def generate_report(topic: str, max_revisions: int = 2) -> Path:
+    """Generate a research report with planning, review, and revision phases."""
     global _used_citation_keys
+    _used_citation_keys = set()
     
     REPORTS_PATH.mkdir(parents=True, exist_ok=True)
     
-    # Run agent
-    typst_content = run_agent(topic)
-    
-    # Create report directory
+    # Create report directory early for artifacts
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     topic_slug = "".join(c if c.isalnum() or c == " " else "" for c in topic[:40])
     topic_slug = topic_slug.strip().replace(" ", "_").lower()
@@ -942,29 +1242,88 @@ def generate_report(topic: str) -> Path:
     report_dir = REPORTS_PATH / report_name
     report_dir.mkdir(parents=True, exist_ok=True)
     
-    # Copy template library
+    # ========== PHASE 1: PLANNING ==========
+    console.print("\n" + "="*60)
+    console.print("[bold]PHASE 1: RESEARCH PLANNING[/bold]")
+    console.print("="*60 + "\n")
+    
+    research_plan = create_research_plan(topic)
+    
+    # Save plan
+    (report_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
+    
+    # ========== PHASE 2: RESEARCH & WRITE ==========
+    console.print("\n" + "="*60)
+    console.print("[bold]PHASE 2: RESEARCH & WRITING[/bold]")
+    console.print("="*60 + "\n")
+    
+    # Inject plan into agent
+    typst_content = run_agent(topic, research_plan=research_plan)
+    
+    # ========== PHASE 3: PEER REVIEW LOOP ==========
+    reviews = []
+    
+    for revision_round in range(1, max_revisions + 1):
+        console.print("\n" + "="*60)
+        console.print(f"[bold]PHASE 3.{revision_round}: PEER REVIEW[/bold]")
+        console.print("="*60 + "\n")
+        
+        review_result = peer_review(typst_content, topic, revision_round)
+        reviews.append(review_result)
+        
+        # Save review
+        review_file = report_dir / f"peer_review_r{revision_round}.md"
+        review_file.write_text(f"# Peer Review - Round {revision_round}\n\n{review_result['review']}")
+        
+        # Check if accepted
+        if review_result['verdict'] == 'accept':
+            console.print("[bold green]✓ Paper accepted![/bold green]")
+            break
+        
+        # ========== PHASE 4: REVISION ==========
+        console.print("\n" + "="*60)
+        console.print(f"[bold]PHASE 4.{revision_round}: REVISION[/bold]")
+        console.print("="*60 + "\n")
+        
+        typst_content = revise_document(
+            typst_content, 
+            review_result['review'], 
+            topic,
+            research_plan
+        )
+        
+        # Save draft
+        draft_file = report_dir / f"draft_r{revision_round}.typ"
+        draft_file.write_text(typst_content)
+    
+    # ========== FINAL OUTPUT ==========
+    console.print("\n" + "="*60)
+    console.print("[bold]FINAL OUTPUT[/bold]")
+    console.print("="*60 + "\n")
+    
+    # Copy template
     if (TEMPLATE_PATH / "lib.typ").exists():
         shutil.copy(TEMPLATE_PATH / "lib.typ", report_dir / "lib.typ")
-        console.print(f"[dim]✓ Copied lib.typ[/dim]")
+        console.print("[dim]✓ Copied lib.typ[/dim]")
     
-    # Extract cited keys from document
+    # Extract and filter citations
     doc_citations = extract_citations_from_typst(typst_content)
     all_cited = _used_citation_keys | doc_citations
     
     console.print(f"[dim]Cited keys: {all_cited}[/dim]")
     
-    # Create filtered refs.bib with only cited papers
+    # Create filtered refs.bib
     if MASTER_BIB.exists():
         filtered_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
         (report_dir / "refs.bib").write_text(filtered_bib)
-        console.print(f"[green]✓ Created refs.bib (filtered to cited papers)[/green]")
+        console.print("[green]✓ Created refs.bib (filtered)[/green]")
     else:
         (report_dir / "refs.bib").write_text("% No references\n")
     
-    # Write main.typ
+    # Write final main.typ
     main_typ = report_dir / "main.typ"
     main_typ.write_text(typst_content)
-    console.print(f"[green]✓ Created main.typ[/green]")
+    console.print("[green]✓ Created main.typ[/green]")
     
     # Compile to PDF
     console.print("[dim]Compiling to PDF...[/dim]")
@@ -977,7 +1336,7 @@ def generate_report(topic: str) -> Path:
             timeout=60
         )
         if result.returncode == 0:
-            console.print(f"[green]✓ Compiled main.pdf[/green]")
+            console.print("[green]✓ Compiled main.pdf[/green]")
         else:
             console.print(f"[yellow]Compilation: {result.stderr[:150]}[/yellow]")
     except FileNotFoundError:
@@ -985,10 +1344,13 @@ def generate_report(topic: str) -> Path:
     except Exception as e:
         console.print(f"[yellow]Compile error: {e}[/yellow]")
     
+    # Summary
     console.print(Panel(
-        f"[bold green]📄 Report Generated[/bold green]\n\n"
+        f"[bold green]📄 Research Complete[/bold green]\n\n"
         f"📁 {report_dir}\n"
-        f"📝 main.typ\n"
+        f"📋 research_plan.json\n"
+        f"📝 main.typ (final)\n"
+        f"🔍 peer_review_r*.md ({len(reviews)} reviews)\n"
         f"📚 refs.bib (filtered)\n"
         f"📖 main.pdf",
         border_style="green"
@@ -1005,15 +1367,17 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(
-        description="Autonomous Research Agent - Produces academic Typst documents",
+        description="Autonomous Research Agent with Peer Review",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   research agent "Impact of attention mechanisms on NLP"
-  research agent "Vision Transformers vs CNNs"
+  research agent --revisions 3 "Vision Transformers"
         """
     )
     parser.add_argument('topic', nargs='+', help='Research topic')
+    parser.add_argument('--revisions', '-r', type=int, default=2,
+                       help='Max peer review rounds (default: 2)')
     
     args = parser.parse_args()
     topic = " ".join(args.topic)
@@ -1026,4 +1390,4 @@ Examples:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         sys.exit(1)
     
-    generate_report(topic)
+    generate_report(topic, max_revisions=args.revisions)
