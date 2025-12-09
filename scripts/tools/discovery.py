@@ -9,10 +9,12 @@ Provides unified paper discovery across multiple sources:
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List
 
 from rich.console import Console
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 # Paths
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -57,7 +59,11 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     
     # 1. Search Semantic Scholar
     console.print("[dim]  → Semantic Scholar...[/dim]")
-    sch = SemanticScholar()
+    
+    # Use API key if available for higher rate limits
+    s2_api_key = os.getenv('S2_API_KEY')
+    sch = SemanticScholar(api_key=s2_api_key) if s2_api_key else SemanticScholar()
+    
     try:
         results = sch.search_paper(query, limit=limit)
         for paper in itertools.islice(results, limit):
@@ -84,7 +90,8 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
                 'source': 'S2'
             })
     except Exception as e:
-        console.print(f"[yellow]S2 error: {e}[/yellow]")
+        error_msg = str(e) if str(e) else type(e).__name__
+        console.print(f"[yellow]S2 error: {error_msg}[/yellow]")
     
     # 2. Search paper-scraper (with timeout to prevent blocking)
     console.print("[dim]  → paper-scraper...[/dim]")

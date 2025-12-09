@@ -33,6 +33,7 @@ import shutil
 import re
 from pathlib import Path
 from datetime import datetime
+import time
 from typing import Optional, List, Dict, Any, Set
 
 # Suppress verbose logging
@@ -64,6 +65,10 @@ client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 # Models - using Gemini 3 Pro Preview as specified
 AGENT_MODEL = "gemini-3-pro-preview"
 FLASH_MODEL = "gemini-2.5-flash"  # For RAG (faster)
+
+# Session timeout (4 hours max to prevent runaway sessions)
+MAX_SESSION_DURATION = 4 * 60 * 60  # 4 hours in seconds
+_session_start_time: Optional[float] = None
 
 # Global state for tracking which papers were used
 _used_citation_keys: Set[str] = set()
@@ -849,8 +854,20 @@ Use date: "{current_date}" in the document.
 
 def generate_report(topic: str, max_revisions: int = 3) -> Path:
     """Generate a research report with planning, review, and revision phases."""
-    global _used_citation_keys, _debug_logger
+    global _used_citation_keys, _debug_logger, _session_start_time
     _used_citation_keys = set()
+    _session_start_time = time.time()  # Track session start for timeout
+    
+    def check_session_timeout():
+        """Check if session has exceeded max duration."""
+        if _session_start_time:
+            elapsed = time.time() - _session_start_time
+            if elapsed > MAX_SESSION_DURATION:
+                hours = MAX_SESSION_DURATION / 3600
+                log_debug(f"Session timeout after {elapsed/3600:.1f} hours (max: {hours} hours)")
+                console.print(f"[yellow]⚠ Session timeout ({hours} hours max). Saving current progress.[/yellow]")
+                return True
+        return False
     
     REPORTS_PATH.mkdir(parents=True, exist_ok=True)
     
@@ -909,6 +926,11 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     reviews = []
     
     for revision_round in range(1, max_revisions + 1):
+        # Check session timeout at start of each revision round
+        if check_session_timeout():
+            console.print("[yellow]⚠ Skipping further revisions due to session timeout[/yellow]")
+            break
+            
         console.print(Panel(
             f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]",
             border_style="magenta", width=60
