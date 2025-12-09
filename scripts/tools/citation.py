@@ -205,6 +205,18 @@ def fuzzy_cite(query: str) -> List[Dict[str, str]]:
         except:
             pass
     
+    # If no matches found, suggest a discovery search
+    if not results:
+        console.print(f"[yellow]⚠ No matches for '{query}' - consider using discover_papers[/yellow]")
+        # Return a hint for the agent
+        return [{
+            "citation_key": None,
+            "title": f"No matches for '{query}'",
+            "authors": "Use discover_papers to find and add_paper to library first",
+            "year": "",
+            "suggestion": f"discover_papers(\"{query}\")"
+        }]
+    
     console.print(f"[green]✓ Found {len(results)} matches[/green]")
     return results[:10]
 

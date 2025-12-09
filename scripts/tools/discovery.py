@@ -155,7 +155,6 @@ def exa_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
         results = exa.search_and_contents(
             query,
             type="neural",
-            use_autoprompt=True,
             num_results=limit,
             text={"max_characters": 500}
         )

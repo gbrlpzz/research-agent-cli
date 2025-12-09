@@ -689,7 +689,16 @@ Pay special attention to:
         )
     )
     
-    review_text = response.candidates[0].content.parts[0].text
+    # Defensive handling for API response
+    try:
+        if not response.candidates or not response.candidates[0].content.parts:
+            log_debug("Peer review: empty response from API")
+            review_text = "**Review unavailable** - The API returned an empty response. Please retry."
+        else:
+            review_text = response.candidates[0].content.parts[0].text
+    except (IndexError, AttributeError, TypeError) as e:
+        log_debug(f"Peer review response error: {e}")
+        review_text = f"**Review unavailable** - Error parsing response: {e}"
     
     # Determine verdict
     verdict = "minor_revisions"
