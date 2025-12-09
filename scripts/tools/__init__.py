@@ -10,7 +10,15 @@ All tools are importable from this module:
 """
 from .discovery import discover_papers, exa_search
 from .library import add_paper, list_library, query_library
-from .citation import fuzzy_cite, validate_citations
+from .citation import (
+    fuzzy_cite,
+    validate_citations,
+    get_used_citation_keys,
+    clear_used_citation_keys,
+    track_reviewed_paper,
+    get_reviewed_papers,
+    export_literature_sheet
+)
 
 __all__ = [
     # Discovery
@@ -23,4 +31,11 @@ __all__ = [
     # Citations
     'fuzzy_cite',
     'validate_citations',
+    # Citation tracking
+    'get_used_citation_keys',
+    'clear_used_citation_keys',
+    'track_reviewed_paper',
+    'get_reviewed_papers',
+    'export_literature_sheet',
 ]
+

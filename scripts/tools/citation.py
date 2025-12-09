@@ -19,6 +19,10 @@ console = Console()
 # Global state for tracking which papers were used during agent sessions
 _used_citation_keys: Set[str] = set()
 
+# Extended tracking: all papers reviewed with relevance/utility info
+# {citation_key: {title, authors, year, relevance, utility, cited, source}}
+_reviewed_papers: Dict[str, Dict[str, Any]] = {}
+
 
 def get_used_citation_keys() -> Set[str]:
     """Get the set of citation keys that have been used."""
@@ -27,8 +31,113 @@ def get_used_citation_keys() -> Set[str]:
 
 def clear_used_citation_keys():
     """Clear the tracked citation keys (call at start of new session)."""
-    global _used_citation_keys
+    global _used_citation_keys, _reviewed_papers
     _used_citation_keys = set()
+    _reviewed_papers = {}
+
+
+def track_reviewed_paper(
+    citation_key: str,
+    title: str,
+    authors: str,
+    year: str,
+    relevance: int = 3,  # 1-5 scale
+    utility: int = 3,    # 1-5 scale
+    source: str = "discovery"
+):
+    """Track a paper that was reviewed during the research process."""
+    global _reviewed_papers
+    _reviewed_papers[citation_key] = {
+        "title": title,
+        "authors": authors,
+        "year": year,
+        "relevance": relevance,
+        "utility": utility,
+        "cited": citation_key in _used_citation_keys,
+        "source": source
+    }
+
+
+def update_cited_status():
+    """Update the 'cited' flag for all reviewed papers based on used keys."""
+    global _reviewed_papers
+    for key in _reviewed_papers:
+        _reviewed_papers[key]["cited"] = key in _used_citation_keys
+
+
+def get_reviewed_papers() -> Dict[str, Dict[str, Any]]:
+    """Get all papers that were reviewed with their metadata."""
+    update_cited_status()
+    return _reviewed_papers
+
+
+def export_literature_sheet() -> str:
+    """
+    Export a markdown literature review sheet with all papers reviewed.
+    
+    Shows relevance/utility rankings and highlights cited papers.
+    """
+    update_cited_status()
+    
+    if not _reviewed_papers:
+        return "# Literature Review\n\nNo papers reviewed.\n"
+    
+    lines = [
+        "# Literature Review Sheet",
+        "",
+        "This document lists all papers reviewed during the research process.",
+        "",
+        "## Summary",
+        f"- **Total Papers Reviewed**: {len(_reviewed_papers)}",
+        f"- **Papers Cited**: {sum(1 for p in _reviewed_papers.values() if p['cited'])}",
+        "",
+        "---",
+        "",
+        "## Papers Cited in Final Document",
+        "",
+        "| Citation Key | Title | Authors | Year | Rel | Util |",
+        "|-------------|-------|---------|------|-----|------|"
+    ]
+    
+    # Sort by relevance then utility
+    sorted_papers = sorted(
+        _reviewed_papers.items(),
+        key=lambda x: (-x[1].get("relevance", 0), -x[1].get("utility", 0))
+    )
+    
+    # Cited papers first
+    for key, data in sorted_papers:
+        if data.get("cited"):
+            lines.append(
+                f"| `{key}` | {data['title'][:50]}{'...' if len(data['title']) > 50 else ''} | "
+                f"{data['authors'][:30]} | {data['year']} | {data['relevance']}/5 | {data['utility']}/5 |"
+            )
+    
+    lines.extend([
+        "",
+        "## Papers Reviewed but Not Cited",
+        "",
+        "| Citation Key | Title | Authors | Year | Rel | Util | Source |",
+        "|-------------|-------|---------|------|-----|------|--------|"
+    ])
+    
+    for key, data in sorted_papers:
+        if not data.get("cited"):
+            lines.append(
+                f"| `{key}` | {data['title'][:40]}{'...' if len(data['title']) > 40 else ''} | "
+                f"{data['authors'][:25]} | {data['year']} | {data['relevance']}/5 | {data['utility']}/5 | {data['source']} |"
+            )
+    
+    lines.extend([
+        "",
+        "---",
+        "",
+        "*Relevance (Rel): How relevant to the research topic (1-5)*",
+        "",
+        "*Utility (Util): How useful for answering research questions (1-5)*"
+    ])
+    
+    return "\n".join(lines)
 
 
 def fuzzy_cite(query: str) -> List[Dict[str, str]]:
@@ -66,19 +175,39 @@ def fuzzy_cite(query: str) -> List[Dict[str, str]]:
             # Fuzzy match: all query parts must appear somewhere
             if all(part in searchable for part in query_parts):
                 citation_key = data.get('ref', 'unknown')
+                title = data.get('title', 'Unknown')
+                authors = data.get('author', 'Unknown')
+                year = str(data.get('year', ''))
+                
                 results.append({
                     "citation_key": citation_key,
-                    "title": data.get('title', 'Unknown')[:70],
-                    "authors": data.get('author', 'Unknown')[:40],
-                    "year": str(data.get('year', ''))
+                    "title": title[:70],
+                    "authors": authors[:40],
+                    "year": year
                 })
                 # Track for refs.bib filtering
                 _used_citation_keys.add(citation_key)
+                
+                # Track in reviewed papers with high relevance (since it matched query)
+                if citation_key not in _reviewed_papers:
+                    _reviewed_papers[citation_key] = {
+                        "title": title,
+                        "authors": authors[:60],
+                        "year": year,
+                        "relevance": 4,  # High since it matched fuzzy query
+                        "utility": 4,    # High since agent requested it
+                        "cited": True,
+                        "source": "fuzzy_cite"
+                    }
+                else:
+                    # Update existing entry to mark as cited
+                    _reviewed_papers[citation_key]["cited"] = True
         except:
             pass
     
     console.print(f"[green]✓ Found {len(results)} matches[/green]")
     return results[:10]
+
 
 
 def validate_citations(citation_keys: List[str]) -> Dict[str, Any]:

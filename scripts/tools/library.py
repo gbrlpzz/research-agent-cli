@@ -40,6 +40,7 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     Add a paper to the local library by its identifier.
     
     Downloads the PDF via papis and updates master.bib automatically.
+    Falls back to private sources if papis can't get the PDF.
     Use this after finding relevant papers via discover_papers.
     
     Args:
@@ -51,6 +52,8 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     Returns:
         Dict with 'status' ("success" or "error") and 'citation_key' if successful
     """
+    import shutil
+    
     # Auto-detect source
     if source == "auto":
         if identifier.startswith("10."):
@@ -65,25 +68,71 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     
     cmd = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", "add", "--batch", "--from", source, identifier]
     
+    papis_success = False
+    pdf_missing = False
+    
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode == 0:
-            # Sync master.bib using existing utility
-            try:
-                sys.path.insert(0, str(SCRIPTS_PATH))
-                from utils.sync_bib import sync_master_bib
-                sync_master_bib()
-            except Exception as e:
-                console.print(f"[yellow]Warning: bib sync issue: {e}[/yellow]")
+            papis_success = True
             
-            console.print(f"[green]✓ Added {identifier}[/green]")
-            return {"status": "success", "identifier": identifier}
+            # Check if PDF was actually downloaded
+            # Look for recently added paper directory
+            recent_dirs = sorted(LIBRARY_PATH.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)
+            if recent_dirs:
+                latest_dir = recent_dirs[0]
+                pdfs = list(latest_dir.glob("*.pdf"))
+                if not pdfs:
+                    pdf_missing = True
+                    console.print(f"[yellow]⚠ Papis added metadata but no PDF found[/yellow]")
         else:
-            return {"status": "error", "message": result.stderr.strip()[:200]}
+            console.print(f"[yellow]Papis failed: {result.stderr.strip()[:100]}[/yellow]")
     except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "Timeout while adding paper"}
+        console.print(f"[yellow]Papis timeout[/yellow]")
     except Exception as e:
-        return {"status": "error", "message": str(e)[:200]}
+        console.print(f"[yellow]Papis error: {e}[/yellow]")
+    
+    # Fallback to private sources for PDF if needed
+    if (pdf_missing or not papis_success) and source == "doi" and PRIVATE_SOURCES_AVAILABLE and fetch_pdf_private:
+        console.print(f"[dim]Trying private sources for PDF...[/dim]")
+        try:
+            pdf_path = fetch_pdf_private(identifier)
+            if pdf_path and pdf_path.exists():
+                # If papis succeeded but no PDF, add to existing directory
+                if papis_success and pdf_missing:
+                    recent_dirs = sorted(LIBRARY_PATH.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)
+                    if recent_dirs:
+                        target = recent_dirs[0] / f"{identifier.replace('/', '_')}.pdf"
+                        shutil.move(str(pdf_path), str(target))
+                        console.print(f"[green]✓ PDF added via private sources[/green]")
+                else:
+                    # Try to add via papis with the PDF we downloaded
+                    cmd_with_pdf = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", 
+                                   "add", "--batch", "--from", source, identifier, 
+                                   "--set", "files", str(pdf_path)]
+                    result = subprocess.run(cmd_with_pdf, capture_output=True, text=True, timeout=60)
+                    if result.returncode == 0:
+                        papis_success = True
+                        console.print(f"[green]✓ Added via private sources[/green]")
+                    # Clean up temp PDF
+                    pdf_path.unlink(missing_ok=True)
+        except Exception as e:
+            console.print(f"[dim]Private sources failed: {e}[/dim]")
+    
+    if papis_success:
+        # Sync master.bib using existing utility
+        try:
+            sys.path.insert(0, str(SCRIPTS_PATH))
+            from utils.sync_bib import sync_master_bib
+            sync_master_bib()
+        except Exception as e:
+            console.print(f"[yellow]Warning: bib sync issue: {e}[/yellow]")
+        
+        console.print(f"[green]✓ Added {identifier}[/green]")
+        return {"status": "success", "identifier": identifier}
+    else:
+        return {"status": "error", "message": "Failed to add paper from any source"}
+
 
 
 def list_library() -> List[Dict[str, str]]:

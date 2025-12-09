@@ -110,11 +110,13 @@ from tools import (
     list_library,
     query_library,
     fuzzy_cite,
-    validate_citations
+    validate_citations,
+    get_used_citation_keys,
+    clear_used_citation_keys,
+    track_reviewed_paper,
+    get_reviewed_papers,
+    export_literature_sheet
 )
-
-# Import citation tracking utilities
-from tools.citation import get_used_citation_keys, clear_used_citation_keys
 
 
 # ============================================================================
@@ -621,13 +623,47 @@ Output a STRUCTURED REVIEW with:
 Be constructive but rigorous. Academic excellence is the standard."""
 
 
-def peer_review(document: str, topic: str, revision_num: int = 1) -> Dict[str, Any]:
-    """Run peer review on a document. Returns structured feedback."""
+def peer_review(
+    document: str,
+    topic: str,
+    revision_num: int = 1,
+    research_plan: Optional[Dict[str, Any]] = None,
+    refs_bib: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Run peer review on a document. Returns structured feedback.
+    
+    Now includes full context: research plan and bibliography for verification.
+    """
     console.print(Panel(
         f"[bold magenta]🔍 Peer Review (Round {revision_num})[/bold magenta]\n\n"
         f"Reviewing document on: [white]{topic[:50]}...[/white]",
         border_style="magenta"
     ))
+    
+    # Build context section
+    context_parts = []
+    
+    if research_plan:
+        context_parts.append(f"""
+RESEARCH PLAN:
+- Main Question: {research_plan.get('main_question', 'N/A')}
+- Sub-questions: {', '.join(research_plan.get('sub_questions', [])[:3])}
+- Key Concepts: {', '.join(research_plan.get('key_concepts', [])[:5])}
+""")
+    
+    if refs_bib:
+        # Extract citation keys from bib for verification
+        import re
+        bib_keys = re.findall(r'@\w+\{([^,]+),', refs_bib)
+        context_parts.append(f"""
+AVAILABLE BIBLIOGRAPHY ({len(bib_keys)} entries):
+Citation keys: {', '.join(bib_keys[:15])}{'...' if len(bib_keys) > 15 else ''}
+
+You can verify that all @citations in the document match actual bibliography entries.
+""")
+    
+    context_section = "\n".join(context_parts) if context_parts else ""
     
     response = client.models.generate_content(
         model=AGENT_MODEL,
@@ -636,13 +672,17 @@ def peer_review(document: str, topic: str, revision_num: int = 1) -> Dict[str, A
             parts=[types.Part(text=f"""Review this academic document:
 
 TOPIC: {topic}
-
+{context_section}
 DOCUMENT:
 ```typst
 {document}
 ```
 
-Provide a structured peer review following your guidelines.""")]
+Provide a structured peer review following your guidelines.
+Pay special attention to:
+1. Whether all claims are properly supported by citations
+2. Whether cited keys match the available bibliography
+3. Whether the research plan questions are adequately addressed""")]
         )],
         config=types.GenerateContentConfig(
             system_instruction=REVIEWER_PROMPT
@@ -842,9 +882,19 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     
     typst_content = run_agent(topic, research_plan=research_plan)
     
-    # Save initial draft
+    # Save initial draft with its refs.bib
     (artifacts_dir / "draft_initial.typ").write_text(typst_content)
-    log_debug("Initial draft complete")
+    
+    # Generate refs.bib for the initial draft
+    doc_citations = extract_citations_from_typst(typst_content)
+    all_cited = get_used_citation_keys() | doc_citations
+    if MASTER_BIB.exists():
+        current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+    else:
+        current_refs_bib = "% No references\n"
+    (artifacts_dir / "draft_initial_refs.bib").write_text(current_refs_bib)
+    
+    log_debug(f"Initial draft complete with {len(all_cited)} citations")
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
     reviews = []
@@ -855,7 +905,22 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
             border_style="magenta", width=60
         ))
         
-        review_result = peer_review(typst_content, topic, revision_round)
+        # Generate refs.bib for the current draft
+        doc_citations = extract_citations_from_typst(typst_content)
+        all_cited = get_used_citation_keys() | doc_citations
+        if MASTER_BIB.exists():
+            current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+        else:
+            current_refs_bib = "% No references\n"
+        
+        # Peer review with full context
+        review_result = peer_review(
+            typst_content,
+            topic,
+            revision_round,
+            research_plan=research_plan,
+            refs_bib=current_refs_bib
+        )
         reviews.append(review_result)
         
         # Save review to artifacts
@@ -881,10 +946,20 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
             research_plan
         )
         
-        # Save draft to artifacts
+        # Save draft with its refs.bib to artifacts (complete, reviewable document)
         draft_file = artifacts_dir / f"draft_r{revision_round}.typ"
         draft_file.write_text(typst_content)
-        log_debug(f"Revision {revision_round} complete")
+        
+        # Generate refs.bib for this draft
+        doc_citations = extract_citations_from_typst(typst_content)
+        all_cited = get_used_citation_keys() | doc_citations
+        if MASTER_BIB.exists():
+            draft_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+        else:
+            draft_refs_bib = "% No references\n"
+        (artifacts_dir / f"draft_r{revision_round}_refs.bib").write_text(draft_refs_bib)
+        
+        log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
     
     # ========== FINAL OUTPUT ==========
     console.print(Panel(
@@ -929,17 +1004,27 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         except Exception as e:
             log_debug(f"Compile error: {e}")
     
+    # Export literature review sheet
+    literature_sheet = export_literature_sheet()
+    (report_dir / "literature_sheet.md").write_text(literature_sheet)
+    log_debug(f"Literature sheet exported with {len(get_reviewed_papers())} papers")
+    
     # Summary
+    reviewed_count = len(get_reviewed_papers())
+    cited_count = sum(1 for p in get_reviewed_papers().values() if p.get('cited'))
+    
     console.print("\n" + "="*60)
     console.print(Panel(
         f"[bold green]✓ Research Complete[/bold green]\n\n"
         f"[white]Topic:[/white] {topic[:50]}...\n"
         f"[white]Reviews:[/white] {len(reviews)} rounds\n"
-        f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n\n"
+        f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n"
+        f"[white]Papers:[/white] {cited_count} cited / {reviewed_count} reviewed\n\n"
         f"[dim]Output:[/dim]\n"
-        f"  � main.typ\n"
-        f"  � main.pdf\n"
+        f"  📝 main.typ\n"
+        f"  📄 main.pdf\n"
         f"  📚 refs.bib\n"
+        f"  📊 literature_sheet.md\n"
         f"  📁 artifacts/ (plans, drafts, reviews)\n\n"
         f"[dim]{report_dir}[/dim]",
         border_style="green"
