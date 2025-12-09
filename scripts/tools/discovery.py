@@ -87,17 +87,19 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
         return s2_papers
     
     try:
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(_search_s2)
-            try:
-                s2_results = future.result(timeout=30)  # 30 second timeout for S2
-                for paper in s2_results:
-                    key = paper['doi'] or paper['arxiv_id'] or paper['title'][:50]
-                    if key not in seen_ids:
-                        seen_ids.add(key)
-                        papers.append(paper)
-            except concurrent.futures.TimeoutError:
-                console.print("[dim]S2 timed out, continuing with other sources[/dim]")
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = executor.submit(_search_s2)
+        try:
+            s2_results = future.result(timeout=30)  # 30 second timeout for S2
+            for paper in s2_results:
+                key = paper['doi'] or paper['arxiv_id'] or paper['title'][:50]
+                if key not in seen_ids:
+                    seen_ids.add(key)
+                    papers.append(paper)
+            executor.shutdown(wait=False)
+        except concurrent.futures.TimeoutError:
+            console.print("[dim]S2 timed out, continuing with other sources[/dim]")
+            executor.shutdown(wait=False)  # Don't wait for hung thread
     except Exception as e:
         error_msg = str(e) if str(e) else type(e).__name__
         console.print(f"[yellow]S2 error: {error_msg}[/yellow]")
@@ -109,13 +111,15 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
         from utils import scraper_client
         
         # Run with timeout to prevent blocking on network issues
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(scraper_client.search_papers, query, 10)
-            try:
-                ps_results = future.result(timeout=15)  # 15 second timeout
-            except concurrent.futures.TimeoutError:
-                console.print("[dim]paper-scraper timed out, continuing with S2 results[/dim]")
-                ps_results = []
+        ps_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        future = ps_executor.submit(scraper_client.search_papers, query, 10)
+        try:
+            ps_results = future.result(timeout=15)  # 15 second timeout
+            ps_executor.shutdown(wait=False)
+        except concurrent.futures.TimeoutError:
+            console.print("[dim]paper-scraper timed out, continuing with S2 results[/dim]")
+            ps_executor.shutdown(wait=False)  # Don't wait for hung thread
+            ps_results = []
         
         for paper in ps_results:
             arxiv_id = paper.get('arxiv_id')
