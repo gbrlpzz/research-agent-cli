@@ -537,18 +537,50 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
         border_style="blue"
     ))
     
-    response = client.models.generate_content(
-        model=AGENT_MODEL,
-        contents=[types.Content(
-            role="user",
-            parts=[types.Part(text=f"Create a research plan for: {topic}")]
-        )],
-        config=types.GenerateContentConfig(
-            system_instruction=PLANNER_PROMPT
-        )
-    )
+    default_plan = {
+        "main_question": topic,
+        "sub_questions": [topic],
+        "key_concepts": [],
+        "expected_sections": ["Introduction", "Analysis", "Discussion", "Conclusion"],
+        "search_queries": [topic]
+    }
     
-    text = response.candidates[0].content.parts[0].text
+    # Retry up to 3 times for API issues
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=AGENT_MODEL,
+                contents=[types.Content(
+                    role="user",
+                    parts=[types.Part(text=f"Create a research plan for: {topic}")]
+                )],
+                config=types.GenerateContentConfig(
+                    system_instruction=PLANNER_PROMPT
+                )
+            )
+            
+            # Check for valid response
+            if response.candidates and response.candidates[0].content.parts:
+                text = response.candidates[0].content.parts[0].text
+                if text and text.strip():
+                    break  # Got valid response, exit retry loop
+            
+            # Empty response - retry
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Empty response from planner, retrying ({attempt + 2}/{max_retries})...[/yellow]")
+                time.sleep(2)  # Brief delay before retry
+            else:
+                console.print("[yellow]Planner returned empty response after retries, using defaults[/yellow]")
+                return default_plan
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Planner error: {e}, retrying ({attempt + 2}/{max_retries})...[/yellow]")
+                time.sleep(2)
+            else:
+                console.print(f"[yellow]Planner failed after retries: {e}, using defaults[/yellow]")
+                return default_plan
     
     # Extract JSON
     try:

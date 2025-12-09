@@ -57,14 +57,16 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     papers = []
     seen_ids = set()
     
-    # 1. Search Semantic Scholar
+    # 1. Search Semantic Scholar (with timeout to prevent blocking)
     console.print("[dim]  → Semantic Scholar...[/dim]")
     
     # Use API key if available for higher rate limits
     s2_api_key = os.getenv('SEMANTIC_SCHOLAR_API_KEY')
-    sch = SemanticScholar(api_key=s2_api_key) if s2_api_key else SemanticScholar()
     
-    try:
+    def _search_s2():
+        """Inner function to run S2 search (can be timed out)."""
+        sch = SemanticScholar(api_key=s2_api_key) if s2_api_key else SemanticScholar()
+        s2_papers = []
         results = sch.search_paper(query, limit=limit)
         for paper in itertools.islice(results, limit):
             arxiv_id = None
@@ -72,14 +74,7 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
             if paper.externalIds:
                 arxiv_id = paper.externalIds.get('ArXiv')
                 doi = paper.externalIds.get('DOI')
-            
-            # Dedup key
-            key = doi or arxiv_id or paper.title[:50]
-            if key in seen_ids:
-                continue
-            seen_ids.add(key)
-            
-            papers.append({
+            s2_papers.append({
                 'title': paper.title,
                 'authors': [a.name for a in paper.authors][:3],
                 'year': paper.year,
@@ -89,6 +84,20 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
                 'citations': paper.citationCount or 0,
                 'source': 'S2'
             })
+        return s2_papers
+    
+    try:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(_search_s2)
+            try:
+                s2_results = future.result(timeout=30)  # 30 second timeout for S2
+                for paper in s2_results:
+                    key = paper['doi'] or paper['arxiv_id'] or paper['title'][:50]
+                    if key not in seen_ids:
+                        seen_ids.add(key)
+                        papers.append(paper)
+            except concurrent.futures.TimeoutError:
+                console.print("[dim]S2 timed out, continuing with other sources[/dim]")
     except Exception as e:
         error_msg = str(e) if str(e) else type(e).__name__
         console.print(f"[yellow]S2 error: {error_msg}[/yellow]")
