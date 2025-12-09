@@ -34,6 +34,9 @@ except ImportError:
     fetch_pdf_private = None
     PRIVATE_SOURCES_AVAILABLE = False
 
+# Import tracking function for literature sheet
+from .citation import track_reviewed_paper
+
 
 def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     """
@@ -127,6 +130,27 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
             sync_master_bib()
         except Exception as e:
             console.print(f"[yellow]Warning: bib sync issue: {e}[/yellow]")
+        
+        # Track the added paper for literature sheet
+        try:
+            import yaml
+            recent_dirs = sorted(LIBRARY_PATH.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)
+            if recent_dirs:
+                info_file = recent_dirs[0] / "info.yaml"
+                if info_file.exists():
+                    with open(info_file) as f:
+                        data = yaml.safe_load(f)
+                    track_reviewed_paper(
+                        citation_key=data.get('ref', identifier),
+                        title=data.get('title', 'Unknown'),
+                        authors=str(data.get('author', 'Unknown'))[:60],
+                        year=str(data.get('year', '')),
+                        relevance=3,  # Medium - added by agent
+                        utility=3,    # Medium - not yet cited
+                        source="add_paper"
+                    )
+        except Exception as e:
+            pass  # Don't fail add_paper if tracking fails
         
         console.print(f"[green]✓ Added {identifier}[/green]")
         return {"status": "success", "identifier": identifier}

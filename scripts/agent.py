@@ -273,17 +273,30 @@ Validate a list of citation keys before writing.
 - Returns valid/invalid keys and suggestions
 - Use this to double-check your citations
 
-## Workflow (ITERATIVE - RAG First)
+## Research Workflow (Library-First, Gap-Driven)
 
-1. **Query First**: query_library() with the main topic to see existing knowledge
-2. **Identify Gaps**: Based on the answer, identify what's missing
-3. **Search**: discover_papers() for specific gaps
-4. **Acquire**: add_paper() for the most relevant papers found
-5. **Query Again**: query_library() with more specific questions
-6. **Repeat** steps 2-5 until you have comprehensive coverage
-7. **Cite**: fuzzy_cite() for EACH paper you want to cite
-8. **Validate**: validate_citations() to verify all keys exist
-9. **Write**: Output complete Typst document
+PHASE 1: LIBRARY SCAN
+- list_library() to see available papers
+- query_library() for EACH sub-question from research plan
+- Identify which questions have good coverage vs gaps
+
+PHASE 2: TARGETED DISCOVERY (gaps only)
+- discover_papers() for questions that lack library coverage
+- add_paper() for 3-5 most relevant papers per gap
+- query_library() again to verify new papers fill the gap
+
+PHASE 3: EVIDENCE SYNTHESIS
+- For each planned section, query_library() to gather evidence
+- Build argument structure with citations from RAG answers
+- fuzzy_cite() for EVERY paper you want to cite
+- validate_citations() before writing
+
+PHASE 4: WRITE OUTPUT
+- Write Typst document using ONLY verified @citation_keys
+- Every claim must have a citation from fuzzy_cite()
+- If a key wasn't returned by fuzzy_cite(), DO NOT USE IT
+
+IMPORTANT: Do NOT discover papers randomly. Query library FIRST to avoid wasting time on papers you already have.
 
 ## Output Format
 
@@ -317,6 +330,24 @@ Summary and future directions.
 
 #bibliography("refs.bib")
 ```
+
+## Typst Formatting Rules (NOT Markdown!)
+
+CRITICAL: Typst is NOT Markdown. Use these formats:
+
+| Element | Typst Syntax | WRONG (Markdown) |
+|---------|--------------|------------------|
+| Bold | *text* | **text** |
+| Italic | _text_ | *text* |
+| Heading 1 | = Title | # Title |
+| Heading 2 | == Section | ## Section |
+| Bullet list | - item | - item (same) |
+| Numbered list | + item | 1. item |
+| Citation | @citation_key | [@key] |
+| Code | `code` | `code` (same) |
+| Block quote | #quote[text] | > text |
+
+NEVER use ** for bold - this causes compilation errors!
 
 ## ACADEMIC RIGOR RULES (STRICT)
 
@@ -952,6 +983,22 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         current_refs_bib = "% No references\n"
     (artifacts_dir / "draft_initial_refs.bib").write_text(current_refs_bib)
     
+    # Copy lib.typ and refs.bib to artifacts for standalone draft compilation
+    if (TEMPLATE_PATH / "lib.typ").exists():
+        shutil.copy(TEMPLATE_PATH / "lib.typ", artifacts_dir / "lib.typ")
+    (artifacts_dir / "refs.bib").write_text(current_refs_bib)
+    
+    # Compile initial draft to PDF
+    try:
+        subprocess.run(
+            ["typst", "compile", "draft_initial.typ", "draft_initial.pdf"],
+            cwd=str(artifacts_dir),
+            capture_output=True,
+            timeout=30
+        )
+    except Exception:
+        pass  # Don't fail if typst not available
+    
     log_debug(f"Initial draft complete with {len(all_cited)} citations")
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
@@ -1021,6 +1068,18 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         else:
             draft_refs_bib = "% No references\n"
         (artifacts_dir / f"draft_r{revision_round}_refs.bib").write_text(draft_refs_bib)
+        
+        # Update shared refs.bib and compile revision draft to PDF
+        (artifacts_dir / "refs.bib").write_text(draft_refs_bib)
+        try:
+            subprocess.run(
+                ["typst", "compile", f"draft_r{revision_round}.typ", f"draft_r{revision_round}.pdf"],
+                cwd=str(artifacts_dir),
+                capture_output=True,
+                timeout=30
+            )
+        except Exception:
+            pass  # Don't fail if typst not available
         
         log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
     
