@@ -61,7 +61,7 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     console.print("[dim]  → Semantic Scholar...[/dim]")
     
     # Use API key if available for higher rate limits
-    s2_api_key = os.getenv('S2_API_KEY')
+    s2_api_key = os.getenv('SEMANTIC_SCHOLAR_API_KEY')
     sch = SemanticScholar(api_key=s2_api_key) if s2_api_key else SemanticScholar()
     
     try:
