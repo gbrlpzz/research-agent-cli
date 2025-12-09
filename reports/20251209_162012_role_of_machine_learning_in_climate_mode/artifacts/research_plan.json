@@ -1,0 +1,31 @@
+{
+  "main_question": "How is machine learning integrating with and enhancing traditional physics-based General Circulation Models (GCMs) to improve climate prediction accuracy and computational efficiency?",
+  "sub_questions": [
+    "In what ways can machine learning algorithms replace or optimize sub-grid scale parameterizations in Earth System Models?",
+    "How does deep learning improve statistical downscaling techniques for regional climate risk assessment?",
+    "What are the primary challenges regarding the interpretability and physical consistency of data-driven climate models?",
+    "To what extent can hybrid modeling (physics-informed machine learning) bridge the gap between observational data and theoretical simulations?"
+  ],
+  "key_concepts": [
+    "General Circulation Models (GCMs)",
+    "Physics-Informed Neural Networks (PINNs)",
+    "Sub-grid Parameterization",
+    "Statistical Downscaling",
+    "Earth System Models (ESMs)",
+    "Generative Adversarial Networks (GANs)"
+  ],
+  "expected_sections": [
+    "Introduction: Limitations of Conventional GCMs",
+    "ML Architectures in Climate Science (CNNs, RNNs, Transformers)",
+    "Replacing Physics with Data: ML for Parameterization",
+    "Enhancing Resolution: Super-resolution and Downscaling",
+    "Challenges: Interpretability, Stability, and Out-of-Distribution Generalization",
+    "Future Directions: Hybrid Physics-AI Frameworks"
+  ],
+  "search_queries": [
+    "\"machine learning\" AND \"climate modeling\" AND \"parameterization\"",
+    "\"deep learning\" AND \"statistical downscaling\" AND \"climate change\"",
+    "\"physics-informed neural networks\" AND \"Earth system models\"",
+    "\"hybrid climate models\" AND \"computational efficiency\""
+  ]
+}
