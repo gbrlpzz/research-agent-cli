@@ -1,0 +1,33 @@
+{
+  "main_question": "To what extent are Applied Research Organizations (AROs) and Research and Technology Organizations (RTOs) emerging as the dominant institutional paradigm for future innovation ecosystems, effectively bridging the gap between basic academic discovery and industrial commercialization?",
+  "sub_questions": [
+    "How do AROs mitigate the 'Valley of Death' in technology transfer more effectively than traditional university technology transfer offices?",
+    "In what ways have shifting corporate R&D strategies favored externalized partnerships with AROs over internal basic research laboratories?",
+    "What are the comparative economic impacts of the Fraunhofer model versus the DARPA-style funding model in fostering deep tech innovation?",
+    "How do specific governance and funding structures within AROs influence the velocity of moving technologies through Technology Readiness Levels (TRLs)?"
+  ],
+  "key_concepts": [
+    "Research and Technology Organizations (RTOs)",
+    "Technology Readiness Levels (TRL)",
+    "The Valley of Death",
+    "Translational Research",
+    "National Innovation Systems",
+    "Triple Helix Model",
+    "Fraunhofer Model",
+    "Open Innovation"
+  ],
+  "expected_sections": [
+    "Introduction: The Evolving Landscape of Institutional Innovation",
+    "The Structural Gap: Limitations of the University and Corporate Lab Models",
+    "The ARO Mechanism: Bridging TRL 3 to TRL 7",
+    "Comparative Case Studies: Fraunhofer (Germany), Catapult Centres (UK), and Manufacturing USA",
+    "Governance, IP Regimes, and Financial Sustainability of AROs",
+    "Conclusion: AROs as the Nexus of Future Innovation Ecosystems"
+  ],
+  "search_queries": [
+    "\"Research and Technology Organizations\" AND \"innovation ecosystem\" future",
+    "\"Applied Research Organizations\" vs \"University R&D\" technology transfer efficiency",
+    "\"Valley of Death\" institutional models innovation",
+    "impact of \"Fraunhofer model\" on industrial competitiveness and R&D"
+  ]
+}
