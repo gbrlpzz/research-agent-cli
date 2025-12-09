@@ -17,3 +17,7 @@ __pycache__/
 
 # OS
 .DS_Store
+
+# External tools (private source implementations not tracked)
+scripts/tools/external/*
+!scripts/tools/external/__init__.py
