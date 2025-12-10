@@ -568,8 +568,7 @@ IMPORTANT - Follow the RAG-First workflow:
                     config=types.GenerateContentConfig(
                         system_instruction=current_system_prompt,
                         response_modalities=["TEXT"],  # Add this
-                        tools=TOOLS,
-                        timeout=API_TIMEOUT_SECONDS  # Safety timeout
+                        tools=TOOLS
                     )
                 )
             except Exception as e:
@@ -766,7 +765,6 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
                 ],
                 config=types.GenerateContentConfig(
                     temperature=0.7,
-                    timeout=API_TIMEOUT_SECONDS  # Safety timeout
                 )
             )
             
@@ -1441,11 +1439,21 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
                  combined_feedback += "\n### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS\n"
                  combined_feedback += "\n".join(paper_summaries)
                  combined_feedback += "\n[End of New Literature]\n"
-             
              combined_feedback += "\n"
 
         # Display Review Summaries to User
         console.print(Panel(f"[bold magenta]Review Round {revision_round} Summaries[/bold magenta]", border_style="magenta"))
+        
+        # Calculate aggregated verdict (most common verdict, or worst case)
+        verdicts = [rr.get('verdict', 'unknown') for rr in round_reviews]
+        if 'major_revisions' in verdicts:
+            aggregated_verdict = 'major_revisions'
+        elif 'minor_revisions' in verdicts:
+            aggregated_verdict = 'minor_revisions'
+        elif 'accept' in verdicts:
+            aggregated_verdict = 'accept'
+        else:
+            aggregated_verdict = 'unknown'
         
         for i, rr in enumerate(round_reviews, 1):
             verdict = rr.get('verdict', 'unknown')
