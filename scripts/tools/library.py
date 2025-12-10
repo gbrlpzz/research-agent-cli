@@ -230,7 +230,7 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     """
     Ask a research question about papers in the library using RAG (PaperQA2).
     
-    This uses the PERSISTENT Qdrant vector database for instant queries.
+    This uses the PERSISTENT Qdrant vector database via scripts.qa.
     Returns detailed answers with citations from the indexed papers.
     Use AFTER adding papers to the library.
     
@@ -242,154 +242,35 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     Returns:
         Dict with 'answer' text and list of 'sources' used
     """
-    from paperqa import Docs, Settings
-    
-    console.print(f"[dim]🤔 Querying: {question[:60]}...[/dim]")
-    
-    # Configure settings for Gemini
-    settings = Settings()
-    settings.llm = f"gemini/{FLASH_MODEL}"
-    settings.summary_llm = f"gemini/{FLASH_MODEL}"
-    settings.embedding = "gemini/text-embedding-004"
-    settings.answer.answer_max_sources = 5
-    settings.answer.evidence_k = 10
-    
-    # Find PDFs
-    all_pdfs = list(LIBRARY_PATH.rglob("*.pdf"))
-    
-    if paper_filter:
-        pdfs = [p for p in all_pdfs if paper_filter.lower() in str(p).lower()]
-        console.print(f"[dim]Filtered to {len(pdfs)} papers matching '{paper_filter}'[/dim]")
-    else:
-        pdfs = all_pdfs
-    
-    if not pdfs:
-        return {"answer": "No papers found in library. Use add_paper first.", "sources": []}
-    
-    # Check for persistent cache (using pickle for reliability)
-    cache_path = LIBRARY_PATH / ".qa_cache"
-    fp_path = cache_path / ".fingerprint"
-    docs_pickle_path = cache_path / "docs.pkl"
-    
-    # Generate fingerprint from PDF paths + mtimes (for proper cache invalidation)
-    def get_pdf_fingerprint_data(pdf_paths: List[Path]) -> str:
-        """Generate fingerprint including file modification times."""
-        fingerprint_parts = []
-        for pdf in sorted(pdf_paths, key=lambda p: str(p)):
-            try:
-                mtime = pdf.stat().st_mtime
-                fingerprint_parts.append(f"{pdf}:{mtime}")
-            except:
-                # If can't get mtime, just use path (degraded mode)
-                fingerprint_parts.append(str(pdf))
-        return hashlib.md5("\n".join(fingerprint_parts).encode()).hexdigest()
-    
-    current_fp = get_pdf_fingerprint_data(pdfs)
-    
-    docs = None
-    
-    # Try to load existing cache (only for non-filtered queries)
-    if not paper_filter and fp_path.exists() and docs_pickle_path.exists():
-        try:
-            stored_fp = fp_path.read_text().strip()
-            # If fingerprint matches, load cache
-            if stored_fp == current_fp:
-                import pickle
-                with open(docs_pickle_path, 'rb') as f:
-                    docs = pickle.load(f)
-                if docs and docs.docnames:
-                    console.print(f"[green]✓ Using cached index ({len(docs.docnames)} docs)[/green]")
-                else:
-                    docs = None  # Invalid cache, rebuild
-        except Exception as e:
-            console.print(f"[dim]Cache miss: {e}[/dim]")
-            docs = None
-    
-    # Build index if needed
-    if not docs:
-        docs = Docs()
-        
-    # Identify new papers to index
-    # Use unique identifier: parent_dir/filename (not just filename)
-    # This prevents false matches when multiple papers have same PDF name
-    def get_pdf_doc_id(pdf_path: Path) -> str:
-        """Generate unique document identifier from PDF path."""
-        # Use parent directory name (paper hash) + filename
-        return f"{pdf_path.parent.name}/{pdf_path.name}"
-    
-    # Get indexed documents - check both formats for backwards compatibility
-    indexed_ids = set()
-    if docs and docs.docnames:
-        for name in docs.docnames:
-            indexed_ids.add(name)
-            # Also add basename for legacy compatibility check
-            if '/' in name:
-                indexed_ids.add(name.split('/')[-1])
-    
-    # Calculate new PDFs - check both full ID and basename
-    new_pdfs = []
-    for p in pdfs:
-        full_id = get_pdf_doc_id(p)
-        basename = p.name
-        if full_id not in indexed_ids and basename not in indexed_ids:
-            new_pdfs.append(p)
-    
-    if new_pdfs:
-        console.print(f"[dim]Indexing {len(new_pdfs)} new papers (skipping {len(pdfs) - len(new_pdfs)} existing)...[/dim]")
-        
-        # Add progress bar for user visibility
-        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-        
-        success_count = 0
-        fail_count = 0
-        
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            console=console
-        ) as progress:
-            task = progress.add_task(f"Indexing papers...", total=len(new_pdfs))
-            
-            for pdf in new_pdfs:
-                try:
-                    # Add with unique ID as doc name for proper tracking
-                    docs.add(pdf, docname=get_pdf_doc_id(pdf), settings=settings)
-                    success_count += 1
-                    progress.advance(task)
-                except Exception as e:
-                    progress.console.print(f"[dim]⚠️ Error indexing {pdf.name}: {e}[/dim]")
-                    fail_count += 1
-                    progress.advance(task)
-        
-        console.print(f"[dim]Indexing complete: {success_count} succeeded, {fail_count} failed[/dim]")
-    
-    # Save cache (pickle + fingerprint)
-    if not paper_filter and new_pdfs:  # Only save if we indexed new papers
-        import pickle
-        cache_path.mkdir(exist_ok=True)
-        fp_path.write_text(current_fp)
-        with open(docs_pickle_path, 'wb') as f:
-            pickle.dump(docs, f)
-        console.print(f"[green]✓ Index saved ({len(docs.docnames) if docs and docs.docnames else 0} total docs)[/green]")
-    
-    # Query
     try:
-        response = docs.query(question, settings=settings)
+        from scripts.qa import _async_answer_question
+        import asyncio
+        from pathlib import Path
+        
+        # Get library path
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        library_path = repo_root / "library"
+        
+        console.print(f"[dim]🤔 Querying (via Qdrant): {question[:60]}...[/dim]")
+        
+        # Run the async QA function synchronously
+        response = asyncio.run(_async_answer_question(question, library_path, paper_filter))
+        
+        # Extract sources
         sources = []
         if hasattr(response, 'contexts') and response.contexts:
             for ctx in response.contexts[:5]:
                 if hasattr(ctx.text, 'name'):
                     sources.append(ctx.text.name)
         
-        console.print(f"[green]✓ Got answer ({len(sources)} sources)[/green]")
         return {
             "answer": response.formatted_answer or response.answer,
             "sources": sources
         }
+        
     except Exception as e:
-        return {"answer": f"Query error: {e}", "sources": []}
+        console.print(f"[red]Query error: {e}[/red]")
+        return {"answer": f"Error querying library: {str(e)}", "sources": []}
 
 
 def batch_add_papers(identifiers: List[Dict[str, str]], max_workers: int = 3) -> Dict[str, Any]:

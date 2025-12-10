@@ -1,0 +1,42 @@
+{
+  "phase": "research_plan",
+  "timestamp": "2025-12-10T13:15:08.896574",
+  "data": {
+    "plan": {
+      "main_question": "To what extent can applied research organisations (AROs) function as strategic instruments of place-based innovation policy to mitigate territorial fragility and enhance regional resilience within the European Union?",
+      "sub_questions": [
+        "How do AROs facilitate knowledge transfer and technological upgrading in EU regions characterized by institutional and economic fragility?",
+        "What role do AROs play in the implementation and success of Smart Specialisation Strategies (RIS3) in 'lagging' or peripheral European regions?",
+        "In what ways do AROs contribute to retaining human capital and building institutional capacity in fragile territories?",
+        "How does the current EU Cohesion Policy framework support or hinder the deployment of AROs as drivers of regional development?"
+      ],
+      "key_concepts": [
+        "Territorial Fragility",
+        "Applied Research Organisations (AROs)",
+        "Research and Technology Organisations (RTOs)",
+        "Smart Specialisation Strategies (RIS3)",
+        "Regional Innovation Systems (RIS)",
+        "Place-based Policy",
+        "EU Cohesion Policy",
+        "Left-behind Places"
+      ],
+      "expected_sections": [
+        "Introduction: The Challenge of Territorial Disparities in the EU",
+        "Conceptual Framework: Defining Territorial Fragility and the Role of Innovation Intermediaries",
+        "The Policy Landscape: AROs within EU Cohesion Policy and Smart Specialisation",
+        "Mechanisms of Impact: Technology Transfer, Capacity Building, and Networking in Peripheral Regions",
+        "Case Studies: Comparative Analysis of ARO Interventions in Southern and Eastern Europe",
+        "Challenges and Barriers: Institutional Lock-ins and Funding Gaps",
+        "Policy Recommendations for Integrating AROs into Regional Development Strategies",
+        "Conclusion"
+      ],
+      "search_queries": [
+        "\"Applied Research Organisations\" AND \"Regional Development\" AND \"European Union\"",
+        "\"Territorial Fragility\" OR \"Lagging Regions\" AND \"Innovation Policy\" AND \"EU\"",
+        "\"Research and Technology Organisations\" AND \"Smart Specialisation\" AND \"Peripheral Regions\"",
+        "\"Place-based innovation\" AND \"Institutional Capacity\" AND \"Cohesion Policy\""
+      ]
+    },
+    "library_size": 54
+  }
+}

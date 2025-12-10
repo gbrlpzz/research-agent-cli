@@ -1,0 +1,41 @@
+{
+  "phase": "research_plan",
+  "timestamp": "2025-12-10T13:03:07.101132",
+  "data": {
+    "plan": {
+      "main_question": "To what extent can Applied Research Organisations (AROs) serve as strategic instruments to mitigate territorial fragility and foster regional resilience within the European Union?",
+      "sub_questions": [
+        "What are the specific mechanisms through which AROs facilitate knowledge transfer and innovation diffusion in structurally weak or 'left-behind' EU regions?",
+        "How do AROs align with and enhance European Union Cohesion Policy and Smart Specialisation Strategies (RIS3) in fragile territories?",
+        "What are the barriers regarding local absorptive capacity that limit the effectiveness of AROs in peripheral EU regions compared to core innovation hubs?",
+        "How does the presence of AROs influence the retention of human capital and the development of local institutional quality in fragile territories?"
+      ],
+      "key_concepts": [
+        "Territorial Fragility",
+        "Applied Research Organisations (AROs)",
+        "Research and Technology Organisations (RTOs)",
+        "Regional Innovation Systems (RIS)",
+        "Smart Specialisation Strategies (RIS3)",
+        "EU Cohesion Policy",
+        "Absorptive Capacity",
+        "Geography of Innovation"
+      ],
+      "expected_sections": [
+        "Introduction: Defining Territorial Fragility and the Innovation Gap in the EU",
+        "Theoretical Framework: The Role of Intermediary Research Bodies in Regional Development",
+        "Policy Context: AROs within EU Cohesion Policy and Smart Specialisation",
+        "Mechanisms of Impact: Technology Transfer, localized problem-solving, and capacity building",
+        "Comparative Analysis: ARO performance in Core vs. Peripheral Regions",
+        "Case Studies: Successful ARO interventions in lagging EU regions",
+        "Challenges and Policy Recommendations for utilizing AROs as cohesion tools"
+      ],
+      "search_queries": [
+        "\"Applied Research Organisations\" AND \"regional development\" AND \"European Union\"",
+        "\"territorial fragility\" OR \"lagging regions\" AND \"innovation systems\" AND EU",
+        "\"Research and Technology Organisations\" role in \"Smart Specialisation Strategies\"",
+        "\"technology transfer\" AND \"peripheral regions\" AND \"absorptive capacity\" EU"
+      ]
+    },
+    "library_size": 52
+  }
+}
