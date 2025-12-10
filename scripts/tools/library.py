@@ -64,6 +64,40 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
         else:
             source = "arxiv"
     
+    # Check for duplicates before adding (saves time and API credits)
+    import yaml
+    
+    normalized_id = identifier.lower().strip()
+    
+    for info_file in LIBRARY_PATH.rglob("info.yaml"):
+        try:
+            with open(info_file) as f:
+                data = yaml.safe_load(f)
+            
+            # Check DOI match
+            if source == "doi" and data.get('doi'):
+                if normalized_id in data.get('doi', '').lower():
+                    console.print(f"[yellow]⚠️  Paper already in library: @{data.get('ref')}[/yellow]")
+                    return {
+                        "status": "already_exists",
+                        "citation_key": data.get('ref'),
+                        "message": f"Paper already indexed as @{data.get('ref')}"
+                    }
+            
+            # Check arXiv match
+            if source == "arxiv" and data.get('eprint'):
+                # arXiv ID can be in formats: 1234.5678, arxiv:1234.5678, etc.
+                arxiv_id = normalized_id.replace('arxiv:', '').split('/')[-1]
+                if arxiv_id == data.get('eprint', '').lower():
+                    console.print(f"[yellow]⚠️  Paper already in library: @{data.get('ref')}[/yellow]")
+                    return {
+                        "status": "already_exists",
+                        "citation_key": data.get('ref'),
+                        "message": f"Paper already indexed as @{data.get('ref')}"
+                    }
+        except:
+            pass  # Ignore corrupted info files
+    
     console.print(f"[dim]📥 Adding: {source}:{identifier}[/dim]")
     
     venv_bin = os.path.dirname(sys.executable)
@@ -238,9 +272,20 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     db_path = LIBRARY_PATH / ".qa_vectordb"
     fp_path = db_path / ".fingerprint"
     
-    # Generate fingerprint from PDF paths only (not mtime for stability)
-    fingerprint_data = sorted([str(p) for p in pdfs])
-    current_fp = hashlib.md5("\n".join(fingerprint_data).encode()).hexdigest()
+    # Generate fingerprint from PDF paths + mtimes (for proper cache invalidation)
+    def get_pdf_fingerprint_data(pdf_paths: List[Path]) -> str:
+        """Generate fingerprint including file modification times."""
+        fingerprint_parts = []
+        for pdf in sorted(pdf_paths, key=lambda p: str(p)):
+            try:
+                mtime = pdf.stat().st_mtime
+                fingerprint_parts.append(f"{pdf}:{mtime}")
+            except:
+                # If can't get mtime, just use path (degraded mode)
+                fingerprint_parts.append(str(pdf))
+        return hashlib.md5("\n".join(fingerprint_parts).encode()).hexdigest()
+    
+    current_fp = get_pdf_fingerprint_data(pdfs)
     
     docs = None
     
@@ -248,6 +293,7 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     if not paper_filter and fp_path.exists():
         try:
             stored_fp = fp_path.read_text().strip()
+            # If fingerprint matches, load cache
             if stored_fp == current_fp:
                 # Load from Qdrant
                 client_qdrant = AsyncQdrantClient(path=str(db_path))
@@ -270,7 +316,7 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         except Exception as e:
             console.print(f"[dim]Cache miss: {e}[/dim]")
     
-    # Build index if needed
+    # Build index if needed (Append-Only Strategy)
     if not docs:
         if paper_filter:
             docs = Docs()
@@ -282,20 +328,53 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
                 client=client_qdrant,
                 collection_name="research_papers"
             )
-            docs = Docs(texts_index=vector_store)
-        
-        console.print(f"[dim]Indexing {len(pdfs)} papers...[/dim]")
-        for pdf in pdfs[:25]:  # Reasonable limit
+            # Try to load existing docs first to append to them
             try:
-                docs.add(pdf, settings=settings)
-            except:
-                pass
+                loop = asyncio.get_event_loop()
+                if not loop.is_running():
+                    docs = loop.run_until_complete(QdrantVectorStore.load_docs(client_qdrant, "research_papers"))
+            except Exception:
+                docs = None
+                
+            if not docs:
+                docs = Docs(texts_index=vector_store)
+        
+        # Identify new papers to index
+        # Use unique identifier: parent_dir/filename (not just filename)
+        # This prevents false matches when multiple papers have same PDF name
+        def get_pdf_doc_id(pdf_path: Path) -> str:
+            """Generate unique document identifier from PDF path."""
+            # Use parent directory name (paper hash) + filename
+            return f"{pdf_path.parent.name}/{pdf_path.name}"
+        
+        if docs and docs.docnames:
+            # Normalize existing docnames to match our unique ID format
+            indexed_ids = set()
+            for name in docs.docnames:
+                if '/' in name:
+                    indexed_ids.add(name)  # Already in correct format
+                else:
+                    # Legacy format - just filename, keep as-is for backwards compat
+                    indexed_ids.add(name)
+        else:
+            indexed_ids = set()
+        
+        new_pdfs = [p for p in pdfs if get_pdf_doc_id(p) not in indexed_ids]
+        
+        if new_pdfs:
+            console.print(f"[dim]Indexing {len(new_pdfs)} new papers (skipping {len(indexed_ids)} existing)...[/dim]")
+            for pdf in new_pdfs:  # NO LIMIT (removed [:25])
+                try:
+                    # Add with unique ID as doc name for proper tracking
+                    docs.add(pdf, docname=get_pdf_doc_id(pdf), settings=settings)
+                except Exception as e:
+                    console.print(f"[dim]⚠️ Error indexing {pdf.name}: {e}[/dim]")
         
         # Save fingerprint
         if not paper_filter:
             fp_path.parent.mkdir(exist_ok=True)
             fp_path.write_text(current_fp)
-            console.print(f"[green]✓ Index saved for future queries[/green]")
+            console.print(f"[green]✓ Index updated & saved[/green]")
     
     # Query
     try:
@@ -313,3 +392,60 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         }
     except Exception as e:
         return {"answer": f"Query error: {e}", "sources": []}
+
+
+def batch_add_papers(identifiers: List[Dict[str, str]], max_workers: int = 3) -> Dict[str, Any]:
+    """
+    Add multiple papers to the library in parallel.
+    
+    This is significantly faster than calling add_paper sequentially,
+    especially when adding many papers during initial research.
+    
+    Args:
+        identifiers: List of paper specs, each with 'identifier' and optional 'source'
+                    Example: [{"identifier": "10.1234/abc", "source": "doi"},
+                             {"identifier": "2301.12345", "source": "arxiv"}]
+        max_workers: Maximum parallel downloads (default 3 to avoid rate limits)
+    
+    Returns:
+        Dict with 'added' (list of successful identifiers), 
+        'failed' (list of failed identifiers), and 'count' summary
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    console.print(f"[bold blue]📦 Batch adding {len(identifiers)} papers...[/bold blue]")
+    
+    added = []
+    failed = []
+    
+    def add_single(paper_spec):
+        identifier = paper_spec.get("identifier")
+        source = paper_spec.get("source", "auto")
+        try:
+            result = add_paper(identifier, source)
+            if result.get("status") == "success":
+                return ("success", identifier)
+            else:
+                return ("failed", identifier)
+        except Exception as e:
+            console.print(f"[yellow]Failed to add {identifier}: {e}[/yellow]")
+            return ("failed", identifier)
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(add_single, spec): spec for spec in identifiers}
+        
+        for future in as_completed(futures):
+            status, identifier = future.result()
+            if status == "success":
+                added.append(identifier)
+            else:
+                failed.append(identifier)
+    
+    console.print(f"[green]✓ Batch complete: {len(added)} added, {len(failed)} failed[/green]")
+    
+    return {
+        "status": "complete",
+        "added": added,
+        "failed": failed,
+        "count": {"success": len(added), "failed": len(failed)}
+    }

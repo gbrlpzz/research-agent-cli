@@ -9,7 +9,7 @@ All tools are importable from this module:
     from tools import discover_papers, add_paper, fuzzy_cite, etc.
 """
 from .discovery import discover_papers, exa_search
-from .library import add_paper, list_library, query_library
+from .library import add_paper, batch_add_papers, list_library, query_library
 from .citation import (
     fuzzy_cite,
     validate_citations,
@@ -26,6 +26,7 @@ __all__ = [
     'exa_search',
     # Library management
     'add_paper',
+    'batch_add_papers',
     'list_library', 
     'query_library',
     # Citations

@@ -66,6 +66,15 @@ client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 AGENT_MODEL = "gemini-3-pro-preview"
 FLASH_MODEL = "gemini-2.5-flash"  # For RAG (faster)
 
+# Configurable iteration limits (can be tuned via .env for complex topics)
+MAX_AGENT_ITERATIONS = int(os.getenv('AGENT_MAX_ITERATIONS', '50'))  # Increased from hardcoded 35
+MAX_REVISION_ITERATIONS = int(os.getenv('REVISION_MAX_ITERATIONS', '25'))  # For revision phase
+MAX_REVIEWER_ITERATIONS = int(os.getenv('MAX_REVIEWER_ITERATIONS', '15'))  # Reviewer iteration limit
+
+# API Safety Timeouts (prevents infinite hangs)
+API_TIMEOUT_SECONDS = int(os.getenv('API_TIMEOUT_SECONDS', '120'))  # 2 minutes default
+REVIEWER_TIMEOUT_SECONDS = int(os.getenv('REVIEWER_TIMEOUT_SECONDS', '180'))  # 3 minutes for reviewers
+
 # Session timeout (4 hours max to prevent runaway sessions)
 MAX_SESSION_DURATION = 4 * 60 * 60  # 4 hours in seconds
 _session_start_time: Optional[float] = None
@@ -112,6 +121,7 @@ from tools import (
     discover_papers,
     exa_search, 
     add_paper,
+    batch_add_papers,
     list_library,
     query_library,
     fuzzy_cite,
@@ -167,6 +177,29 @@ TOOLS = [
             )
         ),
         types.FunctionDeclaration(
+            name="batch_add_papers",
+            description="Add multiple papers to library in parallel. Much faster than sequential add_paper calls.",
+            parameters=types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "identifiers": types.Schema(
+                        type=types.Type.ARRAY,
+                        items=types.Schema(
+                            type=types.Type.OBJECT,
+                            properties={
+                                "identifier": types.Schema(type=types.Type.STRING, description="arXiv ID or DOI"),
+                                "source": types.Schema(type=types.Type.STRING, description="'arxiv', 'doi', or 'auto'")
+                            },
+                            required=["identifier"]
+                        ),
+                        description="List of papers to add"
+                    ),
+                    "max_workers": types.Schema(type=types.Type.INTEGER, description="Max parallel downloads (default 3)")
+                },
+                required=["identifiers"]
+            )
+        ),
+        types.FunctionDeclaration(
             name="query_library",
             description="Ask a research question using PaperQA2 RAG. Uses persistent Qdrant index.",
             parameters=types.Schema(
@@ -216,10 +249,21 @@ TOOLS = [
     ])
 ]
 
+# Tools available to the REVIEWER (Read-only / Discovery)
+# Tools available to the REVIEWER (Read-only / Discovery)
+# Create a new Tool object with only the allowed function declarations
+REVIEWER_TOOLS = [
+    types.Tool(function_declarations=[
+        fd for fd in TOOLS[0].function_declarations
+        if fd.name in ["query_library", "fuzzy_cite", "validate_citations", "list_library", "discover_papers"]
+    ])
+]
+
 TOOL_FUNCTIONS = {
     "discover_papers": discover_papers,
     "exa_search": exa_search,
     "add_paper": add_paper,
+    "batch_add_papers": batch_add_papers,
     "query_library": query_library,
     "fuzzy_cite": fuzzy_cite,
     "validate_citations": validate_citations,
@@ -262,7 +306,13 @@ Download paper to library by arXiv ID or DOI.
 - Updates master.bib automatically
 - Add 5-10 MOST RELEVANT papers only
 
-### 6. fuzzy_cite(query)
+### 6. batch_add_papers(identifiers, max_workers)
+⚡ Add MULTIPLE papers in parallel (3x faster than sequential add_paper).
+- Use when you need to add 3+ papers at once
+- Greatly speeds up initial research phase
+- Example: batch_add_papers(identifiers=[{"identifier": "10.1234/abc", "source": "doi"}, {"identifier": "2301.12345", "source": "arxiv"}])
+
+### 7. fuzzy_cite(query)
 Find @citation_keys for papers in library.
 - Fuzzy matches author, title, year
 - Returns ONLY keys that actually exist
@@ -282,21 +332,59 @@ PHASE 1: LIBRARY SCAN
 
 PHASE 2: TARGETED DISCOVERY (gaps only)
 - discover_papers() for questions that lack library coverage
-- add_paper() for 3-5 most relevant papers per gap
+- add_paper() or batch_add_papers() for 3-5 most relevant papers per gap
 - query_library() again to verify new papers fill the gap
 
 PHASE 3: EVIDENCE SYNTHESIS
 - For each planned section, query_library() to gather evidence
 - Build argument structure with citations from RAG answers
 - fuzzy_cite() for EVERY paper you want to cite
-- validate_citations() before writing
+- Keep track of ALL @keys returned by fuzzy_cite()
 
-PHASE 4: WRITE OUTPUT
-- Write Typst document using ONLY verified @citation_keys
+PHASE 4: WRITE DRAFT
+- Write Typst document using ONLY @keys from fuzzy_cite()
 - Every claim must have a citation from fuzzy_cite()
 - If a key wasn't returned by fuzzy_cite(), DO NOT USE IT
 
+🚨 PHASE 5: VALIDATE BEFORE FINALIZING (CRITICAL!)
+BEFORE outputting the final document, you MUST:
+1. Extract ALL @citation_keys from your draft
+2. Call validate_citations(citation_keys) with the complete list
+3. If ANY keys are invalid:
+   - Call discover_papers() to find the missing papers
+   - Call add_paper() to add them to library
+   - Call fuzzy_cite() to get the CORRECT citation keys
+   - Replace the invalid keys with the correct ones
+4. ONLY output the document after ALL citations are validated
+
 IMPORTANT: Do NOT discover papers randomly. Query library FIRST to avoid wasting time on papers you already have.
+
+## Document Length Guidelines
+
+You are FREE to write as comprehensively as needed to do justice to the topic.
+
+**Length Expectations:**
+- **Simple topics**: 2-3 pages minimum (don't rush)
+- **Complex topics**: 10-20 pages encouraged (be thorough)
+- **NEVER sacrifice depth for brevity**
+
+**Structural Freedom:**
+- Include ALL relevant sections (Introduction, Background, Methodology, Analysis, Discussion, Related Work, Limitations, Conclusion)
+- Use subsections liberally to organize complex arguments
+- Add figures/tables if they clarify concepts (wrap in Typst figure blocks)
+- Develop arguments fully with proper evidence and citations
+
+**Quality > Brevity:**
+- The document should be PUBLICATION-READY, not a summary
+- Each claim needs proper support and citations
+- Complex topics deserve complex treatment
+- Don't stop writing because you've reached some arbitrary length
+
+## Cover Page Formatting Rules
+1. **Title**: MUST be very short (max 7 words).
+2. **Subtitle**: EVERYTHING after the colon (:) in the topic MUST go here. If no colon, write a descriptive subtitle.
+3. **Date**: Use the fixed date "December 09, 2025".
+4. **Abstract**: Must be included in the `#show: project.with(...)` call.
 
 ## Output Format
 
@@ -304,10 +392,10 @@ IMPORTANT: Do NOT discover papers randomly. Query library FIRST to avoid wasting
 #import "lib.typ": project
 
 #show: project.with(
-  title: "Your Title",
-  subtitle: "A Research Report",
+  title: "Short Main Title",
+  subtitle: "Everything after the colon goes here",
   authors: ("Research Agent",),
-  date: "CURRENT_DATE",
+  date: "December 09, 2025", 
   abstract: [
     Concise abstract summarizing topic and findings.
   ]
@@ -350,6 +438,14 @@ CRITICAL: Typst is NOT Markdown. Use these formats:
 NEVER use ** for bold - this causes compilation errors!
 
 ## ACADEMIC RIGOR RULES (STRICT)
+
+### Citation Density (Academic Standard)
+**Every paragraph MUST have 2-3 citations minimum.**
+- Introductory/background paragraphs: 2-4 citations
+- Claims/arguments: 3-5 citations (synthesize multiple sources)
+- Single-source paragraphs are UNACCEPTABLE unless direct quotation
+- Aim for 15-25 total citations in a comprehensive document
+- **Under-cited documents will be rejected by reviewers**
 
 ### Citation Discipline
 - NEVER make factual claims without a citation
@@ -438,11 +534,23 @@ IMPORTANT - Follow the RAG-First workflow:
     
     console.print("\n[bold]Starting autonomous research...[/bold]\n")
     
-    max_iterations = 35
+    max_iterations = MAX_AGENT_ITERATIONS
     iteration = 0
     
     while iteration < max_iterations:
         iteration += 1
+        
+        # Update system prompt with latest available citations (Dynamic Injection)
+        current_papers = get_reviewed_papers()
+        citation_section = ""
+        if current_papers:
+            citation_list = []
+            for key, data in current_papers.items():
+                citation_list.append(f"- @{key}: \"{data.get('title', 'Unknown')}\" ({data.get('year', '')})")
+            
+            citation_section = "\n\n## AVAILABLE CITATIONS (Use ONLY these exact keys):\n" + "\n".join(citation_list[:50]) # Limit to 50 to save context
+            
+        current_system_prompt = system_prompt_with_date + citation_section
         
         with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
             try:
@@ -450,7 +558,7 @@ IMPORTANT - Follow the RAG-First workflow:
                     model=AGENT_MODEL,
                     contents=contents,
                     config=types.GenerateContentConfig(
-                        system_instruction=system_prompt_with_date,
+                        system_instruction=current_system_prompt,
                         tools=TOOLS
                     )
                 )
@@ -543,6 +651,67 @@ def extract_citations_from_typst(typst_content: str) -> Set[str]:
     pattern = r'@([a-zA-Z][a-zA-Z0-9_-]*)'
     matches = re.findall(pattern, typst_content)
     return set(matches)
+
+
+def fix_typst_error(typst_path: Path, error_msg: str):
+    """Attempt to fix common Typst errors."""
+    content = typst_path.read_text()
+    original_content = content
+    
+    # Fix 1: Double asterisks (Markdown bold) -> Single asterisk (Typst bold)
+    if "**" in content:
+        content = content.replace("**", "*")
+        
+    # Fix 2: Unclosed delimiters (often due to mismatched *)
+    # Simple heuristic: if odd number of *, remove the last one? 
+    # Or just remove all * if it's failing hard? 
+    # For now, let's try to close it if it's "unclosed delimiter"
+    if "unclosed delimiter" in error_msg:
+        # Check for odd number of *
+        if content.count("*") % 2 != 0:
+            # Try to find a paragraph with odd * and close it? 
+            # Too complex. Let's just strip formatting from the likely problematic line?
+            # Or just append a * to the end?
+            pass
+            
+    # Fix 3: Invalid references (e.g., @key with special chars)
+    # Typst only allows letters, numbers, _, - in labels
+    # If error is "label does not exist", we handled that via refs.bib generation, 
+    # but maybe the key format is wrong in the typ file?
+    
+    if content != original_content:
+        typst_path.write_text(content)
+        return True
+    return False
+
+
+def compile_and_fix(typ_path: Path, max_attempts: int = 3) -> bool:
+    """Compile Typst file and attempt to auto-fix errors."""
+    pdf_path = typ_path.with_suffix(".pdf")
+    
+    for attempt in range(max_attempts):
+        result = subprocess.run(
+            ["typst", "compile", str(typ_path.name), str(pdf_path.name)],
+            cwd=str(typ_path.parent),
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            console.print(f"[green]✓ Compiled {typ_path.name}[/green]")
+            return True
+            
+        console.print(f"[yellow]⚠ Compile validation failed (attempt {attempt+1}): {result.stderr.strip()[:100]}[/yellow]")
+        
+        # Try to fix
+        if attempt < max_attempts - 1:
+            if fix_typst_error(typ_path, result.stderr):
+                console.print("[cyan]  Applying auto-fix...[/cyan]")
+                continue
+    
+    console.print(f"[red]❌ Failed to compile {typ_path.name} after {max_attempts} attempts[/red]")
+    return False
 
 
 # ============================================================================
@@ -651,144 +820,228 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
 # PEER REVIEWER
 # ============================================================================
 
-REVIEWER_PROMPT = """You are a rigorous academic peer reviewer. You review research documents with strict standards.
+REVIEWER_PROMPT = """You are a rigorous academic peer reviewer.
+You are reviewing a Typst document on: "{topic}"
 
-Your review must assess:
+Your goal is to ensure the paper meets high academic standards.
+You have access to tools to VERIFY claims and citations.
 
-## 1. SCIENTIFIC RIGOR
-- Are all claims properly supported by citations?
-- Is the methodology (if applicable) sound?
-- Are limitations acknowledged?
+## Review Process
+1.  **Validate Citations**: Use `validate_citations` to check if all @keys exist in the library.
+2.  **Verify Claims**: Use `query_library` to check if specific claims are supported by the cited papers.
+3.  **Check Literature Coverage**: Use `discover_papers` to find missing key references.
+4.  **Recommend Improvements**: Identify weak arguments, missing citations, or hallucinations.
 
-## 2. ARGUMENTATION
-- Is the thesis clear and well-supported?
-- Is the logical flow coherent?
-- Are counter-arguments addressed?
+## Previous Reviews
+If provided, check if the author has addressed the following feedback from previous rounds:
+{previous_reviews}
 
-## 3. CITATION QUALITY
-- Are citations appropriate and sufficient?
-- Are primary sources used where needed?
-- Is there over-reliance on any single source?
+## Output Format
 
-## 4. COMPLETENESS
-- Are all major aspects of the topic covered?
-- Are there obvious gaps in the literature review?
-- Is the scope appropriate?
+Write your review as natural text organized in these sections:
 
-## 5. WRITING QUALITY
-- Is the academic tone consistent?
-- Is technical terminology used correctly?
-- Is the structure clear?
+**VERDICT**: [Accept | Minor Revisions | Major Revisions | Reject]
 
-Output a STRUCTURED REVIEW with:
-1. **Overall Assessment**: Accept / Minor Revisions / Major Revisions / Reject
-2. **Strengths**: 2-3 bullet points
-3. **Critical Issues**: Specific problems that MUST be fixed
-4. **Suggestions**: Optional improvements
-5. **Missing Content**: Topics/sources that should be added
-6. **Specific Line Edits**: Concrete changes needed
+**SUMMARY**: 
+Brief assessment of the paper's quality and main contributions.
 
-Be constructive but rigorous. Academic excellence is the standard."""
+**STRENGTHS**:
+- Strength 1
+- Strength 2
+
+**WEAKNESSES**:
+- Weakness 1
+- Weakness 2
+
+**RECOMMENDED PAPERS** (if any missing key works):
+For each recommended paper, write ONE line in this exact format:
+RECOMMEND DOI: 10.xxxx/yyyy | Reason: Why this paper is needed
+OR
+RECOMMEND SEARCH: "search query terms" | Reason: Why these papers are needed
+
+**SPECIFIC EDITS** (if needed):
+Section: Introduction
+Issue: Claim lacks citation
+Suggestion: Add citation from Smith 2020
+
+Be constructive but rigorous. Academic excellence is the standard.
+"""
 
 
 def peer_review(
-    document: str,
-    topic: str,
-    revision_num: int = 1,
-    research_plan: Optional[Dict[str, Any]] = None,
-    refs_bib: Optional[str] = None
+    typst_content: str, 
+    topic: str, 
+    round_num: int, 
+    reviewer_id: int, 
+    research_plan: Dict,
+    refs_bib: str,
+    previous_reviews: str = ""
 ) -> Dict[str, Any]:
     """
-    Run peer review on a document. Returns structured feedback.
-    
-    Now includes full context: research plan and bibliography for verification.
+    Conduct a peer review of the document using an LLM agent with tools.
     """
     console.print(Panel(
-        f"[bold magenta]🔍 Peer Review (Round {revision_num})[/bold magenta]\n\n"
-        f"Reviewing document on: [white]{topic[:50]}...[/white]",
-        border_style="magenta"
+        f"[bold blue]🔍 Reviewer #{reviewer_id} (Round {round_num})[/bold blue]\n\n"
+        f"Verifying document on: {topic[:60]}...",
+        border_style="blue"
     ))
     
-    # Build context section
-    context_parts = []
+    # Context for the reviewer
+    context = f"""
+    TOPIC: {topic}
     
-    if research_plan:
-        context_parts.append(f"""
-RESEARCH PLAN:
-- Main Question: {research_plan.get('main_question', 'N/A')}
-- Sub-questions: {', '.join(research_plan.get('sub_questions', [])[:3])}
-- Key Concepts: {', '.join(research_plan.get('key_concepts', [])[:5])}
-""")
+    RESEARCH PLAN:
+    {json.dumps(research_plan, indent=2)}
     
-    if refs_bib:
-        # Extract citation keys from bib for verification
-        import re
-        bib_keys = re.findall(r'@\w+\{([^,]+),', refs_bib)
-        context_parts.append(f"""
-AVAILABLE BIBLIOGRAPHY ({len(bib_keys)} entries):
-Citation keys: {', '.join(bib_keys[:15])}{'...' if len(bib_keys) > 15 else ''}
+    BIBLIOGRAPHY (refs.bib):
+    {refs_bib}
+    
+    DOCUMENT CONTENT (Typst):
+    {typst_content}
+    """
+    
+    # Format message
+    user_msg = f"Please review this document (Round {round_num})."
+    if previous_reviews:
+        user_msg += f"\n\nHere is the feedback from the previous round waiting to be addressed:\n{previous_reviews}"
 
-You can verify that all @citations in the document match actual bibliography entries.
-""")
-    
-    context_section = "\n".join(context_parts) if context_parts else ""
-    
-    response = client.models.generate_content(
-        model=AGENT_MODEL,
-        contents=[types.Content(
-            role="user",
-            parts=[types.Part(text=f"""Review this academic document:
-
-TOPIC: {topic}
-{context_section}
-DOCUMENT:
-```typst
-{document}
-```
-
-Provide a structured peer review following your guidelines.
-Pay special attention to:
-1. Whether all claims are properly supported by citations
-2. Whether cited keys match the available bibliography
-3. Whether the research plan questions are adequately addressed""")]
-        )],
-        config=types.GenerateContentConfig(
-            system_instruction=REVIEWER_PROMPT
+    # Initialize tool-enabled chat with proper conversation history
+    contents = [
+        types.Content(
+             role="user",
+             parts=[types.Part(text=context + "\n\n" + user_msg)]
         )
-    )
+    ]
     
-    # Defensive handling for API response
-    try:
-        if not response.candidates or not response.candidates[0].content.parts:
-            log_debug("Peer review: empty response from API")
-            review_text = "**Review unavailable** - The API returned an empty response. Please retry."
-        else:
-            review_text = response.candidates[0].content.parts[0].text
-    except (IndexError, AttributeError, TypeError) as e:
-        log_debug(f"Peer review response error: {e}")
-        review_text = f"**Review unavailable** - Error parsing response: {e}"
+    # Reviewer loop (configurable iteration limit to prevent infinite loops)
+    max_steps = MAX_REVIEWER_ITERATIONS
+    step = 0
+    final_review = None
     
-    # Determine verdict
-    verdict = "minor_revisions"
-    if "Accept" in review_text and "Major" not in review_text:
-        verdict = "accept"
-    elif "Major Revisions" in review_text or "Major revisions" in review_text:
-        verdict = "major_revisions"
-    elif "Reject" in review_text:
-        verdict = "reject"
-    
-    console.print(f"[bold]Verdict: {verdict.upper()}[/bold]")
-    
-    # Show summary
-    lines = review_text.split('\n')[:15]
-    for line in lines:
-        if line.strip():
-            console.print(f"[dim]{line}[/dim]")
-    
+    while step < max_steps:
+        step += 1
+        try:
+            response = client.models.generate_content(
+                model=AGENT_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=REVIEWER_PROMPT.format(topic=topic, previous_reviews=previous_reviews),
+                    tools=REVIEWER_TOOLS,  # Restricted toolset
+                    temperature=0.3,  # Low temperature for rigorous checking
+                    timeout=REVIEWER_TIMEOUT_SECONDS  # Safety timeout (3 min default)
+                )
+            )
+        except Exception as e:
+            log_debug(f"Reviewer API error: {e}")
+            break
+            
+        if response.candidates and response.candidates[0].content.parts:
+            parts = response.candidates[0].content.parts
+            function_calls = [p for p in parts if p.function_call]
+            
+            if function_calls:
+                # Execute tools (verification steps)
+                contents.append(types.Content(role="model", parts=parts))
+                function_response_parts = []
+                
+                for part in function_calls:
+                    fc = part.function_call
+                    func_name = fc.name
+                    func_args = dict(fc.args) if fc.args else {}
+                    
+                    console.print(f"[magenta]  Reviewer: {func_name}(...)[/magenta]")
+                    
+                    if func_name in TOOL_FUNCTIONS:
+                        try:
+                            # Limited toolset for reviewer? For now give all.
+                            result = TOOL_FUNCTIONS[func_name](**func_args)
+                        except Exception as e:
+                            result = {"error": str(e)}
+                    else:
+                        result = {"error": "Unknown function"}
+                        
+                    function_response_parts.append(
+                        types.Part(function_response=types.FunctionResponse(
+                            name=func_name,
+                            response={"result": json.dumps(result, default=str)}
+                        ))
+                    )
+                contents.append(types.Content(role="user", parts=function_response_parts))
+            else:
+                # Text response - the review in plain text format
+                text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
+                
+                # Parse plain text review
+                if "**VERDICT**" in text or "VERDICT:" in text:
+                    # Extract verdict
+                    verdict_match = re.search(r'\*\*VERDICT\*\*:\s*\[?([^\]\n]+)', text) or re.search(r'VERDICT:\s*\[?([^\]\n]+)', text)
+                    verdict = verdict_match.group(1).strip().lower() if verdict_match else "minor_revisions"
+                    if "accept" in verdict:
+                        verdict = "accept"
+                    elif "major" in verdict:
+                        verdict = "major_revisions"
+                    else:
+                        verdict = "minor_revisions"
+                    
+                    # Extract summary
+                    summary_match = re.search(r'\*\*SUMMARY\*\*:?\s*\n(.*?)(?=\n\*\*|$)', text, re.DOTALL)
+                    summary = summary_match.group(1).strip() if summary_match else text[:200]
+                    
+                    # Extract weaknesses (for context)
+                    weaknesses_match = re.search(r'\*\*WEAKNESSES\*\*:?\s*\n(.*?)(?=\n\*\*|$)', text, re.DOTALL)
+                    weaknesses = weaknesses_match.group(1).strip() if weaknesses_match else ""
+                    
+                    # Extract recommended papers
+                    recommendations = []
+                    for line in text.split('\n'):
+                        if "RECOMMEND DOI:" in line:
+                            # Format: RECOMMEND DOI: 10.xxxx/yyyy | Reason: ...
+                            doi_match = re.search(r'RECOMMEND DOI:\s*(10\.\S+)', line)
+                            reason_match = re.search(r'Reason:\s*(.+)', line)
+                            if doi_match:
+                                recommendations.append({
+                                    "doi": doi_match.group(1).strip(),
+                                    "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer"
+                                })
+                        elif "RECOMMEND SEARCH:" in line:
+                            # Format: RECOMMEND SEARCH: "query" | Reason: ...
+                            query_match = re.search(r'RECOMMEND SEARCH:\s*["\']([^"\']+)["\']', line)
+                            reason_match = re.search(r'Reason:\s*(.+)', line)
+                            if query_match:
+                                recommendations.append({
+                                    "query": query_match.group(1).strip(),
+                                    "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer"
+                                })
+                    
+                    final_review = {
+                        "verdict": verdict,
+                        "summary": summary,
+                        "weaknesses": weaknesses,
+                        "recommended_papers": recommendations,
+                        "full_text": text
+                    }
+                    console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
+                    break  # Done!
+                
+                # If not done, append and continue
+                contents.append(types.Content(role="model", parts=parts))
+                if step == max_steps - 1:
+                    contents.append(types.Content(role="user", parts=[types.Part(text="Please provide your final review now.")]))
+
+    if not final_review:
+        # Fallback
+        final_review = {
+            "verdict": "minor_revisions",
+            "summary": "Reviewer did not produce structured review",
+            "weaknesses": "",
+            "recommended_papers": [],
+            "full_text": ""
+        }
+        
     return {
-        "verdict": verdict,
-        "review": review_text,
-        "revision_number": revision_num
+        "reviewer_id": reviewer_id,
+        "round": round_num,
+        **final_review
     }
 
 
@@ -915,7 +1168,7 @@ Use date: "{current_date}" in the document.
 # MULTI-PHASE ORCHESTRATOR
 # ============================================================================
 
-def generate_report(topic: str, max_revisions: int = 3) -> Path:
+def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) -> Path:
     """Generate a research report with planning, review, and revision phases."""
     global _used_citation_keys, _debug_logger, _session_start_time
     _used_citation_keys = set()
@@ -988,14 +1241,9 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         shutil.copy(TEMPLATE_PATH / "lib.typ", artifacts_dir / "lib.typ")
     (artifacts_dir / "refs.bib").write_text(current_refs_bib)
     
-    # Compile initial draft to PDF
+    # Compile initial draft to PDF (with self-fixing)
     try:
-        subprocess.run(
-            ["typst", "compile", "draft_initial.typ", "draft_initial.pdf"],
-            cwd=str(artifacts_dir),
-            capture_output=True,
-            timeout=30
-        )
+        compile_and_fix(artifacts_dir / "draft_initial.typ")
     except Exception:
         pass  # Don't fail if typst not available
     
@@ -1003,6 +1251,7 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
     reviews = []
+    round_reviews_history = []
     
     for revision_round in range(1, max_revisions + 1):
         # Check session timeout at start of each revision round
@@ -1024,24 +1273,148 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
             current_refs_bib = "% No references\n"
         
         # Peer review with full context
-        review_result = peer_review(
-            typst_content,
-            topic,
-            revision_round,
-            research_plan=research_plan,
-            refs_bib=current_refs_bib
-        )
-        reviews.append(review_result)
+        round_reviews = []
+        verdicts = []
         
-        # Save review to artifacts
-        review_file = artifacts_dir / f"peer_review_r{revision_round}.md"
-        review_file.write_text(f"# Peer Review - Round {revision_round}\n\n**Verdict**: {review_result['verdict'].upper()}\n\n{review_result['review']}")
-        log_debug(f"Review {revision_round}: {review_result['verdict']}")
+        # Prepare previous reviews context for this round
+        previous_reviews_text = ""
+        if round_reviews_history:
+            for rnd, reviews in enumerate(round_reviews_history, 1):
+                previous_reviews_text += f"\n--- ROUND {rnd} FEEDBACK ---\n"
+                for i, r_data in enumerate(reviews, 1):
+                    previous_reviews_text += f"Reviewer {i}: {r_data.get('summary')}\n"
+                    if r_data.get('weaknesses'):
+                        previous_reviews_text += f"Weaknesses: {r_data.get('weaknesses')}\n"
+                    if r_data.get('missing_citations'):
+                         previous_reviews_text += f"Missing Citations: {r_data.get('missing_citations')}\n"
+
+        for r_idx in range(1, num_reviewers + 1):
+            review_result = peer_review(
+                typst_content,
+                topic,
+                revision_round,
+                reviewer_id=r_idx,
+                research_plan=research_plan,
+                refs_bib=current_refs_bib,
+                previous_reviews=previous_reviews_text
+            )
+            round_reviews.append(review_result)
+            verdicts.append(review_result.get('verdict', 'minor_revisions'))
+            
+            # Save individual review
+            (artifacts_dir / f"peer_review_r{revision_round}_p{r_idx}.json").write_text(json.dumps(review_result, indent=2))
         
-        # Check if accepted
-        if review_result['verdict'] == 'accept':
-            console.print("[bold green]✓ Paper accepted by reviewer![/bold green]")
+        # Track history
+        round_reviews_history.append(round_reviews)
+        
+        # Aggregate reviews for revision
+        # Check if ALL accepted
+        if all(v == 'accept' for v in verdicts):
+            console.print("[bold green]✓ Paper accepted by all reviewers![/bold green]")
             break
+            
+        # Process Recommended Papers from Reviewers
+        all_recommendations = []
+        for rr in round_reviews:
+            if "recommended_papers" in rr:
+                all_recommendations.extend(rr["recommended_papers"])
+        
+        added_citations = []
+        if all_recommendations:
+            console.print(Panel(f"[bold blue]Processing {len(all_recommendations)} Reviewer Recommendations[/bold blue]"))
+            for rec in all_recommendations:
+                # Handle DOI
+                if "doi" in rec:
+                    try:
+                        console.print(f"[cyan]Adding recommended DOI: {rec['doi']}[/cyan]")
+                        add_paper(identifier=rec['doi'], source="doi")
+                        added_citations.append(f"DOI: {rec['doi']} (Reason: {rec.get('reason', 'Reviewer recommended')})")
+                    except Exception as e:
+                        console.print(f"[red]Failed to add DOI {rec['doi']}: {e}[/red]")
+                # Handle Query
+                elif "query" in rec:
+                    try:
+                        console.print(f"[cyan]Discovering for query: {rec['query']}[/cyan]")
+                        # First discover
+                        found = discover_papers(query=rec['query'], limit=3)
+                        # Then auto-add top 1 if found
+                        if found and found[0].get("title"): # Check if valid result
+                             first_paper = found[0]
+                             ident = first_paper.get("doi") or first_paper.get("arxivId") or first_paper.get("arxiv_id")
+                             if ident:
+                                 console.print(f"[cyan]Adding discovered paper: {ident}[/cyan]")
+                                 add_paper(identifier=ident, source="doi" if first_paper.get("doi") else "arxiv")
+                                 added_citations.append(f"Discovered: {first_paper.get('title')} ({ident})")
+                    except Exception as e:
+                        console.print(f"[red]Failed to process query {rec['query']}: {e}[/red]")
+
+        # Synthesize feedback string
+        combined_feedback = f"Processing {len(round_reviews)} reviews.\n\n"
+        
+        if added_citations:
+             console.print("[bold blue]Wait! Indexing new papers and generating summaries...[/bold blue]")
+             
+             # Force update index (by calling query_library widely)
+             # And try to get summaries for new papers to inject into prompt
+             paper_summaries = []
+             try:
+                 # Construct a query to get summaries of new papers
+                 # We can't query by ID easily, but we can list library and then partial match?
+                 # Better: Just run a broad query relevant to the REASONS given
+                 # Or just generic "What are the key findings of [Title]?"
+                 
+                 for ac_text in added_citations:
+                     # ac_text format: "Discovered: Title (ID)" or "DOI: ID (Reason)"
+                     if "Discovered:" in ac_text:
+                         title_part = ac_text.split("Discovered:")[1].split("(")[0].strip()
+                         query_text = f"What are the key findings of the paper '{title_part}'?"
+                     else:
+                         doi_part = ac_text.split("DOI:")[1].split("(")[0].strip()
+                         query_text = f"What are the key findings of the paper with DOI {doi_part}?"
+                     
+                     # Check if we should query
+                     console.print(f"[dim]Indexing & Summarizing: {query_text[:50]}...[/dim]")
+                     answer = query_library(query_text) # This triggers indexing!
+                     if answer and "I cannot answer" not in answer:
+                         paper_summaries.append(f"**Paper**: {ac_text}\n**Summary**: {answer}\n")
+             except Exception as e:
+                 console.print(f"[yellow]Warning: Failed to summarize new papers: {e}[/yellow]")
+
+             combined_feedback += "## 📚 PRE-REVISION LITERATURE UPDATE\n"
+             combined_feedback += "The following papers suggested by reviewers have been AUTOMATICALLY ADDED to the library. YOU MUST REVIEW AND INTEGRATE THEM:\n"
+             for ac in added_citations:
+                 combined_feedback += f"- {ac}\n"
+             
+             if paper_summaries:
+                 combined_feedback += "\n### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS\n"
+                 combined_feedback += "\n".join(paper_summaries)
+                 combined_feedback += "\n[End of New Literature]\n"
+             
+             combined_feedback += "\n"
+
+        # Display Review Summaries to User
+        console.print(Panel(f"[bold magenta]Review Round {revision_round} Summaries[/bold magenta]", border_style="magenta"))
+        
+        for i, rr in enumerate(round_reviews, 1):
+            verdict = rr.get('verdict', 'unknown')
+            verdict_color = "green" if verdict == 'accept' else "yellow"
+            
+            console.print(f"[bold]Reviewer {i}:[/bold] [{verdict_color}]{verdict.upper()}[/{verdict_color}]")
+            console.print(f"[italic]{rr.get('summary', '')}[/italic]")
+            if rr.get('weaknesses'):
+                console.print(f"[red]• {len(rr.get('weaknesses'))} Weaknesses identified[/red]")
+            if rr.get('matching_citations') or rr.get('missing_citations'):
+                 console.print(f"[blue]• Citation feedback provided[/blue]")
+            console.print("")
+
+            combined_feedback += f"--- REVIEWER {i} ({rr.get('verdict')}) ---\n"
+            combined_feedback += f"Summary: {rr.get('summary')}\n"
+            combined_feedback += f"Weaknesses: {rr.get('weaknesses')}\n"
+            combined_feedback += f"Hallucinations: {rr.get('hallucinations')}\n"
+            combined_feedback += f"Specific Edits: {rr.get('specific_edits')}\n\n"
+            
+        # Save aggregated feedback
+        (artifacts_dir / f"aggregated_feedback_r{revision_round}.txt").write_text(combined_feedback)
         
         # ========== PHASE 4: REVISION ==========
         console.print(Panel(
@@ -1051,7 +1424,7 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         
         typst_content = revise_document(
             typst_content, 
-            review_result['review'], 
+            combined_feedback, 
             topic,
             research_plan
         )
@@ -1072,12 +1445,7 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         # Update shared refs.bib and compile revision draft to PDF
         (artifacts_dir / "refs.bib").write_text(draft_refs_bib)
         try:
-            subprocess.run(
-                ["typst", "compile", f"draft_r{revision_round}.typ", f"draft_r{revision_round}.pdf"],
-                cwd=str(artifacts_dir),
-                capture_output=True,
-                timeout=30
-            )
+            compile_and_fix(artifacts_dir / f"draft_r{revision_round}.typ")
         except Exception:
             pass  # Don't fail if typst not available
         
@@ -1128,7 +1496,7 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     
     # Export literature review sheet
     literature_sheet = export_literature_sheet()
-    (report_dir / "literature_sheet.md").write_text(literature_sheet)
+    (report_dir / "literature_sheet.csv").write_text(literature_sheet)
     log_debug(f"Literature sheet exported with {len(get_reviewed_papers())} papers")
     
     # Summary
@@ -1176,6 +1544,8 @@ Examples:
     parser.add_argument('topic', nargs='+', help='Research topic')
     parser.add_argument('--revisions', '-r', type=int, default=3,
                        help='Max peer review rounds (default: 3)')
+    parser.add_argument('--reviewers', type=int, default=1,
+                       help='Number of parallel reviewers (default: 1)')
     
     args = parser.parse_args()
     topic = " ".join(args.topic)
@@ -1188,4 +1558,4 @@ Examples:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         sys.exit(1)
     
-    generate_report(topic, max_revisions=args.revisions)
+    generate_report(topic, max_revisions=args.revisions, num_reviewers=args.reviewers)

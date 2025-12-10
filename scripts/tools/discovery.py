@@ -114,7 +114,7 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
         ps_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         future = ps_executor.submit(scraper_client.search_papers, query, 10)
         try:
-            ps_results = future.result(timeout=15)  # 15 second timeout
+            ps_results = future.result(timeout=5)  # 5 second timeout (fast fail)
             ps_executor.shutdown(wait=False)
         except concurrent.futures.TimeoutError:
             console.print("[dim]paper-scraper timed out, continuing with S2 results[/dim]")

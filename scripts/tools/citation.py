@@ -73,31 +73,23 @@ def get_reviewed_papers() -> Dict[str, Dict[str, Any]]:
 
 def export_literature_sheet() -> str:
     """
-    Export a markdown literature review sheet with all papers reviewed.
+    Export a CSV literature review sheet with all papers reviewed.
     
-    Shows relevance/utility rankings and highlights cited papers.
+    Format: citation_key,title,authors,year,relevance,utility,cited,source
     """
     update_cited_status()
     
     if not _reviewed_papers:
-        return "# Literature Review\n\nNo papers reviewed.\n"
+        return "citation_key,title,authors,year,relevance,utility,cited,source\n"
     
-    lines = [
-        "# Literature Review Sheet",
-        "",
-        "This document lists all papers reviewed during the research process.",
-        "",
-        "## Summary",
-        f"- **Total Papers Reviewed**: {len(_reviewed_papers)}",
-        f"- **Papers Cited**: {sum(1 for p in _reviewed_papers.values() if p['cited'])}",
-        "",
-        "---",
-        "",
-        "## Papers Cited in Final Document",
-        "",
-        "| Citation Key | Title | Authors | Year | Rel | Util |",
-        "|-------------|-------|---------|------|-----|------|"
-    ]
+    import csv
+    import io
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header
+    writer.writerow(["citation_key", "title", "authors", "year", "relevance", "utility", "cited", "source"])
     
     # Sort by relevance then utility
     sorted_papers = sorted(
@@ -105,39 +97,19 @@ def export_literature_sheet() -> str:
         key=lambda x: (-x[1].get("relevance", 0), -x[1].get("utility", 0))
     )
     
-    # Cited papers first
     for key, data in sorted_papers:
-        if data.get("cited"):
-            lines.append(
-                f"| `{key}` | {data['title'][:50]}{'...' if len(data['title']) > 50 else ''} | "
-                f"{data['authors'][:30]} | {data['year']} | {data['relevance']}/5 | {data['utility']}/5 |"
-            )
-    
-    lines.extend([
-        "",
-        "## Papers Reviewed but Not Cited",
-        "",
-        "| Citation Key | Title | Authors | Year | Rel | Util | Source |",
-        "|-------------|-------|---------|------|-----|------|--------|"
-    ])
-    
-    for key, data in sorted_papers:
-        if not data.get("cited"):
-            lines.append(
-                f"| `{key}` | {data['title'][:40]}{'...' if len(data['title']) > 40 else ''} | "
-                f"{data['authors'][:25]} | {data['year']} | {data['relevance']}/5 | {data['utility']}/5 | {data['source']} |"
-            )
-    
-    lines.extend([
-        "",
-        "---",
-        "",
-        "*Relevance (Rel): How relevant to the research topic (1-5)*",
-        "",
-        "*Utility (Util): How useful for answering research questions (1-5)*"
-    ])
-    
-    return "\n".join(lines)
+        writer.writerow([
+            key,
+            data.get('title', ''),
+            data.get('authors', ''),
+            data.get('year', ''),
+            data.get('relevance', 0),
+            data.get('utility', 0),
+            "true" if data.get('cited') else "false",
+            data.get('source', '')
+        ])
+        
+    return output.getvalue()
 
 
 def fuzzy_cite(query: str) -> List[Dict[str, str]]:
@@ -237,7 +209,32 @@ def validate_citations(citation_keys: List[str]) -> Dict[str, Any]:
         Dict with 'valid' keys, 'invalid' keys, and 'suggestions' for invalid ones
     """
     import yaml
+    import json
+    import ast
     
+    # Robust input parsing: handle stringified lists or comma-separated strings
+    if isinstance(citation_keys, str):
+        original_input = citation_keys
+        try:
+            # Try JSON first
+            if citation_keys.strip().startswith('['):
+                 # Try handling single quotes which are invalid in JSON
+                 if "'" in citation_keys:
+                     citation_keys = ast.literal_eval(citation_keys)
+                 else:
+                     citation_keys = json.loads(citation_keys)
+            else:
+                # Comma separated
+                citation_keys = [k.strip() for k in citation_keys.split(",")]
+        except Exception as e:
+            console.print(f"[yellow]⚠ parsing string input for citations: {e}[/yellow]")
+            # Fallback cleanup
+            citation_keys = [k.strip().strip("'").strip('"') for k in original_input.strip("[]").split(",")]
+            
+    # Ensure it's a list
+    if not isinstance(citation_keys, list):
+        citation_keys = [str(citation_keys)]
+
     console.print(f"[dim]🔍 Validating {len(citation_keys)} citations...[/dim]")
     
     # Build library of all valid keys
