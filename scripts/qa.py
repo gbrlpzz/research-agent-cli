@@ -78,8 +78,8 @@ def setup_gemini_settings():
     settings.llm = "gemini/gemini-2.5-flash"  # Gemini 2.5 Flash
     settings.summary_llm = "gemini/gemini-2.5-flash"
     settings.embedding = "gemini/text-embedding-004"  # Use Gemini embeddings (free) instead of OpenAI
-    settings.answer.answer_max_sources = 5
-    settings.answer.evidence_k = 10
+    settings.answer.answer_max_sources = 10  # Increased for rigor
+    settings.answer.evidence_k = 15  # Increased for rigor (supports 3-5 citations/para)
     
     logging.info(f"Configured paper-qa with Gemini: {settings.llm}")
     return settings
@@ -219,7 +219,7 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
         if not pdf_files:
             console.print(f"[yellow]No PDFs matching '{filter_pattern}' found[/yellow]")
             console.print(f"[dim]Found {len(all_pdf_files)} total PDFs in library[/dim]")
-            sys.exit(1)
+            raise ValueError(f"No PDFs matching '{filter_pattern}' found")
         
         console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
     else:
@@ -229,7 +229,7 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
         console.print("[bold red]No PDFs found in library/[/bold red]")
         console.print("\n[yellow]Add papers first:[/yellow]")
         console.print("  research \"your topic\"")
-        sys.exit(1)
+        raise ValueError("No PDFs found in library")
     
     console.print(f"\n[dim]Found {len(pdf_files)} PDFs in library[/dim]")
     
@@ -256,15 +256,36 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
             else:
                 # Create persistent Qdrant store using the SAME client
                 docs = create_qdrant_docs(client)
+        
+        # Optimize: Identify which files actally need indexing
+        files_to_index = []
+        if docs and docs.docnames and not filter_pattern:
+            # Create set of normalized docnames (usually they are filenames or citation keys)
+            # PaperQA docnames can vary, but we can check if the stem is present
+            indexed_stems = {d.lower() for d in docs.docnames}
             
+            for pdf in pdf_files:
+                # Check if file stem is in indexed docs
+                if pdf.stem.lower() not in indexed_stems:
+                    files_to_index.append(pdf)
+            
+            skipped_count = len(pdf_files) - len(files_to_index)
+            if skipped_count > 0:
+                console.print(f"[dim]Skipping {skipped_count} already indexed papers[/dim]")
+        else:
+            files_to_index = pdf_files
+        
+        if not files_to_index and not filter_pattern:
+            console.print("[dim]Library fully indexed (no new papers)[/dim]")
+        
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console
         ) as progress:
-            task = progress.add_task("[cyan]Checking library for new papers...", total=len(pdf_files))
+            task = progress.add_task("[cyan]Checking library for new papers...", total=len(files_to_index))
             
-            for pdf_path in pdf_files:
+            for pdf_path in files_to_index:
                 try:
                     # docs.add is idempotent - checks hash first
                     await docs.aadd(pdf_path, settings=settings)
@@ -435,9 +456,22 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
             else:
                 docs = create_qdrant_docs(client)
             
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-            task = progress.add_task("[cyan]Checking library for new papers...", total=len(pdf_files))
+        # Optimize: Identify which files actally need indexing
+        files_to_index = []
+        if docs and docs.docnames and not filter_pattern:
+            indexed_stems = {d.lower() for d in docs.docnames}
             for pdf in pdf_files:
+                if pdf.stem.lower() not in indexed_stems:
+                    files_to_index.append(pdf)
+            skipped_count = len(pdf_files) - len(files_to_index)
+            if skipped_count > 0:
+                console.print(f"[dim]Skipping {skipped_count} already indexed papers[/dim]")
+        else:
+            files_to_index = pdf_files
+
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+            task = progress.add_task("[cyan]Checking library for new papers...", total=len(files_to_index))
+            for pdf in files_to_index:
                 try:
                     # docs.add is idempotent
                     await docs.aadd(pdf, settings=settings)

@@ -1,0 +1,41 @@
+{
+  "phase": "research_plan",
+  "timestamp": "2025-12-10T19:04:48.878419",
+  "data": {
+    "plan": {
+      "main_question": "To what extent can Applied Research Organisations (AROs) function as strategic instruments to mitigate territorial fragility and foster economic resilience within the European Union?",
+      "sub_questions": [
+        "How do AROs bridge the gap between theoretical knowledge production and local industrial application in EU regions characterized by institutional voids?",
+        "What is the role of AROs in the implementation and success of Smart Specialisation Strategies (RIS3) in lagging or peripheral European territories?",
+        "In what ways do AROs contribute to human capital retention and the reversal of 'brain drain' in fragile geographic areas?",
+        "How do AROs facilitate the integration of local SMEs into broader European innovation ecosystems and value chains?"
+      ],
+      "key_concepts": [
+        "Applied Research Organisations (AROs)",
+        "Territorial Fragility",
+        "Smart Specialisation Strategies (RIS3)",
+        "Regional Innovation Systems (RIS)",
+        "EU Cohesion Policy",
+        "Place-based Innovation",
+        "Technology Transfer",
+        "Triple/Quadruple Helix Model"
+      ],
+      "expected_sections": [
+        "Introduction: Defining Territorial Fragility in the EU Context",
+        "The Evolving Role of AROs in Regional Innovation Systems",
+        "Policy Framework: AROs as Vehicles for EU Cohesion and RIS3 Implementation",
+        "Mechanisms of Impact: Knowledge Transfer, SME Support, and Skills Development",
+        "Comparative Case Studies: ARO Interventions in Southern and Eastern Europe",
+        "Challenges and Barriers to ARO Effectiveness in Peripheral Regions",
+        "Conclusion and Policy Recommendations"
+      ],
+      "search_queries": [
+        "\"Applied Research Organisations\" AND \"Regional Development\" AND \"European Union\"",
+        "\"Territorial Fragility\" OR \"Lagging Regions\" AND \"Innovation Systems\" AND \"EU\"",
+        "\"Smart Specialisation Strategies\" AND \"Research Institutes\" AND \"Cohesion Policy\"",
+        "\"Technology Transfer\" AND \"Peripheral Regions\" AND \"SMEs\""
+      ]
+    },
+    "library_size": 56
+  }
+}

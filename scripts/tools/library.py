@@ -100,61 +100,65 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     
     console.print(f"[dim]📥 Adding: {source}:{identifier}[/dim]")
     
+    import shutil
+    import tempfile
+    
     venv_bin = os.path.dirname(sys.executable)
     papis_cmd = os.path.join(venv_bin, "papis")
     
-    cmd = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", "add", "--batch", "--from", source, identifier]
-    
+    pdf_path = None
     papis_success = False
-    pdf_missing = False
     
+    # For DOIs: Try private sources FIRST (most reliable)
+    if source == "doi" and PRIVATE_SOURCES_AVAILABLE and fetch_pdf_private:
+        console.print(f"[dim]Trying private sources...[/dim]")
+        try:
+            pdf_path = fetch_pdf_private(identifier)
+            if pdf_path and pdf_path.exists():
+                console.print(f"[green]✓ PDF fetched from private sources[/green]")
+        except Exception as e:
+            console.print(f"[dim]Private sources failed: {e}[/dim]")
+            pdf_path = None
+    
+    # Now add via papis (with PDF if we have it)
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)  # 2 min timeout
+        if pdf_path and pdf_path.exists():
+            # Add with the PDF we already have
+            cmd = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", 
+                   "add", "--batch", "--from", source, identifier,
+                   "--set", "files", str(pdf_path)]
+        else:
+            # Let papis try to get the PDF
+            cmd = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", 
+                   "add", "--batch", "--from", source, identifier]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         if result.returncode == 0:
             papis_success = True
             
-            # Check if PDF was actually downloaded
-            # Look for recently added paper directory
+            # Check if PDF was actually added
             recent_dirs = sorted(LIBRARY_PATH.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)
             if recent_dirs:
                 latest_dir = recent_dirs[0]
                 pdfs = list(latest_dir.glob("*.pdf"))
-                if not pdfs:
-                    pdf_missing = True
-                    console.print(f"[yellow]⚠ Papis added metadata but no PDF found[/yellow]")
+                if not pdfs and pdf_path and pdf_path.exists():
+                    # Papis didn't pick up our PDF, copy it manually
+                    target = latest_dir / f"{identifier.replace('/', '_')}.pdf"
+                    shutil.copy(str(pdf_path), str(target))
+                    console.print(f"[green]✓ PDF added manually[/green]")
         else:
             console.print(f"[yellow]Papis failed: {result.stderr.strip()[:100]}[/yellow]")
     except subprocess.TimeoutExpired:
         console.print(f"[yellow]Papis timeout[/yellow]")
     except Exception as e:
         console.print(f"[yellow]Papis error: {e}[/yellow]")
-    
-    # Fallback to private sources for PDF if needed
-    if (pdf_missing or not papis_success) and source == "doi" and PRIVATE_SOURCES_AVAILABLE and fetch_pdf_private:
-        console.print(f"[dim]Trying private sources for PDF...[/dim]")
-        try:
-            pdf_path = fetch_pdf_private(identifier)
-            if pdf_path and pdf_path.exists():
-                # If papis succeeded but no PDF, add to existing directory
-                if papis_success and pdf_missing:
-                    recent_dirs = sorted(LIBRARY_PATH.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)
-                    if recent_dirs:
-                        target = recent_dirs[0] / f"{identifier.replace('/', '_')}.pdf"
-                        shutil.move(str(pdf_path), str(target))
-                        console.print(f"[green]✓ PDF added via private sources[/green]")
-                else:
-                    # Try to add via papis with the PDF we downloaded
-                    cmd_with_pdf = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", 
-                                   "add", "--batch", "--from", source, identifier, 
-                                   "--set", "files", str(pdf_path)]
-                    result = subprocess.run(cmd_with_pdf, capture_output=True, text=True, timeout=60)
-                    if result.returncode == 0:
-                        papis_success = True
-                        console.print(f"[green]✓ Added via private sources[/green]")
-                    # Clean up temp PDF
-                    pdf_path.unlink(missing_ok=True)
-        except Exception as e:
-            console.print(f"[dim]Private sources failed: {e}[/dim]")
+    finally:
+        # Clean up temp PDF if we created one
+        if pdf_path and pdf_path.exists():
+            try:
+                pdf_path.unlink()
+            except:
+                pass
     
     if papis_success:
         # Sync master.bib using existing utility
@@ -243,12 +247,19 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         Dict with 'answer' text and list of 'sources' used
     """
     try:
-        from scripts.qa import _async_answer_question
+        import sys
         import asyncio
         from pathlib import Path
         
-        # Get library path
+        # Add scripts directory to path for import
         repo_root = Path(__file__).resolve().parent.parent.parent
+        scripts_path = repo_root / "scripts"
+        if str(scripts_path) not in sys.path:
+            sys.path.insert(0, str(scripts_path))
+        
+        from qa import _async_answer_question
+        
+        # Get library path
         library_path = repo_root / "library"
         
         console.print(f"[dim]🤔 Querying (via Qdrant): {question[:60]}...[/dim]")

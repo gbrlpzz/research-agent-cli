@@ -121,7 +121,6 @@ from tools import (
     discover_papers,
     exa_search, 
     add_paper,
-    batch_add_papers,
     list_library,
     query_library,
     fuzzy_cite,
@@ -174,29 +173,6 @@ TOOLS = [
                     "source": types.Schema(type=types.Type.STRING, description="'arxiv', 'doi', or 'auto'")
                 },
                 required=["identifier"]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="batch_add_papers",
-            description="Add multiple papers to library in parallel. Much faster than sequential add_paper calls.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "identifiers": types.Schema(
-                        type=types.Type.ARRAY,
-                        items=types.Schema(
-                            type=types.Type.OBJECT,
-                            properties={
-                                "identifier": types.Schema(type=types.Type.STRING, description="arXiv ID or DOI"),
-                                "source": types.Schema(type=types.Type.STRING, description="'arxiv', 'doi', or 'auto'")
-                            },
-                            required=["identifier"]
-                        ),
-                        description="List of papers to add"
-                    ),
-                    "max_workers": types.Schema(type=types.Type.INTEGER, description="Max parallel downloads (default 3)")
-                },
-                required=["identifiers"]
             )
         ),
         types.FunctionDeclaration(
@@ -263,7 +239,6 @@ TOOL_FUNCTIONS = {
     "discover_papers": discover_papers,
     "exa_search": exa_search,
     "add_paper": add_paper,
-    "batch_add_papers": batch_add_papers,
     "query_library": query_library,
     "fuzzy_cite": fuzzy_cite,
     "validate_citations": validate_citations,
@@ -303,16 +278,12 @@ Neural search via Exa.ai. ⚠️ COSTS CREDITS!
 
 ### 5. add_paper(identifier, source)
 Download paper to library by arXiv ID or DOI.
+- Uses private sources (most reliable) for DOIs
+- Falls back to open access if private fails
 - Updates master.bib automatically
-- Add 5-10 MOST RELEVANT papers only
+- Add papers ONE BY ONE as you need them
 
-### 6. batch_add_papers(identifiers, max_workers)
-⚡ Add MULTIPLE papers in parallel (3x faster than sequential add_paper).
-- Use when you need to add 3+ papers at once
-- Greatly speeds up initial research phase
-- Example: batch_add_papers(identifiers=[{"identifier": "10.1234/abc", "source": "doi"}, {"identifier": "2301.12345", "source": "arxiv"}])
-
-### 7. fuzzy_cite(query)
+### 6. fuzzy_cite(query)
 Find @citation_keys for papers in library.
 - Fuzzy matches author, title, year
 - Returns ONLY keys that actually exist
@@ -332,8 +303,8 @@ PHASE 1: LIBRARY SCAN
 
 PHASE 2: TARGETED DISCOVERY (gaps only)
 - discover_papers() for questions that lack library coverage
-- add_paper() or batch_add_papers() for 3-5 most relevant papers per gap
-- query_library() again to verify new papers fill the gap
+- add_paper() for 3-5 most relevant papers per gap (one at a time)
+- query_library() IMMEDIATELY after adding to use the new knowledge
 
 PHASE 3: EVIDENCE SYNTHESIS
 - For each planned section, query_library() to gather evidence
@@ -419,6 +390,11 @@ Summary and future directions.
 #bibliography("refs.bib")
 ```
 
+## Bibliographies
+ALWAYS use `#bibliography("refs.bib")`. The system automatically generates this file for you from the library.
+NEVER use `master.bib` or other filenames in your Typst code.
+```
+
 ## Typst Formatting Rules (NOT Markdown!)
 
 CRITICAL: Typst is NOT Markdown. Use these formats:
@@ -440,12 +416,18 @@ NEVER use ** for bold - this causes compilation errors!
 ## ACADEMIC RIGOR RULES (STRICT)
 
 ### Citation Density (Academic Standard)
-**Every paragraph MUST have 2-3 citations minimum.**
-- Introductory/background paragraphs: 2-4 citations
-- Claims/arguments: 3-5 citations (synthesize multiple sources)
-- Single-source paragraphs are UNACCEPTABLE unless direct quotation
-- Aim for 15-25 total citations in a comprehensive document
-- **Under-cited documents will be rejected by reviewers**
+**Every paragraph MUST have 3-5 citations minimum.**
+- Introductory/background paragraphs: 3-4 citations
+- Claims/arguments: 4-5 citations (synthesize multiple sources)
+- Single-source paragraphs are STRICTLY FORBIDDEN unless direct quotation
+- Aim for 25-40 total citations in a comprehensive document
+- **Under-cited documents will be REJECTED by reviewers**
+
+### Critical Analysis & Counter-Arguments
+- You MUST address counter-arguments and conflicting views.
+- Do NOT present a "clean" narrative if the literature is divided.
+- Explicitly cite papers that disagree with each other.
+- If a claim is debated, state: "While Author A argues X, Author B suggests Y..."
 
 ### Citation Discipline
 - NEVER make factual claims without a citation
@@ -688,6 +670,11 @@ def fix_typst_error(typst_path: Path, error_msg: str):
     # If error is "label does not exist", we handled that via refs.bib generation, 
     # but maybe the key format is wrong in the typ file?
     
+    # Fix 4: Wrong bibliography filename
+    if 'file not found' in error_msg and 'master.bib' in error_msg:
+        if 'bibliography("master.bib")' in content:
+            content = content.replace('bibliography("master.bib")', 'bibliography("refs.bib")')
+    
     if content != original_content:
         typst_path.write_text(content)
         return True
@@ -835,10 +822,12 @@ Your goal is to ensure the paper meets high academic standards.
 You have access to tools to VERIFY claims and citations.
 
 ## Review Process
-1.  **Validate Citations**: Use `validate_citations` to check if all @keys exist in the library.
-2.  **Verify Claims**: Use `query_library` to check if specific claims are supported by the cited papers.
-3.  **Check Literature Coverage**: Use `discover_papers` to find missing key references.
-4.  **Recommend Improvements**: Identify weak arguments, missing citations, or hallucinations.
+1.  **Citation Density**: FLAGGING is required for any paragraph with < 3 citations.
+2.  **Counter-points**: REJECT if the paper presents a one-sided argument without counter-points.
+3.  **Validate Citations**: Use `validate_citations` to check if all @keys exist in the library.
+4.  **Verify Claims**: Use `query_library` to check if specific claims are supported by the cited papers.
+5.  **Check Literature Coverage**: Use `discover_papers` to find missing key references.
+6.  **Recommend Improvements**: Identify weak arguments, missing citations, or hallucinations.
 
 ## Previous Reviews
 If provided, check if the author has addressed the following feedback from previous rounds:
