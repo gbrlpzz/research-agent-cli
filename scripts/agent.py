@@ -935,8 +935,7 @@ def peer_review(
                 config=types.GenerateContentConfig(
                     system_instruction=REVIEWER_PROMPT.format(topic=topic, previous_reviews=previous_reviews),
                     tools=REVIEWER_TOOLS,  # Restricted toolset
-                    temperature=0.3,  # Low temperature for rigorous checking
-                    timeout=REVIEWER_TIMEOUT_SECONDS  # Safety timeout (3 min default)
+                    temperature=0.3  # Low temperature for rigorous checking
                 )
             )
         except Exception as e:
