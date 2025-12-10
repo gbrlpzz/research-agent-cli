@@ -559,7 +559,9 @@ IMPORTANT - Follow the RAG-First workflow:
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=current_system_prompt,
-                        tools=TOOLS
+                        response_modalities=["TEXT"],  # Add this
+                        tools=TOOLS,
+                        timeout=API_TIMEOUT_SECONDS  # Safety timeout
                     )
                 )
             except Exception as e:
@@ -751,12 +753,12 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
         try:
             response = client.models.generate_content(
                 model=AGENT_MODEL,
-                contents=[types.Content(
-                    role="user",
-                    parts=[types.Part(text=f"Create a research plan for: {topic}")]
-                )],
+                contents=[
+                    types.Content(role="user", parts=[types.Part(text=PLANNER_PROMPT + f"\n\nTopic: {topic}")])
+                ],
                 config=types.GenerateContentConfig(
-                    system_instruction=PLANNER_PROMPT
+                    temperature=0.7,
+                    timeout=API_TIMEOUT_SECONDS  # Safety timeout
                 )
             )
             
@@ -1106,7 +1108,8 @@ Use date: "{current_date}" in the document.
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=REVISION_PROMPT,
-                        tools=TOOLS
+                        tools=TOOLS,
+                        timeout=API_TIMEOUT_SECONDS  # Safety timeout
                     )
                 )
             except Exception as e:
@@ -1195,6 +1198,23 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     report_dir = REPORTS_PATH / report_name
     report_dir.mkdir(parents=True, exist_ok=True)
     
+    # Checkpoint system for crash recovery
+    checkpoint_file = report_dir / "artifacts" / "checkpoint.json"
+    checkpoint_file.parent.mkdir(exist_ok=True)
+    
+    def save_checkpoint(phase: str, data: Dict[str, Any]):
+        """Save progress checkpoint for crash recovery."""
+        checkpoint = {
+            "phase": phase,
+            "timestamp": datetime.now().isoformat(),
+            "data": data
+        }
+        try:
+            checkpoint_file.write_text(json.dumps(checkpoint, indent=2, default=str))
+            console.print(f"[dim]💾 Checkpoint saved: {phase}[/dim]")
+        except Exception as e:
+            console.print(f"[dim yellow]⚠ Checkpoint save failed: {e}[/dim yellow]")
+    
     # Create artifacts subfolder
     artifacts_dir = report_dir / "artifacts"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -1211,7 +1231,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     ))
     
     research_plan = create_research_plan(topic)
-    
+    save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
     # Save plan to artifacts
     (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
     log_debug(f"Research plan created: {json.dumps(research_plan)}")
@@ -1224,7 +1244,8 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     
     typst_content = run_agent(topic, research_plan=research_plan)
     
-    # Save initial draft with its refs.bib
+    # Save drafts and generate refs.bib
+    save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
     (artifacts_dir / "draft_initial.typ").write_text(typst_content)
     
     # Generate refs.bib for the initial draft
