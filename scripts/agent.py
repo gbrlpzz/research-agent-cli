@@ -1484,6 +1484,9 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
             "feedback": combined_feedback
         })
         
+        # Determine if revision is needed based on verdict
+        needs_revision = aggregated_verdict in ['major_revisions', 'minor_revisions']
+        
         log_debug(f"Round {revision_round} verdict: {aggregated_verdict}, needs_revision: {needs_revision}")
         
         if not needs_revision:
