@@ -243,8 +243,6 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         Dict with 'answer' text and list of 'sources' used
     """
     from paperqa import Docs, Settings
-    from paperqa.llms import QdrantVectorStore
-    from qdrant_client import AsyncQdrantClient
     
     console.print(f"[dim]🤔 Querying: {question[:60]}...[/dim]")
     
@@ -268,9 +266,10 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     if not pdfs:
         return {"answer": "No papers found in library. Use add_paper first.", "sources": []}
     
-    # Check for persistent vector store
-    db_path = LIBRARY_PATH / ".qa_vectordb"
-    fp_path = db_path / ".fingerprint"
+    # Check for persistent cache (using pickle for reliability)
+    cache_path = LIBRARY_PATH / ".qa_cache"
+    fp_path = cache_path / ".fingerprint"
+    docs_pickle_path = cache_path / "docs.pkl"
     
     # Generate fingerprint from PDF paths + mtimes (for proper cache invalidation)
     def get_pdf_fingerprint_data(pdf_paths: List[Path]) -> str:
@@ -289,57 +288,26 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
     
     docs = None
     
-    # Try to load existing store (only for non-filtered queries)
-    if not paper_filter and fp_path.exists():
+    # Try to load existing cache (only for non-filtered queries)
+    if not paper_filter and fp_path.exists() and docs_pickle_path.exists():
         try:
             stored_fp = fp_path.read_text().strip()
             # If fingerprint matches, load cache
             if stored_fp == current_fp:
-                # Load from Qdrant
-                client_qdrant = AsyncQdrantClient(path=str(db_path))
-                
-                async def load_docs():
-                    return await QdrantVectorStore.load_docs(
-                        client=client_qdrant,
-                        collection_name="research_papers"
-                    )
-                
-                try:
-                    loop = asyncio.get_event_loop()
-                    if not loop.is_running():
-                        docs = loop.run_until_complete(load_docs())
-                except RuntimeError:
-                    docs = asyncio.run(load_docs())
-                
+                import pickle
+                with open(docs_pickle_path, 'rb') as f:
+                    docs = pickle.load(f)
                 if docs and docs.docnames:
                     console.print(f"[green]✓ Using cached index ({len(docs.docnames)} docs)[/green]")
+                else:
+                    docs = None  # Invalid cache, rebuild
         except Exception as e:
             console.print(f"[dim]Cache miss: {e}[/dim]")
+            docs = None
     
-    # Build index if needed (Append-Only Strategy)
+    # Build index if needed
     if not docs:
-        if paper_filter:
-            docs = Docs()
-        else:
-            # Create persistent Qdrant store
-            db_path.mkdir(exist_ok=True)
-            client_qdrant = AsyncQdrantClient(path=str(db_path))
-            vector_store = QdrantVectorStore(
-                client=client_qdrant,
-                collection_name="research_papers"
-            )
-            # Try to load existing docs first to append to them
-            try:
-                loop = asyncio.get_event_loop()
-                if not loop.is_running():
-                    docs = loop.run_until_complete(QdrantVectorStore.load_docs(client_qdrant, "research_papers"))
-                console.print(f"[dim]Loaded existing index: {len(docs.docnames) if docs and docs.docnames else 0} docs[/dim]")
-            except Exception as e:
-                console.print(f"[dim]Could not load existing index: {e}[/dim]")
-                docs = None
-                
-            if not docs:
-                docs = Docs(texts_index=vector_store)
+        docs = Docs()
         
     # Identify new papers to index
     # Use unique identifier: parent_dir/filename (not just filename)
@@ -396,23 +364,15 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
                     progress.advance(task)
         
         console.print(f"[dim]Indexing complete: {success_count} succeeded, {fail_count} failed[/dim]")
-        
-        # Force flush the vector store to disk
-        try:
-            if hasattr(docs, 'texts_index') and hasattr(docs.texts_index, '_client'):
-                # Close the async client to flush data
-                loop = asyncio.get_event_loop()
-                if not loop.is_running():
-                    loop.run_until_complete(docs.texts_index._client.close())
-                console.print(f"[dim]Flushed index to disk[/dim]")
-        except Exception as e:
-            console.print(f"[yellow]Warning: Could not flush index: {e}[/yellow]")
     
-    # Save fingerprint
-    if not paper_filter:
-        fp_path.parent.mkdir(exist_ok=True)
+    # Save cache (pickle + fingerprint)
+    if not paper_filter and new_pdfs:  # Only save if we indexed new papers
+        import pickle
+        cache_path.mkdir(exist_ok=True)
         fp_path.write_text(current_fp)
-        console.print(f"[green]✓ Index updated & saved ({len(docs.docnames) if docs and docs.docnames else 0} total docs)[/green]")
+        with open(docs_pickle_path, 'wb') as f:
+            pickle.dump(docs, f)
+        console.print(f"[green]✓ Index saved ({len(docs.docnames) if docs and docs.docnames else 0} total docs)[/green]")
     
     # Query
     try:
