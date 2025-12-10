@@ -33,6 +33,7 @@ import shutil
 import re
 from pathlib import Path
 from datetime import datetime
+import time
 from typing import Optional, List, Dict, Any, Set
 
 # Suppress verbose logging
@@ -64,6 +65,19 @@ client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 # Models - using Gemini 3 Pro Preview as specified
 AGENT_MODEL = "gemini-3-pro-preview"
 FLASH_MODEL = "gemini-2.5-flash"  # For RAG (faster)
+
+# Configurable iteration limits (can be tuned via .env for complex topics)
+MAX_AGENT_ITERATIONS = int(os.getenv('AGENT_MAX_ITERATIONS', '50'))  # Increased from hardcoded 35
+MAX_REVISION_ITERATIONS = int(os.getenv('REVISION_MAX_ITERATIONS', '25'))  # For revision phase
+MAX_REVIEWER_ITERATIONS = int(os.getenv('MAX_REVIEWER_ITERATIONS', '15'))  # Reviewer iteration limit
+
+# API Safety Timeouts (prevents infinite hangs)
+API_TIMEOUT_SECONDS = int(os.getenv('API_TIMEOUT_SECONDS', '120'))  # 2 minutes default
+REVIEWER_TIMEOUT_SECONDS = int(os.getenv('REVIEWER_TIMEOUT_SECONDS', '180'))  # 3 minutes for reviewers
+
+# Session timeout (4 hours max to prevent runaway sessions)
+MAX_SESSION_DURATION = 4 * 60 * 60  # 4 hours in seconds
+_session_start_time: Optional[float] = None
 
 # Global state for tracking which papers were used
 _used_citation_keys: Set[str] = set()
@@ -100,481 +114,23 @@ def log_debug(msg: str):
 
 
 # ============================================================================
-# TOOL FUNCTIONS - Wrapping existing CLI infrastructure
+# TOOL FUNCTIONS - Imported from shared tools module
 # ============================================================================
 
-def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
-    """
-    Search for academic papers using BOTH Semantic Scholar AND paper-scraper.
-    
-    This is the unified discovery tool that combines multiple sources:
-    - Semantic Scholar (~200M papers, citation counts)
-    - Paper-scraper (PubMed, bioRxiv, Springer, arXiv)
-    
-    Use this tool FIRST to discover relevant papers before adding them.
-    
-    Args:
-        query: Search query string describing the research topic
-               (e.g., "transformer attention mechanism", "vision transformers")
-        limit: Maximum number of results to return (default: 15)
-    
-    Returns:
-        List of paper metadata with: title, authors, year, abstract, arxiv_id, doi, citations, source
-    """
-    from semanticscholar import SemanticScholar
-    import itertools
-    
-    console.print(f"[dim]🔍 Unified search: {query}[/dim]")
-    
-    papers = []
-    seen_ids = set()
-    
-    # 1. Search Semantic Scholar
-    console.print("[dim]  → Semantic Scholar...[/dim]")
-    sch = SemanticScholar()
-    try:
-        results = sch.search_paper(query, limit=limit)
-        for paper in itertools.islice(results, limit):
-            arxiv_id = None
-            doi = None
-            if paper.externalIds:
-                arxiv_id = paper.externalIds.get('ArXiv')
-                doi = paper.externalIds.get('DOI')
-            
-            # Dedup key
-            key = doi or arxiv_id or paper.title[:50]
-            if key in seen_ids:
-                continue
-            seen_ids.add(key)
-            
-            papers.append({
-                'title': paper.title,
-                'authors': [a.name for a in paper.authors][:3],
-                'year': paper.year,
-                'abstract': paper.abstract[:400] if paper.abstract else None,
-                'arxiv_id': arxiv_id,
-                'doi': doi,
-                'citations': paper.citationCount or 0,
-                'source': 'S2'
-            })
-    except Exception as e:
-        console.print(f"[yellow]S2 error: {e}[/yellow]")
-    
-    # 2. Search paper-scraper (with timeout to prevent blocking)
-    console.print("[dim]  → paper-scraper...[/dim]")
-    try:
-        import concurrent.futures
-        sys.path.insert(0, str(REPO_ROOT / "scripts"))
-        from utils import scraper_client
-        
-        # Run with timeout to prevent blocking on network issues
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(scraper_client.search_papers, query, 10)
-            try:
-                ps_results = future.result(timeout=15)  # 15 second timeout
-            except concurrent.futures.TimeoutError:
-                console.print("[dim]paper-scraper timed out, continuing with S2 results[/dim]")
-                ps_results = []
-        
-        for paper in ps_results:
-            arxiv_id = paper.get('arxiv_id')
-            doi = paper.get('doi')
-            
-            key = doi or arxiv_id or paper.get('title', '')[:50]
-            if key in seen_ids:
-                continue
-            seen_ids.add(key)
-            
-            papers.append({
-                'title': paper.get('title', 'Unknown'),
-                'authors': paper.get('authors', [])[:3],
-                'year': paper.get('year'),
-                'abstract': paper.get('abstract', '')[:400] if paper.get('abstract') else None,
-                'arxiv_id': arxiv_id,
-                'doi': doi,
-                'citations': 0,
-                'source': 'PS'
-            })
-    except Exception as e:
-        console.print(f"[dim]paper-scraper: {e}[/dim]")
-    
-    console.print(f"[green]✓ Found {len(papers)} unique papers[/green]")
-    return papers[:limit]
-
-
-def exa_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
-    """
-    Neural/semantic search using Exa.ai for concept-based discovery.
-    
-    ⚠️ COSTS CREDITS - Use sparingly! Only when:
-    - discover_papers doesn't find relevant results
-    - You need conceptual/semantic matching beyond keywords
-    - Looking for recent or obscure papers
-    
-    Args:
-        query: Natural language query (can be more conceptual)
-        limit: Max results (default: 5 to conserve credits)
-    
-    Returns:
-        List of paper metadata
-    """
-    console.print(f"[dim]🧠 Exa.ai search (costs credits): {query}[/dim]")
-    
-    try:
-        from exa_py import Exa
-        exa_key = os.getenv('EXA_API_KEY')
-        if not exa_key:
-            return [{"error": "EXA_API_KEY not configured"}]
-        
-        exa = Exa(api_key=exa_key)
-        results = exa.search_and_contents(
-            query,
-            type="neural",
-            use_autoprompt=True,
-            num_results=limit,
-            text={"max_characters": 500}
-        )
-        
-        papers = []
-        for r in results.results:
-            # Try to extract arxiv ID from URL
-            arxiv_id = None
-            if 'arxiv.org' in r.url:
-                match = re.search(r'(\d{4}\.\d{4,5})', r.url)
-                if match:
-                    arxiv_id = match.group(1)
-            
-            papers.append({
-                'title': r.title,
-                'url': r.url,
-                'abstract': r.text[:400] if r.text else None,
-                'arxiv_id': arxiv_id,
-                'source': 'Exa'
-            })
-        
-        console.print(f"[green]✓ Exa found {len(papers)} results[/green]")
-        return papers
-    except Exception as e:
-        console.print(f"[red]Exa error: {e}[/red]")
-        return []
-
-
-def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
-    """
-    Add a paper to the local library by its identifier.
-    
-    Downloads the PDF via papis and updates master.bib automatically.
-    Use this after finding relevant papers via discover_papers.
-    
-    Args:
-        identifier: Paper identifier - either:
-                   - arXiv ID (e.g., "1706.03762" for "Attention Is All You Need")
-                   - DOI (e.g., "10.1038/nature12373")
-        source: Source type - "arxiv", "doi", or "auto" (auto-detect from format)
-    
-    Returns:
-        Dict with 'status' ("success" or "error") and 'citation_key' if successful
-    """
-    # Auto-detect source
-    if source == "auto":
-        if identifier.startswith("10."):
-            source = "doi"
-        else:
-            source = "arxiv"
-    
-    console.print(f"[dim]📥 Adding: {source}:{identifier}[/dim]")
-    
-    venv_bin = os.path.dirname(sys.executable)
-    papis_cmd = os.path.join(venv_bin, "papis")
-    
-    cmd = [papis_cmd, "--config", str(PAPIS_CONFIG), "-l", "main", "add", "--batch", "--from", source, identifier]
-    
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        if result.returncode == 0:
-            # Sync master.bib using existing utility
-            try:
-                sys.path.insert(0, str(REPO_ROOT / "scripts"))
-                from utils.sync_bib import sync_master_bib
-                sync_master_bib()
-            except Exception as e:
-                console.print(f"[yellow]Warning: bib sync issue: {e}[/yellow]")
-            
-            console.print(f"[green]✓ Added {identifier}[/green]")
-            return {"status": "success", "identifier": identifier}
-        else:
-            return {"status": "error", "message": result.stderr.strip()[:200]}
-    except subprocess.TimeoutExpired:
-        return {"status": "error", "message": "Timeout while adding paper"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)[:200]}
-
-
-def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str, Any]:
-    """
-    Ask a research question about papers in the library using RAG (PaperQA2).
-    
-    This uses the PERSISTENT Qdrant vector database for instant queries.
-    Returns detailed answers with citations from the indexed papers.
-    Use AFTER adding papers to the library.
-    
-    Args:
-        question: Specific research question to answer
-                  (e.g., "How does self-attention compute query-key-value?")
-        paper_filter: Optional keyword to filter papers (e.g., author name, topic)
-    
-    Returns:
-        Dict with 'answer' text and list of 'sources' used
-    """
-    from paperqa import Docs, Settings
-    from paperqa.llms import QdrantVectorStore
-    from qdrant_client import AsyncQdrantClient
-    import asyncio
-    import hashlib
-    
-    console.print(f"[dim]🤔 Querying: {question[:60]}...[/dim]")
-    
-    # Configure settings for Gemini
-    settings = Settings()
-    settings.llm = f"gemini/{FLASH_MODEL}"
-    settings.summary_llm = f"gemini/{FLASH_MODEL}"
-    settings.embedding = "gemini/text-embedding-004"
-    settings.answer.answer_max_sources = 5
-    settings.answer.evidence_k = 10
-    
-    # Find PDFs
-    all_pdfs = list(LIBRARY_PATH.rglob("*.pdf"))
-    
-    if paper_filter:
-        pdfs = [p for p in all_pdfs if paper_filter.lower() in str(p).lower()]
-        console.print(f"[dim]Filtered to {len(pdfs)} papers matching '{paper_filter}'[/dim]")
-    else:
-        pdfs = all_pdfs
-    
-    if not pdfs:
-        return {"answer": "No papers found in library. Use add_paper first.", "sources": []}
-    
-    # Check for persistent vector store
-    db_path = LIBRARY_PATH / ".qa_vectordb"
-    fp_path = db_path / ".fingerprint"
-    
-    # Generate fingerprint from PDF paths only (not mtime for stability)
-    fingerprint_data = sorted([str(p) for p in pdfs])
-    current_fp = hashlib.md5("\n".join(fingerprint_data).encode()).hexdigest()
-    
-    docs = None
-    
-    # Try to load existing store (only for non-filtered queries)
-    if not paper_filter and fp_path.exists():
-        try:
-            stored_fp = fp_path.read_text().strip()
-            if stored_fp == current_fp:
-                # Load from Qdrant
-                client_qdrant = AsyncQdrantClient(path=str(db_path))
-                
-                async def load_docs():
-                    return await QdrantVectorStore.load_docs(
-                        client=client_qdrant,
-                        collection_name="research_papers"
-                    )
-                
-                try:
-                    loop = asyncio.get_event_loop()
-                    if not loop.is_running():
-                        docs = loop.run_until_complete(load_docs())
-                except RuntimeError:
-                    docs = asyncio.run(load_docs())
-                
-                if docs and docs.docnames:
-                    console.print(f"[green]✓ Using cached index ({len(docs.docnames)} docs)[/green]")
-        except Exception as e:
-            console.print(f"[dim]Cache miss: {e}[/dim]")
-    
-    # Build index if needed
-    if not docs:
-        if paper_filter:
-            docs = Docs()
-        else:
-            # Create persistent Qdrant store
-            db_path.mkdir(exist_ok=True)
-            client_qdrant = AsyncQdrantClient(path=str(db_path))
-            vector_store = QdrantVectorStore(
-                client=client_qdrant,
-                collection_name="research_papers"
-            )
-            docs = Docs(texts_index=vector_store)
-        
-        console.print(f"[dim]Indexing {len(pdfs)} papers...[/dim]")
-        for pdf in pdfs[:25]:  # Reasonable limit
-            try:
-                docs.add(pdf, settings=settings)
-            except:
-                pass
-        
-        # Save fingerprint
-        if not paper_filter:
-            fp_path.parent.mkdir(exist_ok=True)
-            fp_path.write_text(current_fp)
-            console.print(f"[green]✓ Index saved for future queries[/green]")
-    
-    # Query
-    try:
-        response = docs.query(question, settings=settings)
-        sources = []
-        if hasattr(response, 'contexts') and response.contexts:
-            for ctx in response.contexts[:5]:
-                if hasattr(ctx.text, 'name'):
-                    sources.append(ctx.text.name)
-        
-        console.print(f"[green]✓ Got answer ({len(sources)} sources)[/green]")
-        return {
-            "answer": response.formatted_answer or response.answer,
-            "sources": sources
-        }
-    except Exception as e:
-        return {"answer": f"Query error: {e}", "sources": []}
-
-
-def fuzzy_cite(query: str) -> List[Dict[str, str]]:
-    """
-    Fuzzy search for citation keys in the library.
-    
-    Uses fuzzy matching to find papers even with partial or misspelled queries.
-    Returns citation keys to use as @citation_key in the Typst document.
-    
-    Args:
-        query: Search term - author name, title fragment, year, keyword
-               (e.g., "vaswani", "attention", "2017", "transformer")
-    
-    Returns:
-        List of matching papers with: citation_key, title, authors, year
-        Track these keys - they will be included in refs.bib
-    """
-    global _used_citation_keys
-    import yaml
-    
-    console.print(f"[dim]📚 Fuzzy cite search: {query}[/dim]")
-    
-    results = []
-    query_lower = query.lower()
-    query_parts = query_lower.split()
-    
-    for info_file in LIBRARY_PATH.rglob("info.yaml"):
-        try:
-            with open(info_file) as f:
-                data = yaml.safe_load(f)
-            
-            # Build searchable text
-            searchable = f"{data.get('ref', '')} {data.get('title', '')} {data.get('author', '')} {data.get('year', '')}".lower()
-            
-            # Fuzzy match: all query parts must appear somewhere
-            if all(part in searchable for part in query_parts):
-                citation_key = data.get('ref', 'unknown')
-                results.append({
-                    "citation_key": citation_key,
-                    "title": data.get('title', 'Unknown')[:70],
-                    "authors": data.get('author', 'Unknown')[:40],
-                    "year": str(data.get('year', ''))
-                })
-                # Track for refs.bib filtering
-                _used_citation_keys.add(citation_key)
-        except:
-            pass
-    
-    console.print(f"[green]✓ Found {len(results)} matches[/green]")
-    return results[:10]
-
-
-def list_library() -> List[Dict[str, str]]:
-    """
-    List all papers currently in the library.
-    
-    Use this to see what papers are already available for querying
-    before deciding to add more.
-    
-    Returns:
-        List of papers with: citation_key, title, authors, year
-    """
-    import yaml
-    
-    console.print(f"[dim]📖 Listing library...[/dim]")
-    
-    papers = []
-    for info_file in LIBRARY_PATH.rglob("info.yaml"):
-        try:
-            with open(info_file) as f:
-                data = yaml.safe_load(f)
-            
-            papers.append({
-                "citation_key": data.get('ref', 'unknown'),
-                "title": data.get('title', 'Unknown')[:70],
-                "authors": data.get('author', 'Unknown')[:40],
-                "year": str(data.get('year', ''))
-            })
-        except:
-            pass
-    
-    console.print(f"[green]✓ Library has {len(papers)} papers[/green]")
-    return papers
-
-
-def validate_citations(citation_keys: List[str]) -> Dict[str, Any]:
-    """
-    Validate that citation keys exist in the library.
-    
-    Use this BEFORE writing the final document to ensure all @keys are valid.
-    Invalid keys will cause compilation errors.
-    
-    Args:
-        citation_keys: List of citation keys to validate (without @ symbol)
-                      e.g., ["vaswani2017attention", "devlin2018bert"]
-    
-    Returns:
-        Dict with 'valid' keys, 'invalid' keys, and 'suggestions' for invalid ones
-    """
-    import yaml
-    
-    console.print(f"[dim]🔍 Validating {len(citation_keys)} citations...[/dim]")
-    
-    # Build library of all valid keys
-    library_keys = {}
-    for info_file in LIBRARY_PATH.rglob("info.yaml"):
-        try:
-            with open(info_file) as f:
-                data = yaml.safe_load(f)
-            key = data.get('ref', '')
-            if key:
-                library_keys[key.lower()] = key
-        except:
-            pass
-    
-    valid = []
-    invalid = []
-    suggestions = {}
-    
-    for key in citation_keys:
-        key_lower = key.lower()
-        if key_lower in library_keys:
-            valid.append(library_keys[key_lower])
-        else:
-            invalid.append(key)
-            # Find similar keys
-            for lib_key in library_keys.values():
-                if any(part in lib_key.lower() for part in key_lower.split('_')):
-                    suggestions[key] = lib_key
-                    break
-    
-    if invalid:
-        console.print(f"[yellow]⚠ {len(invalid)} invalid keys: {invalid[:5]}[/yellow]")
-    else:
-        console.print(f"[green]✓ All {len(valid)} citations valid[/green]")
-    
-    return {
-        "valid": valid,
-        "invalid": invalid,
-        "suggestions": suggestions,
-        "all_library_keys": list(library_keys.values())[:20]
-    }
+from tools import (
+    discover_papers,
+    exa_search, 
+    add_paper,
+    list_library,
+    query_library,
+    fuzzy_cite,
+    validate_citations,
+    get_used_citation_keys,
+    clear_used_citation_keys,
+    track_reviewed_paper,
+    get_reviewed_papers,
+    export_literature_sheet
+)
 
 
 # ============================================================================
@@ -669,6 +225,16 @@ TOOLS = [
     ])
 ]
 
+# Tools available to the REVIEWER (Read-only / Discovery)
+# Tools available to the REVIEWER (Read-only / Discovery)
+# Create a new Tool object with only the allowed function declarations
+REVIEWER_TOOLS = [
+    types.Tool(function_declarations=[
+        fd for fd in TOOLS[0].function_declarations
+        if fd.name in ["query_library", "fuzzy_cite", "validate_citations", "list_library", "discover_papers"]
+    ])
+]
+
 TOOL_FUNCTIONS = {
     "discover_papers": discover_papers,
     "exa_search": exa_search,
@@ -712,8 +278,10 @@ Neural search via Exa.ai. ⚠️ COSTS CREDITS!
 
 ### 5. add_paper(identifier, source)
 Download paper to library by arXiv ID or DOI.
+- Uses private sources (most reliable) for DOIs
+- Falls back to open access if private fails
 - Updates master.bib automatically
-- Add 5-10 MOST RELEVANT papers only
+- Add papers ONE BY ONE as you need them
 
 ### 6. fuzzy_cite(query)
 Find @citation_keys for papers in library.
@@ -726,17 +294,68 @@ Validate a list of citation keys before writing.
 - Returns valid/invalid keys and suggestions
 - Use this to double-check your citations
 
-## Workflow (ITERATIVE - RAG First)
+## Research Workflow (Library-First, Gap-Driven)
 
-1. **Query First**: query_library() with the main topic to see existing knowledge
-2. **Identify Gaps**: Based on the answer, identify what's missing
-3. **Search**: discover_papers() for specific gaps
-4. **Acquire**: add_paper() for the most relevant papers found
-5. **Query Again**: query_library() with more specific questions
-6. **Repeat** steps 2-5 until you have comprehensive coverage
-7. **Cite**: fuzzy_cite() for EACH paper you want to cite
-8. **Validate**: validate_citations() to verify all keys exist
-9. **Write**: Output complete Typst document
+PHASE 1: LIBRARY SCAN
+- list_library() to see available papers
+- query_library() for EACH sub-question from research plan
+- Identify which questions have good coverage vs gaps
+
+PHASE 2: TARGETED DISCOVERY (gaps only)
+- discover_papers() for questions that lack library coverage
+- add_paper() for 3-5 most relevant papers per gap (one at a time)
+- query_library() IMMEDIATELY after adding to use the new knowledge
+
+PHASE 3: EVIDENCE SYNTHESIS
+- For each planned section, query_library() to gather evidence
+- Build argument structure with citations from RAG answers
+- fuzzy_cite() for EVERY paper you want to cite
+- Keep track of ALL @keys returned by fuzzy_cite()
+
+PHASE 4: WRITE DRAFT
+- Write Typst document using ONLY @keys from fuzzy_cite()
+- Every claim must have a citation from fuzzy_cite()
+- If a key wasn't returned by fuzzy_cite(), DO NOT USE IT
+
+🚨 PHASE 5: VALIDATE BEFORE FINALIZING (CRITICAL!)
+BEFORE outputting the final document, you MUST:
+1. Extract ALL @citation_keys from your draft
+2. Call validate_citations(citation_keys) with the complete list
+3. If ANY keys are invalid:
+   - Call discover_papers() to find the missing papers
+   - Call add_paper() to add them to library
+   - Call fuzzy_cite() to get the CORRECT citation keys
+   - Replace the invalid keys with the correct ones
+4. ONLY output the document after ALL citations are validated
+
+IMPORTANT: Do NOT discover papers randomly. Query library FIRST to avoid wasting time on papers you already have.
+
+## Document Length Guidelines
+
+You are FREE to write as comprehensively as needed to do justice to the topic.
+
+**Length Expectations:**
+- **Simple topics**: 2-3 pages minimum (don't rush)
+- **Complex topics**: 10-20 pages encouraged (be thorough)
+- **NEVER sacrifice depth for brevity**
+
+**Structural Freedom:**
+- Include ALL relevant sections (Introduction, Background, Methodology, Analysis, Discussion, Related Work, Limitations, Conclusion)
+- Use subsections liberally to organize complex arguments
+- Add figures/tables if they clarify concepts (wrap in Typst figure blocks)
+- Develop arguments fully with proper evidence and citations
+
+**Quality > Brevity:**
+- The document should be PUBLICATION-READY, not a summary
+- Each claim needs proper support and citations
+- Complex topics deserve complex treatment
+- Don't stop writing because you've reached some arbitrary length
+
+## Cover Page Formatting Rules
+1. **Title**: MUST be very short (max 7 words).
+2. **Subtitle**: EVERYTHING after the colon (:) in the topic MUST go here. If no colon, write a descriptive subtitle.
+3. **Date**: Use the fixed date "December 09, 2025".
+4. **Abstract**: Must be included in the `#show: project.with(...)` call.
 
 ## Output Format
 
@@ -744,10 +363,10 @@ Validate a list of citation keys before writing.
 #import "lib.typ": project
 
 #show: project.with(
-  title: "Your Title",
-  subtitle: "A Research Report",
+  title: "Short Main Title",
+  subtitle: "Everything after the colon goes here",
   authors: ("Research Agent",),
-  date: "CURRENT_DATE",
+  date: "December 09, 2025", 
   abstract: [
     Concise abstract summarizing topic and findings.
   ]
@@ -771,14 +390,59 @@ Summary and future directions.
 #bibliography("refs.bib")
 ```
 
+## Bibliographies
+ALWAYS use `#bibliography("refs.bib")`. The system automatically generates this file for you from the library.
+NEVER use `master.bib` or other filenames in your Typst code.
+```
+
+## Typst Formatting Rules (NOT Markdown!)
+
+CRITICAL: Typst is NOT Markdown. Use these formats:
+
+| Element | Typst Syntax | WRONG (Markdown) |
+|---------|--------------|------------------|
+| Bold | *text* | **text** |
+| Italic | _text_ | *text* |
+| Heading 1 | = Title | # Title |
+| Heading 2 | == Section | ## Section |
+| Bullet list | - item | - item (same) |
+| Numbered list | + item | 1. item |
+| Citation | @citation_key | [@key] |
+| Code | `code` | `code` (same) |
+| Block quote | #quote[text] | > text |
+
+NEVER use ** for bold - this causes compilation errors!
+
 ## ACADEMIC RIGOR RULES (STRICT)
+
+### Citation Density (Academic Standard)
+**Every paragraph MUST have 3-5 citations minimum.**
+- Introductory/background paragraphs: 3-4 citations
+- Claims/arguments: 4-5 citations (synthesize multiple sources)
+- Single-source paragraphs are STRICTLY FORBIDDEN unless direct quotation
+- Aim for 25-40 total citations in a comprehensive document
+- **Under-cited documents will be REJECTED by reviewers**
+
+### Critical Analysis & Counter-Arguments
+- You MUST address counter-arguments and conflicting views.
+- Do NOT present a "clean" narrative if the literature is divided.
+- Explicitly cite papers that disagree with each other.
+- If a claim is debated, state: "While Author A argues X, Author B suggests Y..."
 
 ### Citation Discipline
 - NEVER make factual claims without a citation
 - ONLY use @citation_keys that were returned by fuzzy_cite()
-- If fuzzy_cite() returns no matches, DO NOT cite that paper
-- Every paragraph should have at least one citation
-- Use multiple citations when synthesizing across sources: @key1 @key2 @key3
+- Multiple citations for same claim: @key1 @key2 @key3
+- BEFORE finalizing, run validate_citations() and fix any invalid keys
+
+### Punctuation Rules (Critical for Copy-Paste Compatibility)
+**Use ASCII punctuation ONLY - no Unicode characters:**
+- NEVER use em-dashes (—) - rewrite sentences or use commas/periods instead
+- Use regular quotes `"text"` instead of curly quotes
+- Use three dots `...` instead of ellipsis (…)
+- Use `'` (straight apostrophe) instead of curly apostrophe
+
+**Why**: Unicode punctuation renders as escape codes (u2014, u201C) when copied from PDFs.
 
 ### Research Integrity
 - Base ALL claims on query_library() responses
@@ -860,11 +524,23 @@ IMPORTANT - Follow the RAG-First workflow:
     
     console.print("\n[bold]Starting autonomous research...[/bold]\n")
     
-    max_iterations = 35
+    max_iterations = MAX_AGENT_ITERATIONS
     iteration = 0
     
     while iteration < max_iterations:
         iteration += 1
+        
+        # Update system prompt with latest available citations (Dynamic Injection)
+        current_papers = get_reviewed_papers()
+        citation_section = ""
+        if current_papers:
+            citation_list = []
+            for key, data in current_papers.items():
+                citation_list.append(f"- @{key}: \"{data.get('title', 'Unknown')}\" ({data.get('year', '')})")
+            
+            citation_section = "\n\n## AVAILABLE CITATIONS (Use ONLY these exact keys):\n" + "\n".join(citation_list[:50]) # Limit to 50 to save context
+            
+        current_system_prompt = system_prompt_with_date + citation_section
         
         with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
             try:
@@ -872,7 +548,8 @@ IMPORTANT - Follow the RAG-First workflow:
                     model=AGENT_MODEL,
                     contents=contents,
                     config=types.GenerateContentConfig(
-                        system_instruction=system_prompt_with_date,
+                        system_instruction=current_system_prompt,
+                        response_modalities=["TEXT"],  # Add this
                         tools=TOOLS
                     )
                 )
@@ -967,6 +644,72 @@ def extract_citations_from_typst(typst_content: str) -> Set[str]:
     return set(matches)
 
 
+def fix_typst_error(typst_path: Path, error_msg: str):
+    """Attempt to fix common Typst errors."""
+    content = typst_path.read_text()
+    original_content = content
+    
+    # Fix 1: Double asterisks (Markdown bold) -> Single asterisk (Typst bold)
+    if "**" in content:
+        content = content.replace("**", "*")
+        
+    # Fix 2: Unclosed delimiters (often due to mismatched *)
+    # Simple heuristic: if odd number of *, remove the last one? 
+    # Or just remove all * if it's failing hard? 
+    # For now, let's try to close it if it's "unclosed delimiter"
+    if "unclosed delimiter" in error_msg:
+        # Check for odd number of *
+        if content.count("*") % 2 != 0:
+            # Try to find a paragraph with odd * and close it? 
+            # Too complex. Let's just strip formatting from the likely problematic line?
+            # Or just append a * to the end?
+            pass
+            
+    # Fix 3: Invalid references (e.g., @key with special chars)
+    # Typst only allows letters, numbers, _, - in labels
+    # If error is "label does not exist", we handled that via refs.bib generation, 
+    # but maybe the key format is wrong in the typ file?
+    
+    # Fix 4: Wrong bibliography filename
+    if 'file not found' in error_msg and 'master.bib' in error_msg:
+        if 'bibliography("master.bib")' in content:
+            content = content.replace('bibliography("master.bib")', 'bibliography("refs.bib")')
+    
+    if content != original_content:
+        typst_path.write_text(content)
+        return True
+    return False
+
+
+def compile_and_fix(typ_path: Path, max_attempts: int = 3) -> bool:
+    """Compile Typst file and attempt to auto-fix errors."""
+    pdf_path = typ_path.with_suffix(".pdf")
+    
+    for attempt in range(max_attempts):
+        result = subprocess.run(
+            ["typst", "compile", str(typ_path.name), str(pdf_path.name)],
+            cwd=str(typ_path.parent),
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        if result.returncode == 0:
+            console.print(f"[green]✓ Compiled {typ_path.name}[/green]")
+            return True
+            
+        console.print(f"[yellow]⚠ Compile validation failed (attempt {attempt+1}): {result.stderr.strip()[:100]}[/yellow]")
+        
+        # Try to fix
+        if attempt < max_attempts - 1:
+            if fix_typst_error(typ_path, result.stderr):
+                console.print("[cyan]  Applying auto-fix...[/cyan]")
+                continue
+    
+    console.print(f"[red]❌ Failed to compile {typ_path.name} after {max_attempts} attempts[/red]")
+    return False
+
+
 # ============================================================================
 # RESEARCH PLANNER
 # ============================================================================
@@ -990,18 +733,49 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
         border_style="blue"
     ))
     
-    response = client.models.generate_content(
-        model=AGENT_MODEL,
-        contents=[types.Content(
-            role="user",
-            parts=[types.Part(text=f"Create a research plan for: {topic}")]
-        )],
-        config=types.GenerateContentConfig(
-            system_instruction=PLANNER_PROMPT
-        )
-    )
+    default_plan = {
+        "main_question": topic,
+        "sub_questions": [topic],
+        "key_concepts": [],
+        "expected_sections": ["Introduction", "Analysis", "Discussion", "Conclusion"],
+        "search_queries": [topic]
+    }
     
-    text = response.candidates[0].content.parts[0].text
+    # Retry up to 3 times for API issues
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=AGENT_MODEL,
+                contents=[
+                    types.Content(role="user", parts=[types.Part(text=PLANNER_PROMPT + f"\n\nTopic: {topic}")])
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                )
+            )
+            
+            # Check for valid response
+            if response.candidates and response.candidates[0].content.parts:
+                text = response.candidates[0].content.parts[0].text
+                if text and text.strip():
+                    break  # Got valid response, exit retry loop
+            
+            # Empty response - retry
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Empty response from planner, retrying ({attempt + 2}/{max_retries})...[/yellow]")
+                time.sleep(2)  # Brief delay before retry
+            else:
+                console.print("[yellow]Planner returned empty response after retries, using defaults[/yellow]")
+                return default_plan
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Planner error: {e}, retrying ({attempt + 2}/{max_retries})...[/yellow]")
+                time.sleep(2)
+            else:
+                console.print(f"[yellow]Planner failed after retries: {e}, using defaults[/yellow]")
+                return default_plan
     
     # Extract JSON
     try:
@@ -1041,97 +815,229 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
 # PEER REVIEWER
 # ============================================================================
 
-REVIEWER_PROMPT = """You are a rigorous academic peer reviewer. You review research documents with strict standards.
+REVIEWER_PROMPT = """You are a rigorous academic peer reviewer.
+You are reviewing a Typst document on: "{topic}"
 
-Your review must assess:
+Your goal is to ensure the paper meets high academic standards.
+You have access to tools to VERIFY claims and citations.
 
-## 1. SCIENTIFIC RIGOR
-- Are all claims properly supported by citations?
-- Is the methodology (if applicable) sound?
-- Are limitations acknowledged?
+## Review Process
+1.  **Citation Density**: FLAGGING is required for any paragraph with < 3 citations.
+2.  **Counter-points**: REJECT if the paper presents a one-sided argument without counter-points.
+3.  **Validate Citations**: Use `validate_citations` to check if all @keys exist in the library.
+4.  **Verify Claims**: Use `query_library` to check if specific claims are supported by the cited papers.
+5.  **Check Literature Coverage**: Use `discover_papers` to find missing key references.
+6.  **Recommend Improvements**: Identify weak arguments, missing citations, or hallucinations.
 
-## 2. ARGUMENTATION
-- Is the thesis clear and well-supported?
-- Is the logical flow coherent?
-- Are counter-arguments addressed?
+## Previous Reviews
+If provided, check if the author has addressed the following feedback from previous rounds:
+{previous_reviews}
 
-## 3. CITATION QUALITY
-- Are citations appropriate and sufficient?
-- Are primary sources used where needed?
-- Is there over-reliance on any single source?
+## Output Format
 
-## 4. COMPLETENESS
-- Are all major aspects of the topic covered?
-- Are there obvious gaps in the literature review?
-- Is the scope appropriate?
+Write your review as natural text organized in these sections:
 
-## 5. WRITING QUALITY
-- Is the academic tone consistent?
-- Is technical terminology used correctly?
-- Is the structure clear?
+**VERDICT**: [Accept | Minor Revisions | Major Revisions | Reject]
 
-Output a STRUCTURED REVIEW with:
-1. **Overall Assessment**: Accept / Minor Revisions / Major Revisions / Reject
-2. **Strengths**: 2-3 bullet points
-3. **Critical Issues**: Specific problems that MUST be fixed
-4. **Suggestions**: Optional improvements
-5. **Missing Content**: Topics/sources that should be added
-6. **Specific Line Edits**: Concrete changes needed
+**SUMMARY**: 
+Brief assessment of the paper's quality and main contributions.
 
-Be constructive but rigorous. Academic excellence is the standard."""
+**STRENGTHS**:
+- Strength 1
+- Strength 2
+
+**WEAKNESSES**:
+- Weakness 1
+- Weakness 2
+
+**RECOMMENDED PAPERS** (if any missing key works):
+For each recommended paper, write ONE line in this exact format:
+RECOMMEND DOI: 10.xxxx/yyyy | Reason: Why this paper is needed
+OR
+RECOMMEND SEARCH: "search query terms" | Reason: Why these papers are needed
+
+**SPECIFIC EDITS** (if needed):
+Section: Introduction
+Issue: Claim lacks citation
+Suggestion: Add citation from Smith 2020
+
+Be constructive but rigorous. Academic excellence is the standard.
+"""
 
 
-def peer_review(document: str, topic: str, revision_num: int = 1) -> Dict[str, Any]:
-    """Run peer review on a document. Returns structured feedback."""
+def peer_review(
+    typst_content: str, 
+    topic: str, 
+    round_num: int, 
+    reviewer_id: int, 
+    research_plan: Dict,
+    refs_bib: str,
+    previous_reviews: str = ""
+) -> Dict[str, Any]:
+    """
+    Conduct a peer review of the document using an LLM agent with tools.
+    """
     console.print(Panel(
-        f"[bold magenta]🔍 Peer Review (Round {revision_num})[/bold magenta]\n\n"
-        f"Reviewing document on: [white]{topic[:50]}...[/white]",
-        border_style="magenta"
+        f"[bold blue]🔍 Reviewer #{reviewer_id} (Round {round_num})[/bold blue]\n\n"
+        f"Verifying document on: {topic[:60]}...",
+        border_style="blue"
     ))
     
-    response = client.models.generate_content(
-        model=AGENT_MODEL,
-        contents=[types.Content(
-            role="user",
-            parts=[types.Part(text=f"""Review this academic document:
+    # Context for the reviewer
+    context = f"""
+    TOPIC: {topic}
+    
+    RESEARCH PLAN:
+    {json.dumps(research_plan, indent=2)}
+    
+    BIBLIOGRAPHY (refs.bib):
+    {refs_bib}
+    
+    DOCUMENT CONTENT (Typst):
+    {typst_content}
+    """
+    
+    # Format message
+    user_msg = f"Please review this document (Round {round_num})."
+    if previous_reviews:
+        user_msg += f"\n\nHere is the feedback from the previous round waiting to be addressed:\n{previous_reviews}"
 
-TOPIC: {topic}
-
-DOCUMENT:
-```typst
-{document}
-```
-
-Provide a structured peer review following your guidelines.""")]
-        )],
-        config=types.GenerateContentConfig(
-            system_instruction=REVIEWER_PROMPT
+    # Initialize tool-enabled chat with proper conversation history
+    contents = [
+        types.Content(
+             role="user",
+             parts=[types.Part(text=context + "\n\n" + user_msg)]
         )
-    )
+    ]
     
-    review_text = response.candidates[0].content.parts[0].text
+    # Reviewer loop (configurable iteration limit to prevent infinite loops)
+    max_steps = MAX_REVIEWER_ITERATIONS
+    step = 0
+    final_review = None
     
-    # Determine verdict
-    verdict = "minor_revisions"
-    if "Accept" in review_text and "Major" not in review_text:
-        verdict = "accept"
-    elif "Major Revisions" in review_text or "Major revisions" in review_text:
-        verdict = "major_revisions"
-    elif "Reject" in review_text:
-        verdict = "reject"
-    
-    console.print(f"[bold]Verdict: {verdict.upper()}[/bold]")
-    
-    # Show summary
-    lines = review_text.split('\n')[:15]
-    for line in lines:
-        if line.strip():
-            console.print(f"[dim]{line}[/dim]")
-    
+    while step < max_steps:
+        step += 1
+        try:
+            response = client.models.generate_content(
+                model=AGENT_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=REVIEWER_PROMPT.format(topic=topic, previous_reviews=previous_reviews),
+                    tools=REVIEWER_TOOLS,  # Restricted toolset
+                    temperature=0.3  # Low temperature for rigorous checking
+                )
+            )
+        except Exception as e:
+            log_debug(f"Reviewer API error: {e}")
+            break
+            
+        if response.candidates and response.candidates[0].content.parts:
+            parts = response.candidates[0].content.parts
+            function_calls = [p for p in parts if p.function_call]
+            
+            if function_calls:
+                # Execute tools (verification steps)
+                contents.append(types.Content(role="model", parts=parts))
+                function_response_parts = []
+                
+                for part in function_calls:
+                    fc = part.function_call
+                    func_name = fc.name
+                    func_args = dict(fc.args) if fc.args else {}
+                    
+                    console.print(f"[magenta]  Reviewer: {func_name}(...)[/magenta]")
+                    
+                    if func_name in TOOL_FUNCTIONS:
+                        try:
+                            # Limited toolset for reviewer? For now give all.
+                            result = TOOL_FUNCTIONS[func_name](**func_args)
+                        except Exception as e:
+                            result = {"error": str(e)}
+                    else:
+                        result = {"error": "Unknown function"}
+                        
+                    function_response_parts.append(
+                        types.Part(function_response=types.FunctionResponse(
+                            name=func_name,
+                            response={"result": json.dumps(result, default=str)}
+                        ))
+                    )
+                contents.append(types.Content(role="user", parts=function_response_parts))
+            else:
+                # Text response - the review in plain text format
+                text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
+                
+                # Parse plain text review
+                if "**VERDICT**" in text or "VERDICT:" in text:
+                    # Extract verdict
+                    verdict_match = re.search(r'\*\*VERDICT\*\*:\s*\[?([^\]\n]+)', text) or re.search(r'VERDICT:\s*\[?([^\]\n]+)', text)
+                    verdict = verdict_match.group(1).strip().lower() if verdict_match else "minor_revisions"
+                    if "accept" in verdict:
+                        verdict = "accept"
+                    elif "major" in verdict:
+                        verdict = "major_revisions"
+                    else:
+                        verdict = "minor_revisions"
+                    
+                    # Extract summary
+                    summary_match = re.search(r'\*\*SUMMARY\*\*:?\s*\n(.*?)(?=\n\*\*|$)', text, re.DOTALL)
+                    summary = summary_match.group(1).strip() if summary_match else text[:200]
+                    
+                    # Extract weaknesses (for context)
+                    weaknesses_match = re.search(r'\*\*WEAKNESSES\*\*:?\s*\n(.*?)(?=\n\*\*|$)', text, re.DOTALL)
+                    weaknesses = weaknesses_match.group(1).strip() if weaknesses_match else ""
+                    
+                    # Extract recommended papers
+                    recommendations = []
+                    for line in text.split('\n'):
+                        if "RECOMMEND DOI:" in line:
+                            # Format: RECOMMEND DOI: 10.xxxx/yyyy | Reason: ...
+                            doi_match = re.search(r'RECOMMEND DOI:\s*(10\.\S+)', line)
+                            reason_match = re.search(r'Reason:\s*(.+)', line)
+                            if doi_match:
+                                recommendations.append({
+                                    "doi": doi_match.group(1).strip(),
+                                    "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer"
+                                })
+                        elif "RECOMMEND SEARCH:" in line:
+                            # Format: RECOMMEND SEARCH: "query" | Reason: ...
+                            query_match = re.search(r'RECOMMEND SEARCH:\s*["\']([^"\']+)["\']', line)
+                            reason_match = re.search(r'Reason:\s*(.+)', line)
+                            if query_match:
+                                recommendations.append({
+                                    "query": query_match.group(1).strip(),
+                                    "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer"
+                                })
+                    
+                    final_review = {
+                        "verdict": verdict,
+                        "summary": summary,
+                        "weaknesses": weaknesses,
+                        "recommended_papers": recommendations,
+                        "full_text": text
+                    }
+                    console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
+                    break  # Done!
+                
+                # If not done, append and continue
+                contents.append(types.Content(role="model", parts=parts))
+                if step == max_steps - 1:
+                    contents.append(types.Content(role="user", parts=[types.Part(text="Please provide your final review now.")]))
+
+    if not final_review:
+        # Fallback
+        final_review = {
+            "verdict": "minor_revisions",
+            "summary": "Reviewer did not produce structured review",
+            "weaknesses": "",
+            "recommended_papers": [],
+            "full_text": ""
+        }
+        
     return {
-        "verdict": verdict,
-        "review": review_text,
-        "revision_number": revision_num
+        "reviewer_id": reviewer_id,
+        "round": round_num,
+        **final_review
     }
 
 
@@ -1196,7 +1102,8 @@ Use date: "{current_date}" in the document.
                     contents=contents,
                     config=types.GenerateContentConfig(
                         system_instruction=REVISION_PROMPT,
-                        tools=TOOLS
+                        tools=TOOLS,
+                        timeout=API_TIMEOUT_SECONDS  # Safety timeout
                     )
                 )
             except Exception as e:
@@ -1258,10 +1165,22 @@ Use date: "{current_date}" in the document.
 # MULTI-PHASE ORCHESTRATOR
 # ============================================================================
 
-def generate_report(topic: str, max_revisions: int = 3) -> Path:
+def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) -> Path:
     """Generate a research report with planning, review, and revision phases."""
-    global _used_citation_keys, _debug_logger
+    global _used_citation_keys, _debug_logger, _session_start_time
     _used_citation_keys = set()
+    _session_start_time = time.time()  # Track session start for timeout
+    
+    def check_session_timeout():
+        """Check if session has exceeded max duration."""
+        if _session_start_time:
+            elapsed = time.time() - _session_start_time
+            if elapsed > MAX_SESSION_DURATION:
+                hours = MAX_SESSION_DURATION / 3600
+                log_debug(f"Session timeout after {elapsed/3600:.1f} hours (max: {hours} hours)")
+                console.print(f"[yellow]⚠ Session timeout ({hours} hours max). Saving current progress.[/yellow]")
+                return True
+        return False
     
     REPORTS_PATH.mkdir(parents=True, exist_ok=True)
     
@@ -1272,6 +1191,46 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     report_name = f"{timestamp}_{topic_slug}"
     report_dir = REPORTS_PATH / report_name
     report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Checkpoint system for crash recovery
+    checkpoint_file = report_dir / "artifacts" / "checkpoint.json"
+    checkpoint_file.parent.mkdir(exist_ok=True)
+    
+    def save_checkpoint(phase: str, data: Dict[str, Any]):
+        """Save progress checkpoint for crash recovery."""
+        checkpoint = {
+            "phase": phase,
+            "timestamp": datetime.now().isoformat(),
+            "data": data
+        }
+        try:
+            checkpoint_file.write_text(json.dumps(checkpoint, indent=2, default=str))
+            console.print(f"[dim]💾 Checkpoint saved: {phase}[/dim]")
+        except Exception as e:
+            console.print(f"[dim yellow]⚠ Checkpoint save failed: {e}[/dim yellow]")
+    
+    def load_checkpoint() -> Optional[Dict]:
+        """Load existing checkpoint if present."""
+        if checkpoint_file.exists():
+            try:
+                return json.loads(checkpoint_file.read_text())
+            except Exception:
+                return None
+        return None
+    
+    # Check for existing checkpoint (resume capability)
+    existing_checkpoint = load_checkpoint()
+    if existing_checkpoint:
+        console.print(Panel(
+            f"[yellow]📂 Found checkpoint from previous run[/yellow]\n\n"
+            f"Phase: {existing_checkpoint['phase']}\n"
+            f"Time: {existing_checkpoint.get('timestamp', 'unknown')}\n\n"
+            f"[dim]Note: Resume functionality will skip to the last completed phase.\n"
+            f"The checkpoint system is currently for recovery only.[/dim]",
+            title="Previous Progress Detected",
+            border_style="yellow"
+        ))
+        console.print("[dim]Continuing with fresh run (resume in future version)...[/dim]\n")
     
     # Create artifacts subfolder
     artifacts_dir = report_dir / "artifacts"
@@ -1289,7 +1248,7 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     ))
     
     research_plan = create_research_plan(topic)
-    
+    save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
     # Save plan to artifacts
     (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
     log_debug(f"Research plan created: {json.dumps(research_plan)}")
@@ -1302,32 +1261,225 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
     
     typst_content = run_agent(topic, research_plan=research_plan)
     
-    # Save initial draft
+    # Save drafts and generate refs.bib
+    save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
     (artifacts_dir / "draft_initial.typ").write_text(typst_content)
-    log_debug("Initial draft complete")
+    
+    # Generate refs.bib for the initial draft
+    doc_citations = extract_citations_from_typst(typst_content)
+    all_cited = get_used_citation_keys() | doc_citations
+    if MASTER_BIB.exists():
+        current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+    else:
+        current_refs_bib = "% No references\n"
+    (artifacts_dir / "draft_initial_refs.bib").write_text(current_refs_bib)
+    
+    # Copy lib.typ and refs.bib to artifacts for standalone draft compilation
+    if (TEMPLATE_PATH / "lib.typ").exists():
+        shutil.copy(TEMPLATE_PATH / "lib.typ", artifacts_dir / "lib.typ")
+    (artifacts_dir / "refs.bib").write_text(current_refs_bib)
+    
+    # Compile initial draft to PDF (with self-fixing)
+    try:
+        compile_and_fix(artifacts_dir / "draft_initial.typ")
+    except Exception:
+        pass  # Don't fail if typst not available
+    
+    log_debug(f"Initial draft complete with {len(all_cited)} citations")
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
     reviews = []
+    round_reviews_history = []
     
     for revision_round in range(1, max_revisions + 1):
+        # Check session timeout at start of each revision round
+        if check_session_timeout():
+            console.print("[yellow]⚠ Skipping further revisions due to session timeout[/yellow]")
+            break
+            
         console.print(Panel(
             f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]",
             border_style="magenta", width=60
         ))
         
-        review_result = peer_review(typst_content, topic, revision_round)
-        reviews.append(review_result)
+        # Generate refs.bib for the current draft
+        doc_citations = extract_citations_from_typst(typst_content)
+        all_cited = get_used_citation_keys() | doc_citations
+        if MASTER_BIB.exists():
+            current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+        else:
+            current_refs_bib = "% No references\n"
         
-        # Save review to artifacts
-        review_file = artifacts_dir / f"peer_review_r{revision_round}.md"
-        review_file.write_text(f"# Peer Review - Round {revision_round}\n\n**Verdict**: {review_result['verdict'].upper()}\n\n{review_result['review']}")
-        log_debug(f"Review {revision_round}: {review_result['verdict']}")
+        # Peer review with full context
+        round_reviews = []
+        verdicts = []
         
-        # Check if accepted
-        if review_result['verdict'] == 'accept':
-            console.print("[bold green]✓ Paper accepted by reviewer![/bold green]")
+        # Prepare previous reviews context for this round
+        previous_reviews_text = ""
+        if round_reviews_history:
+            for rnd, reviews in enumerate(round_reviews_history, 1):
+                previous_reviews_text += f"\n--- ROUND {rnd} FEEDBACK ---\n"
+                for i, r_data in enumerate(reviews, 1):
+                    previous_reviews_text += f"Reviewer {i}: {r_data.get('summary')}\n"
+                    if r_data.get('weaknesses'):
+                        previous_reviews_text += f"Weaknesses: {r_data.get('weaknesses')}\n"
+                    if r_data.get('missing_citations'):
+                         previous_reviews_text += f"Missing Citations: {r_data.get('missing_citations')}\n"
+
+        for r_idx in range(1, num_reviewers + 1):
+            review_result = peer_review(
+                typst_content,
+                topic,
+                revision_round,
+                reviewer_id=r_idx,
+                research_plan=research_plan,
+                refs_bib=current_refs_bib,
+                previous_reviews=previous_reviews_text
+            )
+            round_reviews.append(review_result)
+            verdicts.append(review_result.get('verdict', 'minor_revisions'))
+            
+            # Save individual review
+            (artifacts_dir / f"peer_review_r{revision_round}_p{r_idx}.json").write_text(json.dumps(review_result, indent=2))
+        
+        # Track history
+        round_reviews_history.append(round_reviews)
+        
+        # Aggregate reviews for revision
+        # Check if ALL accepted
+        if all(v == 'accept' for v in verdicts):
+            console.print("[bold green]✓ Paper accepted by all reviewers![/bold green]")
             break
+            
+        # Process Recommended Papers from Reviewers
+        all_recommendations = []
+        for rr in round_reviews:
+            if "recommended_papers" in rr:
+                all_recommendations.extend(rr["recommended_papers"])
         
+        added_citations = []
+        if all_recommendations:
+            console.print(Panel(f"[bold blue]Processing {len(all_recommendations)} Reviewer Recommendations[/bold blue]"))
+            for rec in all_recommendations:
+                # Handle DOI
+                if "doi" in rec:
+                    try:
+                        console.print(f"[cyan]Adding recommended DOI: {rec['doi']}[/cyan]")
+                        add_paper(identifier=rec['doi'], source="doi")
+                        added_citations.append(f"DOI: {rec['doi']} (Reason: {rec.get('reason', 'Reviewer recommended')})")
+                    except Exception as e:
+                        console.print(f"[red]Failed to add DOI {rec['doi']}: {e}[/red]")
+                # Handle Query
+                elif "query" in rec:
+                    try:
+                        console.print(f"[cyan]Discovering for query: {rec['query']}[/cyan]")
+                        # First discover
+                        found = discover_papers(query=rec['query'], limit=3)
+                        # Then auto-add top 1 if found
+                        if found and found[0].get("title"): # Check if valid result
+                             first_paper = found[0]
+                             ident = first_paper.get("doi") or first_paper.get("arxivId") or first_paper.get("arxiv_id")
+                             if ident:
+                                 console.print(f"[cyan]Adding discovered paper: {ident}[/cyan]")
+                                 add_paper(identifier=ident, source="doi" if first_paper.get("doi") else "arxiv")
+                                 added_citations.append(f"Discovered: {first_paper.get('title')} ({ident})")
+                    except Exception as e:
+                        console.print(f"[red]Failed to process query {rec['query']}: {e}[/red]")
+
+        # Synthesize feedback string
+        combined_feedback = f"Processing {len(round_reviews)} reviews.\n\n"
+        
+        if added_citations:
+             console.print("[bold blue]Wait! Indexing new papers and generating summaries...[/bold blue]")
+             
+             # Force update index (by calling query_library widely)
+             # And try to get summaries for new papers to inject into prompt
+             paper_summaries = []
+             try:
+                 # Construct a query to get summaries of new papers
+                 # We can't query by ID easily, but we can list library and then partial match?
+                 # Better: Just run a broad query relevant to the REASONS given
+                 # Or just generic "What are the key findings of [Title]?"
+                 
+                 for ac_text in added_citations:
+                     # ac_text format: "Discovered: Title (ID)" or "DOI: ID (Reason)"
+                     if "Discovered:" in ac_text:
+                         title_part = ac_text.split("Discovered:")[1].split("(")[0].strip()
+                         query_text = f"What are the key findings of the paper '{title_part}'?"
+                     else:
+                         doi_part = ac_text.split("DOI:")[1].split("(")[0].strip()
+                         query_text = f"What are the key findings of the paper with DOI {doi_part}?"
+                     
+                     # Check if we should query
+                     console.print(f"[dim]Indexing & Summarizing: {query_text[:50]}...[/dim]")
+                     answer = query_library(query_text) # This triggers indexing!
+                     if answer and "I cannot answer" not in answer:
+                         paper_summaries.append(f"**Paper**: {ac_text}\n**Summary**: {answer}\n")
+             except Exception as e:
+                 console.print(f"[yellow]Warning: Failed to summarize new papers: {e}[/yellow]")
+
+             combined_feedback += "## 📚 PRE-REVISION LITERATURE UPDATE\n"
+             combined_feedback += "The following papers suggested by reviewers have been AUTOMATICALLY ADDED to the library. YOU MUST REVIEW AND INTEGRATE THEM:\n"
+             for ac in added_citations:
+                 combined_feedback += f"- {ac}\n"
+             
+             if paper_summaries:
+                 combined_feedback += "\n### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS\n"
+                 combined_feedback += "\n".join(paper_summaries)
+                 combined_feedback += "\n[End of New Literature]\n"
+             combined_feedback += "\n"
+
+        # Display Review Summaries to User
+        console.print(Panel(f"[bold magenta]Review Round {revision_round} Summaries[/bold magenta]", border_style="magenta"))
+        
+        # Calculate aggregated verdict (most common verdict, or worst case)
+        verdicts = [rr.get('verdict', 'unknown') for rr in round_reviews]
+        if 'major_revisions' in verdicts:
+            aggregated_verdict = 'major_revisions'
+        elif 'minor_revisions' in verdicts:
+            aggregated_verdict = 'minor_revisions'
+        elif 'accept' in verdicts:
+            aggregated_verdict = 'accept'
+        else:
+            aggregated_verdict = 'unknown'
+        
+        for i, rr in enumerate(round_reviews, 1):
+            verdict = rr.get('verdict', 'unknown')
+            verdict_color = "green" if verdict == 'accept' else "yellow"
+            
+            console.print(f"[bold]Reviewer {i}:[/bold] [{verdict_color}]{verdict.upper()}[/{verdict_color}]")
+            console.print(f"[italic]{rr.get('summary', '')}[/italic]")
+            if rr.get('weaknesses'):
+                console.print(f"[red]• {len(rr.get('weaknesses'))} Weaknesses identified[/red]")
+            if rr.get('matching_citations') or rr.get('missing_citations'):
+                 console.print(f"[blue]• Citation feedback provided[/blue]")
+            console.print("")
+
+            combined_feedback += f"--- REVIEWER {i} ({rr.get('verdict')}) ---\n"
+            combined_feedback += f"Summary: {rr.get('summary')}\n"
+            combined_feedback += f"Weaknesses: {rr.get('weaknesses')}\n"
+            combined_feedback += f"Hallucinations: {rr.get('hallucinations')}\n"
+            combined_feedback += f"Specific Edits: {rr.get('specific_edits')}\n\n"
+            
+        # Save aggregated feedback
+        (artifacts_dir / f"aggregated_feedback_r{revision_round}.txt").write_text(combined_feedback)
+        
+        # Checkpoint after review round
+        save_checkpoint(f"peer_review_r{revision_round}", {
+            "round": revision_round,
+            "reviews": round_reviews,
+            "verdict": aggregated_verdict,
+            "feedback": combined_feedback
+        })
+        
+        # Determine if revision is needed based on verdict
+        needs_revision = aggregated_verdict in ['major_revisions', 'minor_revisions']
+        
+        log_debug(f"Round {revision_round} verdict: {aggregated_verdict}, needs_revision: {needs_revision}")
+        
+        if not needs_revision:
+            break # Exit loop if accepted
+            
         # ========== PHASE 4: REVISION ==========
         console.print(Panel(
             f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]",
@@ -1336,15 +1488,39 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         
         typst_content = revise_document(
             typst_content, 
-            review_result['review'], 
+            combined_feedback, 
             topic,
             research_plan
         )
         
-        # Save draft to artifacts
+        # Save draft with its refs.bib to artifacts (complete, reviewable document)
         draft_file = artifacts_dir / f"draft_r{revision_round}.typ"
         draft_file.write_text(typst_content)
-        log_debug(f"Revision {revision_round} complete")
+        
+        # Generate refs.bib for this draft
+        doc_citations = extract_citations_from_typst(typst_content)
+        all_cited = get_used_citation_keys() | doc_citations
+        if MASTER_BIB.exists():
+            draft_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+        else:
+            draft_refs_bib = "% No references\n"
+        (artifacts_dir / f"draft_r{revision_round}_refs.bib").write_text(draft_refs_bib)
+        
+        # Update shared refs.bib and compile revision draft to PDF
+        (artifacts_dir / "refs.bib").write_text(draft_refs_bib)
+        try:
+            compile_and_fix(artifacts_dir / f"draft_r{revision_round}.typ")
+        except Exception:
+            pass  # Don't fail if typst not available
+        
+        # Checkpoint after revision
+        save_checkpoint(f"revision_r{revision_round}", {
+            "round": revision_round,
+            "document": typst_content,
+            "citations": list(_used_citation_keys)
+        })
+        
+        log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
     
     # ========== FINAL OUTPUT ==========
     console.print(Panel(
@@ -1389,17 +1565,27 @@ def generate_report(topic: str, max_revisions: int = 3) -> Path:
         except Exception as e:
             log_debug(f"Compile error: {e}")
     
+    # Export literature review sheet
+    literature_sheet = export_literature_sheet()
+    (report_dir / "literature_sheet.csv").write_text(literature_sheet)
+    log_debug(f"Literature sheet exported with {len(get_reviewed_papers())} papers")
+    
     # Summary
+    reviewed_count = len(get_reviewed_papers())
+    cited_count = sum(1 for p in get_reviewed_papers().values() if p.get('cited'))
+    
     console.print("\n" + "="*60)
     console.print(Panel(
         f"[bold green]✓ Research Complete[/bold green]\n\n"
         f"[white]Topic:[/white] {topic[:50]}...\n"
         f"[white]Reviews:[/white] {len(reviews)} rounds\n"
-        f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n\n"
+        f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n"
+        f"[white]Papers:[/white] {cited_count} cited / {reviewed_count} reviewed\n\n"
         f"[dim]Output:[/dim]\n"
-        f"  � main.typ\n"
-        f"  � main.pdf\n"
+        f"  📝 main.typ\n"
+        f"  📄 main.pdf\n"
         f"  📚 refs.bib\n"
+        f"  📊 literature_sheet.md\n"
         f"  📁 artifacts/ (plans, drafts, reviews)\n\n"
         f"[dim]{report_dir}[/dim]",
         border_style="green"
@@ -1429,6 +1615,8 @@ Examples:
     parser.add_argument('topic', nargs='+', help='Research topic')
     parser.add_argument('--revisions', '-r', type=int, default=3,
                        help='Max peer review rounds (default: 3)')
+    parser.add_argument('--reviewers', type=int, default=1,
+                       help='Number of parallel reviewers (default: 1)')
     
     args = parser.parse_args()
     topic = " ".join(args.topic)
@@ -1441,4 +1629,4 @@ Examples:
         console.print("[red]Error: GEMINI_API_KEY not set[/red]")
         sys.exit(1)
     
-    generate_report(topic, max_revisions=args.revisions)
+    generate_report(topic, max_revisions=args.revisions, num_reviewers=args.reviewers)

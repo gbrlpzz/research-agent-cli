@@ -107,29 +107,77 @@
   }
 
   show figure: it => {
-    v(2.5em)
-    place(dx: -5.5cm, box(width: 5cm, align(left)[
-      #line(length: 100%, stroke: 1pt)
-      #v(0.5em)
-      // Captions: Changed to Inter, keep size/fill
-      #set text(font: ("Inter", "Helvetica"), size: 0.76em, fill: luma(100))
-      #set par(leading: 0.5em)
-      #if it.numbering != none {
-        strong(it.supplement)
-        " "
-        strong(it.counter.display(it.numbering))
-        [: ]
-      }
-      #it.caption
-    ]))
-    
-    block(width: 100%)[
-      #line(length: 100%, stroke: 1pt)
-      #v(0.5em)
-      #it.body
-    ]
-    v(2.5em)
+    // Check if this is a table figure using kind
+    let is_table = it.kind == table or it.body.func() == table
+
+    if is_table {
+      // Table: Margin LINE aligned with Table TOP BORDER
+      v(2.5em)
+      place(dx: -5.5cm, box(width: 5cm, align(left)[
+        #line(length: 100%, stroke: 1pt)
+        #v(0.5em)
+        #set text(font: ("Inter", "Helvetica"), size: 0.76em, fill: luma(100))
+        #set par(leading: 0.5em)
+        #if it.numbering != none {
+          strong(it.supplement)
+          " "
+          strong(it.counter.display(it.numbering))
+          [: ]
+        }
+        #it.caption
+      ]))
+      
+      // Table body: NO LINE above it
+      block(width: 100%)[
+        #it.body
+      ]
+      v(2.5em)
+    } else {
+      // Regular figures: keep original style
+      v(2.5em)
+      place(dx: -5.5cm, box(width: 5cm, align(left)[
+        #line(length: 100%, stroke: 1pt)
+        #v(0.5em)
+        #set text(font: ("Inter", "Helvetica"), size: 0.76em, fill: luma(100))
+        #set par(leading: 0.5em)
+        #if it.numbering != none {
+          strong(it.supplement)
+          " "
+          strong(it.counter.display(it.numbering))
+          [: ]
+        }
+        #it.caption
+      ]))
+      
+      block(width: 100%)[
+        #line(length: 100%, stroke: 1pt)
+        #v(0.5em)
+        #it.body
+      ]
+      v(2.5em)
+    }
   }
+
+  // Table base styling (must come before show rules)
+  set table(
+    stroke: 1pt + black,
+    align: left + horizon,
+    inset: 0.5em,
+    fill: (x, y) => if y == 0 { black } else { white }
+  )
+  
+  // General table text styling
+  show table: it => {
+    set text(size: 8pt, font: ("Inter", "Helvetica"))
+    it
+  }
+  
+  // Style header row text
+  show table.cell.where(y: 0): it => {
+    set text(fill: white, weight: 700)  // Numeric weight works better with variable fonts
+    it
+  }
+
 
   // --- GLOBAL PAGE SETUP (Applies to Page 0 onwards) ---
   // Start counting from 0

@@ -288,6 +288,7 @@ def fetch_pdf(doi: Optional[str] = None, arxiv_id: Optional[str] = None) -> Opti
     logging.info("PDF fetch failed: no sources available")
     return None
 
+
 if __name__ == "__main__":
     # Test the PDF fetcher
     import sys

@@ -78,8 +78,8 @@ def setup_gemini_settings():
     settings.llm = "gemini/gemini-2.5-flash"  # Gemini 2.5 Flash
     settings.summary_llm = "gemini/gemini-2.5-flash"
     settings.embedding = "gemini/text-embedding-004"  # Use Gemini embeddings (free) instead of OpenAI
-    settings.answer.answer_max_sources = 5
-    settings.answer.evidence_k = 10
+    settings.answer.answer_max_sources = 10  # Increased for rigor
+    settings.answer.evidence_k = 15  # Increased for rigor (supports 3-5 citations/para)
     
     logging.info(f"Configured paper-qa with Gemini: {settings.llm}")
     return settings
@@ -132,16 +132,10 @@ def save_fingerprint(library_path, fingerprint):
     fp_path.write_text(fingerprint)
 
 
-def create_qdrant_docs(library_path, collection_name="research_papers"):
+def create_qdrant_docs(client, collection_name="research_papers"):
     """Create a Docs object with Qdrant vector store for persistence."""
     from paperqa import Docs
     from paperqa.llms import QdrantVectorStore
-    from qdrant_client import AsyncQdrantClient
-    
-    db_path = get_vectordb_path(library_path)
-    
-    # Create persistent async Qdrant client (local file-based)
-    client = AsyncQdrantClient(path=str(db_path))
     
     # Create vector store with the persistent client
     vector_store = QdrantVectorStore(
@@ -152,22 +146,16 @@ def create_qdrant_docs(library_path, collection_name="research_papers"):
     # Create Docs with the persistent vector store
     docs = Docs(texts_index=vector_store)
     
-    logging.info(f"Created Qdrant-backed Docs at {db_path}")
+    logging.info(f"Created Qdrant-backed Docs with client {client}")
     return docs
 
 
-def load_existing_docs(library_path, collection_name="research_papers"):
+def load_existing_docs(client, collection_name="research_papers"):
     """Load existing Docs from persistent Qdrant store."""
     from paperqa.llms import QdrantVectorStore
-    from qdrant_client import AsyncQdrantClient
     import asyncio
     
-    db_path = get_vectordb_path(library_path)
-    
     try:
-        # Create persistent async Qdrant client
-        client = AsyncQdrantClient(path=str(db_path))
-        
         # Use the built-in load_docs classmethod to restore full Docs state
         async def async_load():
             return await QdrantVectorStore.load_docs(
@@ -201,14 +189,17 @@ def load_existing_docs(library_path, collection_name="research_papers"):
 
 
 def answer_question(question, library_path, filter_pattern=None):
-    """Answer a question using papers in the library.
-    
-    Args:
-        question: Question to answer
-        library_path: Path to library directory
-        filter_pattern: Optional pattern to filter papers (e.g., 'vaswani' or 'attention')
-    """
+    """Answer a question using papers in the library."""
+    import asyncio
+    try:
+        return asyncio.run(_async_answer_question(question, library_path, filter_pattern))
+    except KeyboardInterrupt:
+        console.print("\n[dim]Interrupted.[/dim]")
+        sys.exit(0)
+
+async def _async_answer_question(question, library_path, filter_pattern=None):
     from paperqa import Docs
+    from qdrant_client import AsyncQdrantClient
     
     # Setup settings
     settings = setup_gemini_settings()
@@ -228,7 +219,7 @@ def answer_question(question, library_path, filter_pattern=None):
         if not pdf_files:
             console.print(f"[yellow]No PDFs matching '{filter_pattern}' found[/yellow]")
             console.print(f"[dim]Found {len(all_pdf_files)} total PDFs in library[/dim]")
-            sys.exit(1)
+            raise ValueError(f"No PDFs matching '{filter_pattern}' found")
         
         console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
     else:
@@ -238,7 +229,7 @@ def answer_question(question, library_path, filter_pattern=None):
         console.print("[bold red]No PDFs found in library/[/bold red]")
         console.print("\n[yellow]Add papers first:[/yellow]")
         console.print("  research \"your topic\"")
-        sys.exit(1)
+        raise ValueError("No PDFs found in library")
     
     console.print(f"\n[dim]Found {len(pdf_files)} PDFs in library[/dim]")
     
@@ -246,55 +237,93 @@ def answer_question(question, library_path, filter_pattern=None):
     fingerprint = get_pdf_fingerprint(pdf_files)
     
     docs = None
-    if not filter_pattern:
-        # Try to load existing Qdrant store
-        if check_fingerprint_valid(library_path, fingerprint):
-            docs = load_existing_docs(library_path)
-            if docs:
-                console.print("[green]✓ Using persistent vector store (instant!)[/green]\n")
+    client = None
     
-    if not docs:
-        # Need to (re)index - create new Qdrant-backed Docs
-        if filter_pattern:
-            # For filtered queries, use in-memory (can't easily filter persistent store)
-            from paperqa import Docs
-            docs = Docs()
+    try:
+        if not filter_pattern:
+            # Initialize persistent client ONCE
+            db_path = get_vectordb_path(library_path)
+            client = AsyncQdrantClient(path=str(db_path))
+            
+            # Try to load existing Qdrant store
+            docs = load_existing_docs(client)
+        
+        if not docs:
+            # Need to (re)index - create new Qdrant-backed Docs
+            if filter_pattern:
+                # For filtered queries, use in-memory (can't easily filter persistent store)
+                docs = Docs()
+            else:
+                # Create persistent Qdrant store using the SAME client
+                docs = create_qdrant_docs(client)
+        
+        # Optimize: Identify which files actally need indexing
+        files_to_index = []
+        if docs and docs.docnames and not filter_pattern:
+            # Create set of normalized docnames (usually they are filenames or citation keys)
+            # PaperQA docnames can vary, but we can check if the stem is present
+            indexed_stems = {d.lower() for d in docs.docnames}
+            
+            for pdf in pdf_files:
+                # Check if file stem is in indexed docs
+                if pdf.stem.lower() not in indexed_stems:
+                    files_to_index.append(pdf)
+            
+            skipped_count = len(pdf_files) - len(files_to_index)
+            if skipped_count > 0:
+                console.print(f"[dim]Skipping {skipped_count} already indexed papers[/dim]")
         else:
-            # Create persistent Qdrant store
-            docs = create_qdrant_docs(library_path)
+            files_to_index = pdf_files
+        
+        if not files_to_index and not filter_pattern:
+            console.print("[dim]Library fully indexed (no new papers)[/dim]")
         
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
             console=console
         ) as progress:
-            task = progress.add_task("[cyan]Indexing library (first time is slow)...", total=len(pdf_files))
+            task = progress.add_task("[cyan]Checking library for new papers...", total=len(files_to_index))
             
-            for pdf_path in pdf_files:
+            for pdf_path in files_to_index:
                 try:
-                    logging.debug(f"Adding PDF: {pdf_path}")
-                    docs.add(pdf_path, settings=settings)
+                    # docs.add is idempotent - checks hash first
+                    await docs.aadd(pdf_path, settings=settings)
                     progress.advance(task)
                 except Exception as e:
                     logging.error(f"Error adding {pdf_path}: {e}", exc_info=True)
                     # Silently skip failed papers - user doesn't need to see each failure
                     progress.advance(task)
         
+        # CRITICAL: Explicitly build texts index to persist to Qdrant!
+        # paper-qa uses lazy indexing - vectors are only written during query
+        # We must force the index build here to ensure persistence
+        if docs.texts and not filter_pattern:
+            with console.status("[cyan]Building vector index..."):
+                embedding_model = settings.get_embedding_model()
+                await docs._build_texts_index(embedding_model)
+                logging.info(f"Built texts index with {len(docs.texts_index)} vectors")
+        
         # Save fingerprint for next time (only for non-filtered)
         if not filter_pattern:
             save_fingerprint(library_path, fingerprint)
-        console.print("[green]✓ Library indexed and stored in vector DB[/green]\n")
-    
-    # Query
-    with console.status("[bold cyan]Querying library with Gemini 2.5 Flash..."):
-        try:
-            response = docs.query(question, settings=settings)
-            logging.info(f"Query successful: {question}")
-            return response
-        except Exception as e:
-            console.print(f"[bold red]Error querying:[/bold red] {e}")
-            logging.error(f"Query error: {e}")
-            sys.exit(1)
+        
+        console.print("[green]✓ Library synchronized[/green]\n")
+        
+        # Query
+        with console.status("[bold cyan]Querying library with Gemini 2.5 Flash..."):
+            try:
+                response = await docs.aquery(question, settings=settings)
+                logging.info(f"Query successful: {question}")
+                return response
+            except Exception as e:
+                console.print(f"[bold red]Error querying:[/bold red] {e}")
+                logging.error(f"Query error: {e}")
+                sys.exit(1)
+
+    finally:
+        if client:
+            await client.close()
 
 
 def export_answer(response, export_dir):
@@ -373,7 +402,16 @@ def format_answer(response, export_dir=None):
 
 def interactive_chat(library_path, filter_pattern=None, export_dir=None):
     """Interactive chat interface for follow-up questions."""
+    import asyncio
+    try:
+        asyncio.run(_async_interactive_chat(library_path, filter_pattern, export_dir))
+    except KeyboardInterrupt:
+        console.print("\n[dim]Interrupted. Goodbye![/dim]")
+        sys.exit(0)
+
+async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=None):
     from paperqa import Docs
+    from qdrant_client import AsyncQdrantClient
     
     console.print(Panel(
         "[bold cyan]Interactive Q&A Chat[/bold cyan]\n"
@@ -401,65 +439,93 @@ def interactive_chat(library_path, filter_pattern=None, export_dir=None):
     fingerprint = get_pdf_fingerprint(pdf_files)
     
     docs = None
-    if not filter_pattern:
-        # Try to load existing Qdrant store
-        if check_fingerprint_valid(library_path, fingerprint):
-            docs = load_existing_docs(library_path)
-            if docs:
-                console.print("[green]✓ Using persistent vector store (instant!)[/green]\n")
+    client = None
     
-    if not docs:
-        # Need to (re)index
-        if filter_pattern:
-            docs = Docs()
-        else:
-            docs = create_qdrant_docs(library_path)
+    try:
+        if not filter_pattern:
+            db_path = get_vectordb_path(library_path)
+            client = AsyncQdrantClient(path=str(db_path))
+            
+            # Try to load existing Qdrant store
+            docs = load_existing_docs(client)
         
-        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
-            task = progress.add_task("[cyan]Indexing library...", total=len(pdf_files))
+        if not docs:
+            # Need to (re)index
+            if filter_pattern:
+                docs = Docs()
+            else:
+                docs = create_qdrant_docs(client)
+            
+        # Optimize: Identify which files actally need indexing
+        files_to_index = []
+        if docs and docs.docnames and not filter_pattern:
+            indexed_stems = {d.lower() for d in docs.docnames}
             for pdf in pdf_files:
+                if pdf.stem.lower() not in indexed_stems:
+                    files_to_index.append(pdf)
+            skipped_count = len(pdf_files) - len(files_to_index)
+            if skipped_count > 0:
+                console.print(f"[dim]Skipping {skipped_count} already indexed papers[/dim]")
+        else:
+            files_to_index = pdf_files
+
+        with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
+            task = progress.add_task("[cyan]Checking library for new papers...", total=len(files_to_index))
+            for pdf in files_to_index:
                 try:
-                    docs.add(pdf, settings=settings)
+                    # docs.add is idempotent
+                    await docs.aadd(pdf, settings=settings)
                 except:
                     pass
                 progress.advance(task)
         
+        # CRITICAL: Explicitly build texts index to persist to Qdrant!
+        # paper-qa uses lazy indexing - vectors are only written during query
+        if docs.texts and not filter_pattern:
+            with console.status("[cyan]Building vector index..."):
+                embedding_model = settings.get_embedding_model()
+                await docs._build_texts_index(embedding_model)
+                logging.info(f"Built texts index with {len(docs.texts_index)} vectors")
+        
         # Save fingerprint (only for non-filtered)
         if not filter_pattern:
             save_fingerprint(library_path, fingerprint)
-        console.print("[green]✓ Library indexed and stored in vector DB[/green]\n")
-    
-    # Chat loop
-    while True:
-        try:
-            question = Prompt.ask("[bold cyan]?[/bold cyan]").strip()
-            
-            if question.lower() in ['exit', 'quit', 'q']:
-                console.print("[dim]Goodbye![/dim]")
-                break
-            
-            if not question:
-                continue
-            
-            # Query
-            with console.status("[cyan]Thinking..."):
-                response = docs.query(question, settings=settings)
-            
-            # Display
-            console.print()
-            console.print("[bold green]Answer:[/bold green]")
-            console.print(response.formatted_answer or response.answer)
-            console.print()
-            
-            # Export if requested
-            if export_dir:
-                export_answer(response, export_dir)
-            
-        except KeyboardInterrupt:
-            console.print("\n[dim]Interrupted. Goodbye![/dim]")
-            break
-        except Exception as e:
-            console.print(f"[red]Error: {e}[/red]")
+        
+        console.print("[green]✓ Library synchronized[/green]\n")
+        
+        # Chat loop
+        while True:
+            try:
+                # We need to drop out of async context for input? No, just block.
+                question = await asyncio.get_event_loop().run_in_executor(None, lambda: Prompt.ask("[bold cyan]?[/bold cyan]").strip())
+                
+                if question.lower() in ['exit', 'quit', 'q']:
+                    console.print("[dim]Goodbye![/dim]")
+                    break
+                
+                if not question:
+                    continue
+                
+                # Query
+                with console.status("[cyan]Thinking..."):
+                    response = await docs.aquery(question, settings=settings)
+                
+                # Display
+                console.print()
+                console.print("[bold green]Answer:[/bold green]")
+                console.print(response.formatted_answer or response.answer)
+                console.print()
+                
+                # Export if requested
+                if export_dir:
+                    export_answer(response, export_dir)
+                
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/red]")
+                
+    finally:
+        if client:
+            await client.close()
 
 
 if __name__ == "__main__":
