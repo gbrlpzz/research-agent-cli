@@ -30,11 +30,32 @@ The Research Agent CLI is a powerful tool that autonomously conducts academic re
    ```
 
 3. **Configure Environment Variables**:
-   Create a `.env` file in the root directory:
+   Copy `.env.example` to `.env` and configure:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   **Required**:
    ```env
-   GEMINI_API_KEY=your_gemini_key
-   EXA_API_KEY=your_exa_key (optional)
-   SEMANTIC_SCHOLAR_API_KEY=your_key (optional)
+   GEMINI_API_KEY=your_gemini_key_here
+   ```
+   
+   **Optional** (with sensible defaults):
+   ```env
+   # Agent Iteration Limits
+   AGENT_MAX_ITERATIONS=50              # Main research agent
+   REVISION_MAX_ITERATIONS=25           # Revision phase
+   MAX_REVIEWER_ITERATIONS=15           # Peer reviewer
+   
+   # Safety Timeouts (seconds)
+   API_TIMEOUT_SECONDS=120              # 2 minutes
+   REVIEWER_TIMEOUT_SECONDS=180         # 3 minutes
+   ```
+   
+   **Additional APIs** (optional):
+   ```env
+   EXA_API_KEY=your_exa_key            # For neural search
+   SEMANTIC_SCHOLAR_API_KEY=your_key    # Higher rate limits
    ```
 
 4. **Dependencies**:

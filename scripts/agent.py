@@ -450,9 +450,17 @@ NEVER use ** for bold - this causes compilation errors!
 ### Citation Discipline
 - NEVER make factual claims without a citation
 - ONLY use @citation_keys that were returned by fuzzy_cite()
-- If fuzzy_cite() returns no matches, DO NOT cite that paper
-- Every paragraph should have at least one citation
-- Use multiple citations when synthesizing across sources: @key1 @key2 @key3
+- Multiple citations for same claim: @key1 @key2 @key3
+- BEFORE finalizing, run validate_citations() and fix any invalid keys
+
+### Punctuation Rules (Critical for Copy-Paste Compatibility)
+**Use ASCII punctuation ONLY - no Unicode characters:**
+- NEVER use em-dashes (—) - rewrite sentences or use commas/periods instead
+- Use regular quotes `"text"` instead of curly quotes
+- Use three dots `...` instead of ellipsis (…)
+- Use `'` (straight apostrophe) instead of curly apostrophe
+
+**Why**: Unicode punctuation renders as escape codes (u2014, u201C) when copied from PDFs.
 
 ### Research Integrity
 - Base ALL claims on query_library() responses
@@ -1214,6 +1222,29 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
             console.print(f"[dim]💾 Checkpoint saved: {phase}[/dim]")
         except Exception as e:
             console.print(f"[dim yellow]⚠ Checkpoint save failed: {e}[/dim yellow]")
+    
+    def load_checkpoint() -> Optional[Dict]:
+        """Load existing checkpoint if present."""
+        if checkpoint_file.exists():
+            try:
+                return json.loads(checkpoint_file.read_text())
+            except Exception:
+                return None
+        return None
+    
+    # Check for existing checkpoint (resume capability)
+    existing_checkpoint = load_checkpoint()
+    if existing_checkpoint:
+        console.print(Panel(
+            f"[yellow]📂 Found checkpoint from previous run[/yellow]\n\n"
+            f"Phase: {existing_checkpoint['phase']}\n"
+            f"Time: {existing_checkpoint.get('timestamp', 'unknown')}\n\n"
+            f"[dim]Note: Resume functionality will skip to the last completed phase.\n"
+            f"The checkpoint system is currently for recovery only.[/dim]",
+            title="Previous Progress Detected",
+            border_style="yellow"
+        ))
+        console.print("[dim]Continuing with fresh run (resume in future version)...[/dim]\n")
     
     # Create artifacts subfolder
     artifacts_dir = report_dir / "artifacts"
