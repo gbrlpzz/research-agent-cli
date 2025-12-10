@@ -109,7 +109,7 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
     pdf_missing = False
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)  # 2 min timeout
         if result.returncode == 0:
             papis_success = True
             
@@ -363,12 +363,27 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
         
         if new_pdfs:
             console.print(f"[dim]Indexing {len(new_pdfs)} new papers (skipping {len(indexed_ids)} existing)...[/dim]")
-            for pdf in new_pdfs:  # NO LIMIT (removed [:25])
-                try:
-                    # Add with unique ID as doc name for proper tracking
-                    docs.add(pdf, docname=get_pdf_doc_id(pdf), settings=settings)
-                except Exception as e:
-                    console.print(f"[dim]⚠️ Error indexing {pdf.name}: {e}[/dim]")
+            
+            # Add progress bar for user visibility
+            from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                console=console
+            ) as progress:
+                task = progress.add_task(f"Indexing papers...", total=len(new_pdfs))
+                
+                for pdf in new_pdfs:
+                    try:
+                        # Add with unique ID as doc name for proper tracking
+                        docs.add(pdf, docname=get_pdf_doc_id(pdf), settings=settings)
+                        progress.advance(task)
+                    except Exception as e:
+                        progress.console.print(f"[dim]⚠️ Error indexing {pdf.name}: {e}[/dim]")
+                        progress.advance(task)
         
         # Save fingerprint
         if not paper_filter:

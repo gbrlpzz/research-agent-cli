@@ -1437,6 +1437,19 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
         # Save aggregated feedback
         (artifacts_dir / f"aggregated_feedback_r{revision_round}.txt").write_text(combined_feedback)
         
+        # Checkpoint after review round
+        save_checkpoint(f"peer_review_r{revision_round}", {
+            "round": revision_round,
+            "reviews": round_reviews,
+            "verdict": aggregated_verdict,
+            "feedback": combined_feedback
+        })
+        
+        log_debug(f"Round {revision_round} verdict: {aggregated_verdict}, needs_revision: {needs_revision}")
+        
+        if not needs_revision:
+            break # Exit loop if accepted
+            
         # ========== PHASE 4: REVISION ==========
         console.print(Panel(
             f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]",
@@ -1469,6 +1482,13 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
             compile_and_fix(artifacts_dir / f"draft_r{revision_round}.typ")
         except Exception:
             pass  # Don't fail if typst not available
+        
+        # Checkpoint after revision
+        save_checkpoint(f"revision_r{revision_round}", {
+            "round": revision_round,
+            "document": typst_content,
+            "citations": list(_used_citation_keys)
+        })
         
         log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
     
