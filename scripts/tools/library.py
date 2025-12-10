@@ -396,6 +396,17 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
                     progress.advance(task)
         
         console.print(f"[dim]Indexing complete: {success_count} succeeded, {fail_count} failed[/dim]")
+        
+        # Force flush the vector store to disk
+        try:
+            if hasattr(docs, 'texts_index') and hasattr(docs.texts_index, '_client'):
+                # Close the async client to flush data
+                loop = asyncio.get_event_loop()
+                if not loop.is_running():
+                    loop.run_until_complete(docs.texts_index._client.close())
+                console.print(f"[dim]Flushed index to disk[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not flush index: {e}[/yellow]")
     
     # Save fingerprint
     if not paper_filter:
