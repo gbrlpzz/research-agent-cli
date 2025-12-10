@@ -333,63 +333,75 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
                 loop = asyncio.get_event_loop()
                 if not loop.is_running():
                     docs = loop.run_until_complete(QdrantVectorStore.load_docs(client_qdrant, "research_papers"))
-            except Exception:
+                console.print(f"[dim]Loaded existing index: {len(docs.docnames) if docs and docs.docnames else 0} docs[/dim]")
+            except Exception as e:
+                console.print(f"[dim]Could not load existing index: {e}[/dim]")
                 docs = None
                 
             if not docs:
                 docs = Docs(texts_index=vector_store)
         
-        # Identify new papers to index
-        # Use unique identifier: parent_dir/filename (not just filename)
-        # This prevents false matches when multiple papers have same PDF name
-        def get_pdf_doc_id(pdf_path: Path) -> str:
-            """Generate unique document identifier from PDF path."""
-            # Use parent directory name (paper hash) + filename
-            return f"{pdf_path.parent.name}/{pdf_path.name}"
+    # Identify new papers to index
+    # Use unique identifier: parent_dir/filename (not just filename)
+    # This prevents false matches when multiple papers have same PDF name
+    def get_pdf_doc_id(pdf_path: Path) -> str:
+        """Generate unique document identifier from PDF path."""
+        # Use parent directory name (paper hash) + filename
+        return f"{pdf_path.parent.name}/{pdf_path.name}"
+    
+    # Get indexed documents - check both formats for backwards compatibility
+    indexed_ids = set()
+    if docs and docs.docnames:
+        for name in docs.docnames:
+            indexed_ids.add(name)
+            # Also add basename for legacy compatibility check
+            if '/' in name:
+                indexed_ids.add(name.split('/')[-1])
+    
+    # Calculate new PDFs - check both full ID and basename
+    new_pdfs = []
+    for p in pdfs:
+        full_id = get_pdf_doc_id(p)
+        basename = p.name
+        if full_id not in indexed_ids and basename not in indexed_ids:
+            new_pdfs.append(p)
+    
+    if new_pdfs:
+        console.print(f"[dim]Indexing {len(new_pdfs)} new papers (skipping {len(pdfs) - len(new_pdfs)} existing)...[/dim]")
         
-        if docs and docs.docnames:
-            # Normalize existing docnames to match our unique ID format
-            indexed_ids = set()
-            for name in docs.docnames:
-                if '/' in name:
-                    indexed_ids.add(name)  # Already in correct format
-                else:
-                    # Legacy format - just filename, keep as-is for backwards compat
-                    indexed_ids.add(name)
-        else:
-            indexed_ids = set()
+        # Add progress bar for user visibility
+        from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
         
-        new_pdfs = [p for p in pdfs if get_pdf_doc_id(p) not in indexed_ids]
+        success_count = 0
+        fail_count = 0
         
-        if new_pdfs:
-            console.print(f"[dim]Indexing {len(new_pdfs)} new papers (skipping {len(indexed_ids)} existing)...[/dim]")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"Indexing papers...", total=len(new_pdfs))
             
-            # Add progress bar for user visibility
-            from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
-            
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TaskProgressColumn(),
-                console=console
-            ) as progress:
-                task = progress.add_task(f"Indexing papers...", total=len(new_pdfs))
-                
-                for pdf in new_pdfs:
-                    try:
-                        # Add with unique ID as doc name for proper tracking
-                        docs.add(pdf, docname=get_pdf_doc_id(pdf), settings=settings)
-                        progress.advance(task)
-                    except Exception as e:
-                        progress.console.print(f"[dim]⚠️ Error indexing {pdf.name}: {e}[/dim]")
-                        progress.advance(task)
+            for pdf in new_pdfs:
+                try:
+                    # Add with unique ID as doc name for proper tracking
+                    docs.add(pdf, docname=get_pdf_doc_id(pdf), settings=settings)
+                    success_count += 1
+                    progress.advance(task)
+                except Exception as e:
+                    progress.console.print(f"[dim]⚠️ Error indexing {pdf.name}: {e}[/dim]")
+                    fail_count += 1
+                    progress.advance(task)
         
-        # Save fingerprint
-        if not paper_filter:
-            fp_path.parent.mkdir(exist_ok=True)
-            fp_path.write_text(current_fp)
-            console.print(f"[green]✓ Index updated & saved[/green]")
+        console.print(f"[dim]Indexing complete: {success_count} succeeded, {fail_count} failed[/dim]")
+    
+    # Save fingerprint
+    if not paper_filter:
+        fp_path.parent.mkdir(exist_ok=True)
+        fp_path.write_text(current_fp)
+        console.print(f"[green]✓ Index updated & saved ({len(docs.docnames) if docs and docs.docnames else 0} total docs)[/green]")
     
     # Query
     try:
