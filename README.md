@@ -19,7 +19,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License">
-  <img src="https://img.shields.io/badge/Gemini-2.0%20Flash-orange.svg" alt="Gemini">
+  <img src="https://img.shields.io/badge/Gemini-3.0%20Pro-orange.svg" alt="Gemini">
   <img src="https://img.shields.io/badge/PaperQA2-RAG-purple.svg" alt="PaperQA2">
 </p>
 
