@@ -349,17 +349,6 @@ research-agent-cli/
 
 ---
 
-## Roadmap
-
-- [ ] Resume from checkpoint (crash recovery)
-- [ ] Multi-model support (Claude, GPT-4, local models)
-- [ ] Web interface for report browsing
-- [ ] Collaborative research sessions
-- [ ] Figure and table extraction from PDFs
-- [ ] Multi-language support
-
----
-
 ## Contributing
 
 Contributions are welcome. Please open an issue to discuss proposed changes before submitting a pull request.
