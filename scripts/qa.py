@@ -7,7 +7,10 @@ Supports subset filtering, answer export, and interactive chat.
 import sys
 import os
 import argparse
+import asyncio
 import warnings
+import pickle
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -92,100 +95,107 @@ def get_vectordb_path(library_path):
     return db_path
 
 
-def get_fingerprint_path(library_path):
-    """Get path to fingerprint file for cache invalidation."""
-    return library_path / ".qa_vectordb" / ".fingerprint"
 
 
-def get_pdf_fingerprint(pdf_files):
-    """Create a fingerprint of PDF files for cache invalidation."""
+
+def compute_md5(file_path):
+    """Compute MD5 hash of a file."""
     import hashlib
-    
-    # Sort by path and combine path + mtime for each file
-    fingerprint_data = []
-    for pdf in sorted(pdf_files, key=lambda p: str(p)):
-        try:
-            mtime = pdf.stat().st_mtime
-            fingerprint_data.append(f"{pdf}:{mtime}")
-        except:
-            fingerprint_data.append(str(pdf))
-    
-    return hashlib.md5("\n".join(fingerprint_data).encode()).hexdigest()
-
-
-def check_fingerprint_valid(library_path, expected_fingerprint):
-    """Check if stored fingerprint matches expected."""
-    fp_path = get_fingerprint_path(library_path)
-    if not fp_path.exists():
-        return False
     try:
-        stored = fp_path.read_text().strip()
-        return stored == expected_fingerprint
-    except:
-        return False
-
-
-def save_fingerprint(library_path, fingerprint):
-    """Save fingerprint to disk."""
-    fp_path = get_fingerprint_path(library_path)
-    fp_path.parent.mkdir(exist_ok=True)
-    fp_path.write_text(fingerprint)
-
-
-def create_qdrant_docs(client, collection_name="research_papers"):
-    """Create a Docs object with Qdrant vector store for persistence."""
-    from paperqa import Docs
-    from paperqa.llms import QdrantVectorStore
-    
-    # Create vector store with the persistent client
-    vector_store = QdrantVectorStore(
-        client=client,
-        collection_name=collection_name
-    )
-    
-    # Create Docs with the persistent vector store
-    docs = Docs(texts_index=vector_store)
-    
-    logging.info(f"Created Qdrant-backed Docs with client {client}")
-    return docs
-
-
-def load_existing_docs(client, collection_name="research_papers"):
-    """Load existing Docs from persistent Qdrant store."""
-    from paperqa.llms import QdrantVectorStore
-    import asyncio
-    
-    try:
-        # Use the built-in load_docs classmethod to restore full Docs state
-        async def async_load():
-            return await QdrantVectorStore.load_docs(
-                client=client,
-                collection_name=collection_name
-            )
-        
-        try:
-            # Try to run the async load
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # Can't block in running loop - skip loading
-                logging.info("Event loop already running, cannot load synchronously")
-                return None
-            else:
-                docs = loop.run_until_complete(async_load())
-        except RuntimeError:
-            # No event loop - create one
-            docs = asyncio.run(async_load())
-        
-        if docs and docs.docnames:
-            logging.info(f"Loaded Docs with {len(docs.docnames)} documents from Qdrant")
-            return docs
-        else:
-            logging.info("No documents found in Qdrant store")
-            return None
-            
-    except Exception as e:
-        logging.warning(f"Failed to load existing Qdrant store: {e}")
+        return hashlib.md5(file_path.read_bytes()).hexdigest()
+    except Exception:
         return None
+
+def get_blacklist_path(library_path):
+    return library_path / ".qa_blacklist"
+
+def load_blacklist(library_path):
+    path = get_blacklist_path(library_path)
+    if path.exists():
+        try:
+            return set(path.read_text().splitlines())
+        except:
+            pass
+    return set()
+
+def get_manifest_path(library_path):
+    return library_path / ".qa_manifest.json"
+
+def load_manifest(library_path):
+    path = get_manifest_path(library_path)
+    if path.exists():
+        try:
+            d = json.loads(path.read_text())
+            return d
+        except Exception as e:
+            logging.error(f"Error loading manifest: {e}")
+            pass
+    return {}
+
+def save_manifest(library_path, manifest):
+    path = get_manifest_path(library_path)
+    try:
+        path.write_text(json.dumps(manifest, indent=2))
+    except:
+        pass
+
+def add_to_blacklist(library_path, filename):
+    blacklist = load_blacklist(library_path)
+    blacklist.add(filename)
+    try:
+        get_blacklist_path(library_path).write_text("\n".join(blacklist))
+    except:
+        pass
+
+def get_pickle_path(library_path):
+    """Get path to the pickled Docs object."""
+    return library_path / ".qa_docs.pkl"
+
+
+def load_existing_docs(library_path):
+    """Load existing Docs from pickle cache."""
+    pkl_path = get_pickle_path(library_path)
+    if not pkl_path.exists():
+        return None
+        
+    try:
+        with open(pkl_path, 'rb') as f:
+            docs = pickle.load(f)
+        if docs and docs.docnames:
+            logging.info(f"Loaded Docs with {len(docs.docnames)} documents from pickle")
+            return docs
+    except Exception as e:
+        logging.warning(f"Failed to load existing pickle: {e}")
+        return None
+    return None
+
+
+def save_docs(library_path, docs):
+    """Save Docs object to pickle cache."""
+    pkl_path = get_pickle_path(library_path)
+    try:
+        with open(pkl_path, 'wb') as f:
+            pickle.dump(docs, f)
+        logging.info("Saved Docs to pickle")
+    except Exception as e:
+        logging.error(f"Failed to save pickle: {e}")
+
+def get_fingerprint_path(library_path):
+    """Get path to the fingerprint file."""
+    return library_path / ".qa_fingerprint"
+
+def load_fingerprint(library_path):
+    """Load existing library fingerprint."""
+    fp_path = get_fingerprint_path(library_path)
+    if fp_path.exists():
+        try:
+            with open(fp_path, 'r') as f:
+                return f.read().strip()
+        except:
+            pass
+    return None
+
+
 
 
 def answer_question(question, library_path, filter_pattern=None):
@@ -199,7 +209,7 @@ def answer_question(question, library_path, filter_pattern=None):
 
 async def _async_answer_question(question, library_path, filter_pattern=None):
     from paperqa import Docs
-    from qdrant_client import AsyncQdrantClient
+    from paperqa import Docs
     
     # Setup settings
     settings = setup_gemini_settings()
@@ -233,80 +243,112 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
     
     console.print(f"\n[dim]Found {len(pdf_files)} PDFs in library[/dim]")
     
-    # Check for persistent vector store (only for non-filtered queries)
-    fingerprint = get_pdf_fingerprint(pdf_files)
-    
     docs = None
-    client = None
-    
     try:
         if not filter_pattern:
-            # Initialize persistent client ONCE
-            db_path = get_vectordb_path(library_path)
-            client = AsyncQdrantClient(path=str(db_path))
-            
-            # Try to load existing Qdrant store
-            docs = load_existing_docs(client)
+            # Try to load existing docs from pickle
+            docs = load_existing_docs(library_path)
         
         if not docs:
-            # Need to (re)index - create new Qdrant-backed Docs
-            if filter_pattern:
-                # For filtered queries, use in-memory (can't easily filter persistent store)
-                docs = Docs()
-            else:
-                # Create persistent Qdrant store using the SAME client
-                docs = create_qdrant_docs(client)
-        
-        # Optimize: Identify which files actally need indexing
+            # Need to (re)index - create new Docs
+            docs = Docs()
+            
+        if docs and hasattr(docs, 'docs'):
+            logging.info(f"Loaded {len(docs.docs) if docs and hasattr(docs, 'docs') else 0} docs from cache")
+
+        # Identify new files to index by Content Hash via Manifest
         files_to_index = []
-        if docs and docs.docnames and not filter_pattern:
-            # Create set of normalized docnames (usually they are filenames or citation keys)
-            # PaperQA docnames can vary, but we can check if the stem is present
-            indexed_stems = {d.lower() for d in docs.docnames}
-            
+        files_hashes = {} # Map path -> hash
+        
+        if not filter_pattern:
+            # Load Blacklist & Manifest
+            blacklist = load_blacklist(library_path)
+            manifest = load_manifest(library_path)
+
             for pdf in pdf_files:
-                # Check if file stem is in indexed docs
-                if pdf.stem.lower() not in indexed_stems:
+                # Check blacklist first
+                if pdf.name in blacklist:
+                    continue
+                
+                # Check Manifest
+                file_hash = compute_md5(pdf)
+                if file_hash:
+                    # If file is in manifest AND hash matches, it's already indexed consistently
+                    if pdf.name in manifest and manifest[pdf.name] == file_hash:
+                        continue
+                    
+                    # Otherwise index it
                     files_to_index.append(pdf)
-            
-            skipped_count = len(pdf_files) - len(files_to_index)
-            if skipped_count > 0:
-                console.print(f"[dim]Skipping {skipped_count} already indexed papers[/dim]")
+                    files_hashes[pdf] = file_hash
+                    
+                    # Otherwise index it
+                    files_to_index.append(pdf)
+                    files_hashes[pdf] = file_hash
         else:
             files_to_index = pdf_files
-        
+
         if not files_to_index and not filter_pattern:
-            console.print("[dim]Library fully indexed (no new papers)[/dim]")
+            console.print("[dim]Library fully indexed (no new content)[/dim]")
+        else:
+            logging.info(f"Need to index {len(files_to_index)} papers")
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
-        ) as progress:
-            task = progress.add_task("[cyan]Checking library for new papers...", total=len(files_to_index))
+        if files_to_index:
+            console.print(f"[cyan]Indexing {len(files_to_index)} new papers...[/cyan]")
             
-            for pdf_path in files_to_index:
-                try:
-                    # docs.add is idempotent - checks hash first
-                    await docs.aadd(pdf_path, settings=settings)
-                    progress.advance(task)
-                except Exception as e:
-                    logging.error(f"Error adding {pdf_path}: {e}", exc_info=True)
-                    # Silently skip failed papers - user doesn't need to see each failure
-                    progress.advance(task)
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                task = progress.add_task("[cyan]Adding papers to index...", total=len(files_to_index))
+                
+                for i, pdf_path in enumerate(files_to_index, 1):
+                    try:
+                        logging.info(f"Adding paper {i}/{len(files_to_index)}: {pdf_path.name}")
+                        progress.update(task, description=f"[cyan]Indexing {pdf_path.name}...")
+                        
+                        # Add with timeout, enforcing dockey=MD5
+                        try:
+                            file_hash = files_hashes.get(pdf_path)
+                            async with asyncio.timeout(60):  # 60s per paper
+                                # Pass dockey to ensure persistence stability
+                                await docs.aadd(pdf_path, dockey=file_hash, settings=settings)
+                            
+                            # Success: Update Manifest
+                            if file_hash:
+                                manifest = load_manifest(library_path)
+                                manifest[pdf_path.name] = file_hash
+                                save_manifest(library_path, manifest)
+                                
+                            logging.info(f"Successfully added {pdf_path.name}")
+                        except asyncio.TimeoutError:
+                            logging.error(f"Timeout adding {pdf_path.name}")
+                            console.print(f"[yellow]⚠ Timeout: {pdf_path.name}[/yellow]")
+                        
+                        progress.advance(task)
+                    except Exception as e:
+                        logging.error(f"Error adding {pdf_path}: {e}", exc_info=True)
+                        console.print(f"[yellow]⚠ Failed: {pdf_path.name} - {e}[/yellow]")
+                        # Add to blacklist using logic
+                        if "not look like a text document" in str(e) or "Empty file" in str(e):
+                             add_to_blacklist(library_path, pdf_path.name)
+                             console.print(f"[red]  -> Added {pdf_path.name} to blacklist (will skip next time)[/red]")
+                        progress.advance(task)
         
         # CRITICAL: Explicitly build texts index to persist to Qdrant!
         # paper-qa uses lazy indexing - vectors are only written during query
         # We must force the index build here to ensure persistence
+        # REVERTED: Explicit build causes Qdrant client closure crash.
+        # PaperQA2 will build the index automatically during the first query/get_evidence call.
+        # This lazy indexing is robust and will persist normally.
         if docs.texts and not filter_pattern:
-            with console.status("[cyan]Building vector index..."):
-                embedding_model = settings.get_embedding_model()
-                await docs._build_texts_index(embedding_model)
-                logging.info(f"Built texts index with {len(docs.texts_index)} vectors")
+            logging.info(f"Have {len(docs.texts)} texts ready for query-time indexing")
+        # Save docs to pickle for persistence
+        if not filter_pattern and len(files_to_index) > 0:
+            save_docs(library_path, docs)
+            console.print("[green]✓ Saved database to disk[/green]")
+        console.print(f"[cyan]Docs ready ({len(docs.texts)} chunks). Indexing happens during query.[/cyan]")
         
-        # Save fingerprint for next time (only for non-filtered)
-        if not filter_pattern:
-            save_fingerprint(library_path, fingerprint)
         
         console.print("[green]✓ Library synchronized[/green]\n")
         
@@ -321,9 +363,8 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
                 logging.error(f"Query error: {e}")
                 sys.exit(1)
 
-    finally:
-        if client:
-            await client.close()
+    except Exception:
+        raise
 
 
 def export_answer(response, export_dir):
@@ -411,7 +452,7 @@ def interactive_chat(library_path, filter_pattern=None, export_dir=None):
 
 async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=None):
     from paperqa import Docs
-    from qdrant_client import AsyncQdrantClient
+    from paperqa import Docs
     
     console.print(Panel(
         "[bold cyan]Interactive Q&A Chat[/bold cyan]\n"
@@ -435,61 +476,56 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
         pdf_files = all_pdf_files
         console.print(f"[dim]Found {len(pdf_files)} PDFs[/dim]")
     
-    # Check for persistent vector store (only for non-filtered queries)
-    fingerprint = get_pdf_fingerprint(pdf_files)
-    
     docs = None
-    client = None
-    
     try:
         if not filter_pattern:
-            db_path = get_vectordb_path(library_path)
-            client = AsyncQdrantClient(path=str(db_path))
-            
-            # Try to load existing Qdrant store
-            docs = load_existing_docs(client)
+            # Try to load existing docs from pickle
+            docs = load_existing_docs(library_path)
         
         if not docs:
-            # Need to (re)index
-            if filter_pattern:
-                docs = Docs()
-            else:
-                docs = create_qdrant_docs(client)
+            # Need to (re)index - create new Docs
+            docs = Docs()
             
-        # Optimize: Identify which files actally need indexing
+        # Collect existing hashes (dockeys)
+        indexed_hashes = set()
+        if docs and hasattr(docs, 'docs'):
+            for d in docs.docs.values():
+                if hasattr(d, 'dockey'):
+                    indexed_hashes.add(d.dockey)
+        
+        # Identify new files to index by Content Hash
         files_to_index = []
-        if docs and docs.docnames and not filter_pattern:
-            indexed_stems = {d.lower() for d in docs.docnames}
+        files_hashes = {} # Map path -> hash
+        
+        if not filter_pattern:
             for pdf in pdf_files:
-                if pdf.stem.lower() not in indexed_stems:
-                    files_to_index.append(pdf)
-            skipped_count = len(pdf_files) - len(files_to_index)
-            if skipped_count > 0:
-                console.print(f"[dim]Skipping {skipped_count} already indexed papers[/dim]")
+                file_hash = compute_md5(pdf)
+                if file_hash:
+                    if file_hash not in indexed_hashes:
+                        files_to_index.append(pdf)
+                        files_hashes[pdf] = file_hash
         else:
             files_to_index = pdf_files
 
+        if not files_to_index and not filter_pattern:
+            console.print("[dim]Library fully indexed (no new content)[/dim]")
+        
         with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
             task = progress.add_task("[cyan]Checking library for new papers...", total=len(files_to_index))
             for pdf in files_to_index:
                 try:
                     # docs.add is idempotent
-                    await docs.aadd(pdf, settings=settings)
+                    file_hash = files_hashes.get(pdf)
+                    await docs.aadd(pdf, dockey=file_hash, settings=settings)
                 except:
                     pass
                 progress.advance(task)
         
-        # CRITICAL: Explicitly build texts index to persist to Qdrant!
-        # paper-qa uses lazy indexing - vectors are only written during query
-        if docs.texts and not filter_pattern:
-            with console.status("[cyan]Building vector index..."):
-                embedding_model = settings.get_embedding_model()
-                await docs._build_texts_index(embedding_model)
-                logging.info(f"Built texts index with {len(docs.texts_index)} vectors")
+        # Save docs to pickle for persistence
+        if not filter_pattern and len(files_to_index) > 0:
+            save_docs(library_path, docs)
+            console.print("[green]✓ Saved database to disk[/green]")
         
-        # Save fingerprint (only for non-filtered)
-        if not filter_pattern:
-            save_fingerprint(library_path, fingerprint)
         
         console.print("[green]✓ Library synchronized[/green]\n")
         
@@ -523,9 +559,8 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
             except Exception as e:
                 console.print(f"[red]Error: {e}[/red]")
                 
-    finally:
-        if client:
-            await client.close()
+    except Exception:
+        raise
 
 
 if __name__ == "__main__":

@@ -1,0 +1,85 @@
+{
+  "thesis": "Applied Research Organizations (AROs) function as indispensable intermediaries in mitigating territorial fragility, uniquely capable of bridging the gap between high-level donor policy and ground-level volatility through the generation of localized, conflict-sensitive evidence.",
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "Territorial fragility creates 'information vacuums' where standard government data is absent or unreliable, necessitating independent AROs to generate the baseline data required for effective intervention.",
+      "evidence_needed": [
+        "Comparative analysis of data availability in stable vs. fragile regions",
+        "Case studies of policy failures resulting from lack of granular local data",
+        "Literature on the 'political economy of statistics' in conflict zones"
+      ],
+      "counter_arguments": [
+        "Reliance on non-state actors for data undermines state sovereignty and long-term statistical capacity building",
+        "Remote sensing and satellite data render ground-level data collection obsolete"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "C2",
+      "claim": "AROs employ distinct adaptive methodologies\u2014specifically conflict-sensitive and rapid-cycle assessment tools\u2014that allow for operation in security environments where traditional academic or bureaucratic rigidities fail.",
+      "evidence_needed": [
+        "Methodological reviews of 'agile' research frameworks used in humanitarian settings",
+        "Operational reports detailing safety protocols and access negotiations",
+        "Comparison of project timelines between academic institutions and AROs in conflict zones"
+      ],
+      "counter_arguments": [
+        "Rapid assessment methodologies sacrifice methodological rigor and validity for speed",
+        "Adaptive methods are often ad-hoc and lack reproducibility"
+      ],
+      "dependencies": [
+        "C1"
+      ]
+    },
+    {
+      "id": "C3",
+      "claim": "The localization of research through AROs\u2014utilizing endogenous knowledge networks\u2014enhances the legitimacy of interventions and bypasses the 'outsider bias' that often derails external stabilization efforts.",
+      "evidence_needed": [
+        "Qualitative interviews regarding community trust levels in local vs. international researchers",
+        "Impact evaluations comparing locally-led vs. externally-led research designs",
+        "Theoretical framework on 'epistemic violence' in development studies"
+      ],
+      "counter_arguments": [
+        "Local researchers may be embedded in local conflict dynamics, introducing partisan bias",
+        "Localization places disproportionate security risks on local staff compared to international staff"
+      ],
+      "dependencies": [
+        "C2"
+      ]
+    },
+    {
+      "id": "C4",
+      "claim": "Data-driven advocacy by AROs directly influences donor flexibility, forcing funding mechanisms to adapt to the fluid realities of fragile territories rather than imposing static development models.",
+      "evidence_needed": [
+        "Policy tracing studies linking specific ARO reports to changes in donor strategy documents",
+        "Analysis of funding allocation shifts following major evidence dissemination",
+        "Interviews with donor agency program officers regarding decision-making inputs"
+      ],
+      "counter_arguments": [
+        "Donor policies are driven primarily by geopolitical interests rather than empirical evidence",
+        "AROs often tailor findings to fit donor narratives to secure future funding (donor-driven research)"
+      ],
+      "dependencies": [
+        "C1",
+        "C3"
+      ]
+    },
+    {
+      "id": "C5",
+      "claim": "Beyond immediate data provision, AROs contribute to long-term stability by fostering a local 'knowledge ecosystem' that strengthens civil society's capacity to hold fragile governance structures accountable.",
+      "evidence_needed": [
+        "Longitudinal studies on the career trajectories of local researchers trained by AROs",
+        "Examples of civil society organizations utilizing ARO data for government lobbying",
+        "Assessment of institutional memory preservation in post-conflict transitions"
+      ],
+      "counter_arguments": [
+        "AROs contribute to a 'brain drain' from the public sector to the better-funded NGO/research sector",
+        "Research impact is ephemeral without direct executive power to implement findings"
+      ],
+      "dependencies": [
+        "C3",
+        "C4"
+      ]
+    }
+  ]
+}

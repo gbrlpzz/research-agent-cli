@@ -30,12 +30,13 @@ except ImportError:
     PRIVATE_SOURCES_AVAILABLE = False
 
 
-def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
+def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, references: str = None) -> List[Dict[str, Any]]:
     """
-    Search for academic papers using BOTH Semantic Scholar AND paper-scraper.
+    Search for academic papers using BOTH Semantic Scholar AND paper-scraper,
+    with optional citation network traversal.
     
     This is the unified discovery tool that combines multiple sources:
-    - Semantic Scholar (~200M papers, citation counts)
+    - Semantic Scholar (~200M papers, citation counts, citation graph)
     - Paper-scraper (PubMed, bioRxiv, Springer, arXiv)
     
     Use this tool FIRST to discover relevant papers before adding them.
@@ -43,14 +44,94 @@ def discover_papers(query: str, limit: int = 15) -> List[Dict[str, Any]]:
     Args:
         query: Search query string describing the research topic
                (e.g., "transformer attention mechanism", "vision transformers")
+               Required unless using citation network params
         limit: Maximum number of results to return (default: 15)
+        cited_by: Semantic Scholar paper ID or DOI for forward citation search
+                  (finds papers that cite this paper)
+        references: Semantic Scholar paper ID or DOI for backward citation search
+                    (finds papers referenced by this paper)
     
     Returns:
         List of paper metadata with: title, authors, year, abstract, arxiv_id, doi, citations, source
+    
+    Examples:
+        # Keyword search
+        discover_papers("attention mechanisms")
+        
+        # Forward citations (what cites this paper?)
+        discover_papers(cited_by="10.48550/arXiv.1706.03762")
+        
+        # Backward citations (what does this paper cite?)
+        discover_papers(references="DOI:10.48550/arXiv.1706.03762")
     """
     from semanticscholar import SemanticScholar
     import itertools
     import concurrent.futures
+    
+    # Citation network search
+    if cited_by or references:
+        console.print(f"[dim]🔗 Citation network search...[/dim]")
+        
+        s2_api_key = os.getenv('SEMANTIC_SCHOLAR_API_KEY')
+        sch = SemanticScholar(api_key=s2_api_key) if s2_api_key else SemanticScholar()
+        
+        try:
+            papers = []
+            
+            if cited_by:
+                console.print(f"[dim]  → Finding papers citing: {cited_by}[/dim]")
+                # Get papers that cite this work
+                paper = sch.get_paper(cited_by)
+                if paper and paper.citations:
+                    for citation in itertools.islice(paper.citations, limit):
+                        arxiv_id = None
+                        doi = None
+                        if citation.externalIds:
+                            arxiv_id = citation.externalIds.get('ArXiv')
+                            doi = citation.externalIds.get('DOI')
+                        papers.append({
+                            'title': citation.title,
+                            'authors': [a.name for a in (citation.authors or [])][:3],
+                            'year': citation.year,
+                            'abstract': citation.abstract[:400] if citation.abstract else None,
+                            'arxiv_id': arxiv_id,
+                            'doi': doi,
+                            'citations': citation.citationCount or 0,
+                            'source': 'S2-Citations'
+                        })
+            
+            elif references:
+                console.print(f"[dim]  → Finding papers referenced by: {references}[/dim]")
+                # Get papers referenced by this work
+                paper = sch.get_paper(references)
+                if paper and paper.references:
+                    for reference in itertools.islice(paper.references, limit):
+                        arxiv_id = None
+                        doi = None
+                        if reference.externalIds:
+                            arxiv_id = reference.externalIds.get('ArXiv')
+                            doi = reference.externalIds.get('DOI')
+                        papers.append({
+                            'title': reference.title,
+                            'authors': [a.name for a in (reference.authors or [])][:3],
+                            'year': reference.year,
+                            'abstract': reference.abstract[:400] if reference.abstract else None,
+                            'arxiv_id': arxiv_id,
+                            'doi': doi,
+                            'citations': reference.citationCount or 0,
+                            'source': 'S2-References'
+                        })
+            
+            console.print(f"[green]✓ Found {len(papers)} papers via citation network[/green]")
+            return papers[:limit]
+            
+        except Exception as e:
+            console.print(f"[yellow]Citation network error: {e}[/yellow]")
+            return []
+    
+    # Standard keyword search if no citation params
+    if not query:
+        return [{"error": "Either query or citation network params (cited_by/references) required"}]
     
     console.print(f"[dim]🔍 Unified search: {query}[/dim]")
     
