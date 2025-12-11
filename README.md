@@ -332,20 +332,12 @@ research-agent-cli/
 |------------|---------|---------|------|
 | **PaperQA2** | 5.0+ | RAG for academic papers | [paper-qa](https://github.com/Future-House/paper-qa) |
 | **Qdrant** | Latest | Vector database | [qdrant](https://qdrant.tech/) |
-| **Google Gemini** | 2.0 Flash | LLM for reasoning | [Google AI](https://ai.google.dev/) |
+| **Google Gemini** | 3.0 Pro | LLM for reasoning | [Google AI](https://ai.google.dev/) |
 | **Semantic Scholar** | API v1 | Paper discovery | [semanticscholar.org](https://www.semanticscholar.org/) |
 | **Exa.ai** | Latest | Neural search | [exa.ai](https://exa.ai/) |
 | **Papis** | Latest | Bibliography management | [papis](https://github.com/papis/papis) |
 | **Typst** | 0.11+ | Document typesetting | [typst.app](https://typst.app/) |
 | **Rich** | Latest | Terminal UI | [rich](https://github.com/Textualize/rich) |
-
----
-
-## Documentation
-
-- [Methodology](docs/METHODOLOGY.md) - Research workflow and agent phases
-- [Technical Reference](docs/TECHNICAL.md) - Architecture and implementation details
-- [Limitations](docs/LIMITATIONS.md) - Known constraints and roadmap
 
 ---
 
