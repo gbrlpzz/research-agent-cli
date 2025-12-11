@@ -388,7 +388,7 @@ You are FREE to write as comprehensively as needed to do justice to the topic.
 ## Cover Page Formatting Rules
 1. **Title**: MUST be very short (max 7 words).
 2. **Subtitle**: EVERYTHING after the colon (:) in the topic MUST go here. If no colon, write a descriptive subtitle.
-3. **Date**: Use the fixed date "December 09, 2025".
+3. **Date**: Use today's date: "{current_date}".
 4. **Abstract**: Must be included in the `#show: project.with(...)` call.
 
 ## Output Format
@@ -400,7 +400,7 @@ You are FREE to write as comprehensively as needed to do justice to the topic.
   title: "Short Main Title",
   subtitle: "Everything after the colon goes here",
   authors: ("Research Agent",),
-  date: "December 09, 2025", 
+  date: "{current_date}", 
   abstract: [
     Concise abstract summarizing topic and findings.
   ]
@@ -524,7 +524,7 @@ def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None, argume
     ))
     
     # Inject current date into system prompt
-    system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date)
+    system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date).replace("{current_date}", current_date)
     
     # Build user prompt with optional research plan and argument map
     plan_section = ""
@@ -714,10 +714,16 @@ def fix_typst_error(typst_path: Path, error_msg: str):
             # Or just append a * to the end?
             pass
             
-    # Fix 3: Invalid references (e.g., @key with special chars)
-    # Typst only allows letters, numbers, _, - in labels
-    # If error is "label does not exist", we handled that via refs.bib generation, 
-    # but maybe the key format is wrong in the typ file?
+    # Fix 3: Missing citation labels - remove hallucinated @keys
+    if 'label' in error_msg and 'does not exist' in error_msg:
+        import re
+        # Extract the missing key from error like: label `<keyname>` does not exist
+        match = re.search(r'label `<([^>]+)>` does not exist', error_msg)
+        if match:
+            missing_key = match.group(1)
+            console.print(f"[yellow]Auto-removing hallucinated citation: @{missing_key}[/yellow]")
+            # Remove the @key from the content (with optional surrounding space)
+            content = re.sub(rf'\s*@{re.escape(missing_key)}', '', content)
     
     # Fix 4: Wrong bibliography filename
     if 'file not found' in error_msg and 'master.bib' in error_msg:
