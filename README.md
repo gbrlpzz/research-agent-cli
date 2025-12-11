@@ -4,7 +4,7 @@
     <strong>Autonomous Research Assistant and Paper Writer</strong>
   </p>
   <p align="center">
-    An agentic system that conducts academic research, synthesizes findings, and generates publication-ready documents with verified citations.
+    An agentic system that conducts academic research, synthesizes findings, and generates compiled documents with verified citations.
   </p>
 </p>
 
@@ -37,7 +37,7 @@ Research Agent CLI is a command-line tool that autonomously conducts academic re
 6. **Reviews** output through an automated peer review system
 7. **Revises** based on feedback until quality thresholds are met
 
-The agent produces publication-ready PDFs with full bibliographies, saved to versioned report directories.
+The agent produces compiled PDFs with full bibliographies, saved to versioned report directories.
 
 ---
 
@@ -286,7 +286,7 @@ graph TB
 | **Vector Database** | Qdrant | Persistent document embeddings |
 | **Embeddings** | text-embedding-004 | Document vectorization |
 | **Bibliography** | Papis | Local PDF library management |
-| **Typesetting** | Typst | Publication-ready PDF generation |
+| **Typesetting** | Typst | compiled PDF generation |
 
 ---
 
