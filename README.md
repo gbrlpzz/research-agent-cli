@@ -319,7 +319,6 @@ research-agent-cli/
 ├── library/              # Local PDF collection (Papis)
 ├── reports/              # Generated research outputs
 ├── templates/            # Typst templates
-├── docs/                 # Documentation
 └── master.bib            # Master bibliography
 ```
 
