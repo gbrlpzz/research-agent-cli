@@ -1,0 +1,85 @@
+{
+  "thesis": "Applied Research Organizations (AROs) operating in 'Pasteur's Quadrant' constitute the necessary institutional innovation required to operationalize the EU 2028-2034 research mandate within fragile territories, bridging the gap between high-level mission-oriented policy and the specific governance needs of post-urban rural landscapes.",
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "Current EU territorial governance models suffer from a 'structural innovation deficit' in fragile regions, as existing mechanisms rely on urban-centric agglomeration effects that do not function in low-density, post-urban landscapes.",
+      "evidence_needed": [
+        "Demographic and economic data analysis of 'left-behind' places vs. urban hubs",
+        "Literature review on the failure of 'spatially blind' innovation policies in the EU",
+        "Evaluation of previous Cohesion Policy outcomes in inner peripheries"
+      ],
+      "counter_arguments": [
+        "Territorial fragility is primarily a resource allocation issue, not an innovation/governance issue",
+        "Digitalization makes physical proximity and specific territorial governance less relevant"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "C2",
+      "claim": "The emerging EU 2028-2034 R&I framework's emphasis on 'mission-oriented' and 'place-based' innovation creates a specific policy demand for intermediaries that can translate high-level goals into local experimental action.",
+      "evidence_needed": [
+        "Textual analysis of EU FP10 (Framework Programme 10) preparatory documents and high-level expert group reports",
+        "Analysis of the 'Mission' approach evolution from Horizon Europe to the 2028-2034 outlook",
+        "Budgetary trend analysis favoring applied/impact-driven research over purely theoretical streams"
+      ],
+      "counter_arguments": [
+        "The 2028-2034 framework will prioritize deep-tech and defense over territorial cohesion",
+        "Mission-oriented policies are designed to be implemented by large established players (universities/corporates), not new local actors"
+      ],
+      "dependencies": [
+        "C1"
+      ]
+    },
+    {
+      "id": "C3",
+      "claim": "AROs, by operating in 'Pasteur's Quadrant' (use-inspired basic research), offer a unique value proposition that neither traditional universities (too theoretical) nor commercial consultancies (too short-term) can provide for fragile territories.",
+      "evidence_needed": [
+        "Comparative institutional analysis of R&I models (Universities vs. RTOs vs. Consultancies)",
+        "Theoretical mapping of the 'Pasteur's Quadrant' model onto the specific needs of rural governance (e.g., long-term adaptation vs. quick fixes)",
+        "Gap analysis of current R&I actors present in EU inner peripheries"
+      ],
+      "counter_arguments": [
+        "Fragile territories lack the human capital and infrastructure to support high-level applied research",
+        "Universities can sufficiently adapt their third-mission activities to cover this gap without creating new organizations"
+      ],
+      "dependencies": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "id": "C4",
+      "claim": "Existing 'proto-AROs' and experimental innovation intermediaries in peripheral Europe demonstrate that decentralized, research-driven interventions successfully catalyze local resilience and governance transformation.",
+      "evidence_needed": [
+        "Case studies of successful rural living labs, fab labs, or independent research institutes in EU peripheries",
+        "Impact assessments of these proto-AROs on local policy formulation",
+        "Qualitative interviews with stakeholders regarding the 'absorptive capacity' created by these organizations"
+      ],
+      "counter_arguments": [
+        "Success cases are outliers driven by charismatic leadership rather than replicable institutional models",
+        "These organizations remain dependent on continuous subsidies and fail to achieve self-sustainability"
+      ],
+      "dependencies": [
+        "C3"
+      ]
+    },
+    {
+      "id": "C5",
+      "claim": "To function as strategic vehicles for the 2028-2034 mandate, AROs require a specific institutional design characterized by 'embedded autonomy'\u2014deep integration with local governance for legitimacy combined with financial/scientific independence to pursue experimental risks.",
+      "evidence_needed": [
+        "Organizational design analysis of successful Research and Technology Organisations (RTOs)",
+        "Governance framework proposal linking AROs to local public administration",
+        "Funding model analysis (mix of competitive EU grants, local service contracts, and core funding)"
+      ],
+      "counter_arguments": [
+        "Local governance in fragile areas is often too weak or resistant to change to partner effectively with AROs",
+        "The administrative burden of EU funding prevents small AROs from operating effectively"
+      ],
+      "dependencies": [
+        "C3",
+        "C4"
+      ]
+    }
+  ]
+}

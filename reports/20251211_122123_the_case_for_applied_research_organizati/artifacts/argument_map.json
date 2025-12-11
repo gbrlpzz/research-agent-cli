@@ -1,0 +1,84 @@
+{
+  "thesis": "To address the governance gap in post-urbanization fragile territories under the EU 2028-2034 R&I mandate, the European Union must institutionalize Applied Research Organizations (AROs) operating in Pasteur's Quadrant as a distinct structural layer of territorial governance.",
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "Current EU territorial governance mechanisms exhibit a 'structural lag,' failing to address the specific wicked problems of fragile, post-urbanized landscapes where standard market-driven or purely academic interventions are ineffective.",
+      "evidence_needed": [
+        "Demographic and economic data showing the divergence between urban centers and fragile territories despite existing Cohesion Policy",
+        "Policy analysis of current Smart Specialization Strategies (S3) identifying gaps in rural/peripheral application",
+        "Literature review on 'places that left behind' and the failure of sector-blind policies"
+      ],
+      "counter_arguments": [
+        "Existing Cohesion Policy and CAP (Common Agricultural Policy) instruments are sufficient if better implemented",
+        "Digitalization and remote work trends will naturally correct territorial imbalances without new institutions"
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "C2",
+      "claim": "The 'Pasteur's Quadrant' model (use-inspired basic research) provides the necessary epistemological framework for AROs to bridge the gap between high-level EU policy goals and hyper-local implementation, a function traditional universities and consultancies cannot fulfill.",
+      "evidence_needed": [
+        "Comparative analysis of incentive structures in Universities (publication-driven) vs. Commercial R&D (profit-driven) vs. AROs (mission-driven)",
+        "Theoretical mapping of territorial fragility problems against the Pasteur\u2019s Quadrant framework",
+        "Epistemological critique of current 'projectification' of research in rural contexts"
+      ],
+      "counter_arguments": [
+        "Universities are already shifting to 'Third Mission' activities and can fill this role",
+        "Creating a new class of organizations adds unnecessary bureaucratic complexity to the R&I landscape"
+      ],
+      "dependencies": [
+        "C1"
+      ]
+    },
+    {
+      "id": "C3",
+      "claim": "The emerging strategic orientation of the EU 2028-2034 R&I mandate (FP10 context) creates a specific political and financial window for mission-oriented intermediaries that prioritize societal resilience and place-based innovation.",
+      "evidence_needed": [
+        "Textual analysis of High-Level Group reports and working documents regarding FP10/post-Horizon Europe",
+        "Review of the 'Mission-Oriented Innovation Policy' (MOIP) evolution within EU structures",
+        "Budgetary trend analysis favoring impact-driven ecosystems over isolated excellence"
+      ],
+      "counter_arguments": [
+        "The 2028-2034 mandate will prioritize defense, industrial competitiveness, and AI over territorial cohesion",
+        "Place-based policies are being deprioritized in favor of sector-based industrial strategies"
+      ],
+      "dependencies": [
+        "C1"
+      ]
+    },
+    {
+      "id": "C4",
+      "claim": "Emergent 'proto-AROs' and experimental living labs currently operating in fragile European territories provide validatable prototypes of the ARO model, demonstrating that local embedding is a prerequisite for successful technological and social transfer.",
+      "evidence_needed": [
+        "Case studies of existing independent research institutes or Living Labs in peripheral EU regions",
+        "Impact metrics comparing 'fly-in/fly-out' research interventions vs. embedded institutional presence",
+        "Interviews with regional stakeholders regarding trust and adoption of innovation"
+      ],
+      "counter_arguments": [
+        "Current success stories are anecdotal and dependent on charismatic leadership rather than replicable models",
+        "These organizations lack financial sustainability without perpetual public subsidy"
+      ],
+      "dependencies": [
+        "C2"
+      ]
+    },
+    {
+      "id": "C5",
+      "claim": "To scale successfully, AROs must be structured not as isolated projects but as a networked institutional infrastructure that balances local autonomy with EU-wide knowledge exchange.",
+      "evidence_needed": [
+        "Organizational design models for federalized or networked research institutes (e.g., Fraunhofer model adapted for fragility)",
+        "Governance framework proposals for EU-Local partnerships",
+        "Analysis of funding mechanisms that allow for long-term operational stability vs. short-term project cycles"
+      ],
+      "counter_arguments": [
+        "A standardized institutional model cannot account for the extreme heterogeneity of European territories",
+        "Centralized EU networking requirements will stifle the local agility that makes AROs effective"
+      ],
+      "dependencies": [
+        "C3",
+        "C4"
+      ]
+    }
+  ]
+}

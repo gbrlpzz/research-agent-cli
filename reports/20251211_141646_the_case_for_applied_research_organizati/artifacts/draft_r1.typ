@@ -1,0 +1,75 @@
+#import "lib.typ": project
+
+#show: project.with(
+  title: "Innovation in Fragility",
+  subtitle: "The Role of Applied Research Organizations in Territorial Resilience",
+  authors: ("Research Agent",),
+  date: "December 09, 2025", 
+  abstract: [
+    Territories exhibiting fragility—characterized by economic stagnation, institutional voids, and low absorptive capacity—present a unique challenge for innovation policy. While core urban centers benefit from dense agglomeration economies, fragile regions often face a "Regional Innovation Paradox" where the need for innovation is high but the capacity to absorb it is low. This paper argues that Applied Research Organizations (AROs) and Research and Technology Organizations (RTOs) act as critical institutional intermediaries in these contexts. By shifting from traditional "technology push" models to "capacity building" strategies, RTOs can bridge the "valley of death" not only for products but for regional ecosystems. We analyze the role of RTOs in fostering absorptive capacity, compensating for institutional thinness, and implementing place-based innovation strategies. Finally, we critique current performance-based funding models that disincentivize long-term territorial cohesion missions.
+  ]
+)
+
+#outline(indent: auto)
+#pagebreak()
+
+= Introduction
+The disparity between core technological hubs and peripheral, "left-behind" regions has become a central concern in economic geography and innovation policy. While metropolitan centers thrive on dense networks of academic and industrial collaboration, fragile territories—often defined by demographic decline, weak institutions, and industrial obsolescence—struggle to participate in the global knowledge economy @Sustainable_and_Benner_2024. In these contexts, the standard instruments of innovation policy, such as R&D tax credits or high-tech cluster formation, frequently fail due to a fundamental lack of local absorptive capacity @The_Regional_In_Oughto_2002.
+
+Applied Research Organizations (AROs) and Research and Technology Organizations (RTOs) occupy a distinct niche between the abstract theory of universities and the commercial imperatives of private firms. This hybrid position theoretically enables them to serve as "system integrators" in fragile ecosystems @Public_Research_Loikka_2011. However, the prevailing operational models of RTOs are often derived from the experiences of advanced industrial regions (e.g., the Fraunhofer model in Germany), which assumes a pre-existing density of innovative SMEs ready to absorb advanced technology.
+
+This paper argues that for RTOs to effectively address territorial fragility, they must transcend their traditional role as technology suppliers and adopt the mantle of "change agents" @Change_agency_a_Sotara_2023. This requires a strategic pivot towards building regional absorptive capacity, fostering related variety through "small wins" @Combining_knowl_Friedr_2024, and compensating for institutional voids @New_tech_spaces_Ciapet_2018. We further contend that current public funding mechanisms, which increasingly prioritize commercial revenue and short-term efficiency, undermine the ability of RTOs to fulfill this cohesive mandate in peripheral regions @Cohesion_or_Wid_Pato_2023.
+
+= The Regional Innovation Paradox in Fragile Territories
+The "Regional Innovation Paradox," first articulated by Oughton et al., suggests that the regions with the greatest need for innovation support are precisely those with the lowest capacity to utilize public funds effectively @The_Regional_In_Oughto_2002. In fragile territories, this paradox manifests through "organizational thinness"—a scarcity of innovative firms, knowledge providers, and connecting institutions @Shaping_smart_s_Trippl_2020.
+
+== Institutional Voids and Lock-in
+Fragile regions are often characterized by "lock-in" to declining industrial paths. Unlike core regions where institutional thickness facilitates knowledge spillovers, peripheral regions suffer from institutional voids where the necessary links between actors are missing or fragmented @Sustainable_and_Benner_2024.
+Trippl et al. identify that in less-developed regions, the challenge is not merely a lack of technology, but a lack of *connectivity* and *trust* among local actors @Shaping_smart_s_Trippl_2020. RTOs entering these spaces cannot simply "transfer" technology; they must first construct the relational infrastructure that makes transfer possible. Without this institutional scaffolding, high-tech interventions become "cathedrals in the desert"—isolated enclaves with no connection to the local economic fabric @Oasis_in_the_de_Atta_O_2019.
+
+== The Limits of University-Centric Models
+While universities are key players in regional development, their primary mandate for global academic excellence can sometimes decouple them from local needs @New_tech_spaces_Ciapet_2018. In contrast, RTOs are specifically designed to bridge the gap between science and application. However, in fragile regions, the "demand side" (local SMEs) is often too weak to articulate its needs effectively. This creates a market failure where private R&D services are viable only in core regions, leaving peripheral SMEs underserved @Work_and_Effect_Schenk_2017.
+
+= From Technology Transfer to Capacity Building
+To overcome the innovation paradox, RTOs in fragile regions must shift their operational focus from "technology push" to "capacity building." This involves cultivating the region's *absorptive capacity*—the ability of local firms to recognize, assimilate, and apply new knowledge @Oasis_in_the_de_Atta_O_2019.
+
+== Building Absorptive Capacity
+Atta-Owusu describes academics and research organizations in peripheral regions as potential "oases in the desert," serving as conduits for global knowledge flows @Oasis_in_the_de_Atta_O_2019. However, for this global knowledge to stick, RTOs must engage in active workforce upskilling and co-creation.
+Research by Friedrich and Feser suggests that in peripheral regions, innovation is often driven by "small wins"—incremental improvements and the recombination of existing knowledge bases rather than radical breakthroughs @Combining_knowl_Friedr_2024. RTOs are uniquely positioned to facilitate these small wins by helping traditional industries modernize through incremental digitalization or process improvements, rather than attempting to leapfrog into unrelated high-tech sectors.
+
+== Change Agency and Path Development
+Sotarauta et al. emphasize the role of "change agency" in peripheral regions, noting that structural constraints can only be overcome by intentional, agency-driven interventions @Change_agency_a_Sotara_2023. RTOs act as "institutional entrepreneurs" by:
++ *Interpreting global trends* for local actors (e.g., explaining how green transition regulations affect local pulp production).
++ *Creating spaces for interaction* where trust can be built between competitors.
++ *Legitimizing new paths* by demonstrating the feasibility of new technologies in local contexts.
+
+= RTOs as System Integrators
+In the absence of dense private networks, RTOs often must step in to compensate for institutional voids, effectively acting as the "glue" of the regional innovation system.
+
+== Network Weaving and Connectivity
+Ciapetti and Perulli highlight that RTOs in "old tech places" (industrial districts) serve as critical nodes that reconnect these regions to global value chains @New_tech_spaces_Ciapet_2018. By participating in European projects (e.g., Horizon Europe), RTOs bring external knowledge into the region.
+However, this role is precarious. If the RTO becomes too focused on international excellence to secure funding, it risks becoming an "ivory tower" similar to research universities. The challenge is to maintain a "dual embeddeness"—embedded in global scientific networks *and* deeply rooted in local industrial realities @Oasis_in_the_de_Atta_O_2019 @Shaping_smart_s_Trippl_2020.
+
+== Supporting Related Variety
+Effective diversification in fragile regions usually follows the principle of "related variety"—expanding into sectors that share capabilities with existing industries. RTOs support this by identifying latent capabilities in local firms and bridging them to new applications. For example, helping a textile firm pivot to technical fabrics for automotive use requires both technical testing (RTO core competence) and market intelligence (RTO intermediary role) @Combining_knowl_Friedr_2024.
+
+= Policy and Funding Implications
+A major barrier to the effective deployment of RTOs in fragile territories is the misalignment of funding incentives.
+
+== The Funding Mismatch
+Loikkanen et al. note that the trend towards "New Public Management" has pushed RTOs to maximize commercial revenue and efficiency @Public_Research_Loikka_2011. This creates a bias against working with fragile region SMEs, which often require intensive, low-margin support and cannot pay market rates for R&D services.
+Pató and Petri argue that EU funding mechanisms, while ostensibly aiming for cohesion, often concentrate resources in regions with high pre-existing R&D performance, exacerbating the divide @Cohesion_or_Wid_Pato_2023. Competitive funding rewards "excellence" (citations, patents, high-tech startups), which inherently favors core regions over peripheral ones where success might look like "avoiding bankruptcy" or "incremental process upgrade."
+
+== Towards Place-Based Metrics
+To unlock the potential of RTOs in fragile regions, policy frameworks must decouple a portion of funding from short-term commercial metrics.
+Schenk proposes measuring the "regional development effect" of RTOs, which would include indicators like:
+- Increase in local firm survival rates.
+- Number of first-time R&D collaborations with SMEs.
+- Retention of technical talent in the region @Work_and_Effect_Schenk_2017.
+Without such structural funding reform, RTOs will rationally gravitate towards serving large, established firms in core regions, leaving fragile territories to drift further behind.
+
+= Conclusion
+Territorial fragility is not merely an economic condition but a systemic failure of connectivity and capacity. Applied Research Organizations possess the structural potential to address these failures by acting as intermediaries that build absorptive capacity, bridge institutional voids, and facilitate incremental path development. However, this potential is currently constrained by funding models that prioritize commercial efficiency over territorial cohesion.
+For RTOs to serve as genuine catalysts for resilience, innovation policy must recognize their role not just as technology providers, but as critical infrastructure for regional development. This requires a shift from "place-blind" excellence metrics to "place-based" impact measures that value the "small wins" and capacity building essential for revitalizing left-behind places.
+
+#bibliography("refs.bib")
