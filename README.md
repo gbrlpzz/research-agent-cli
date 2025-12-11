@@ -13,7 +13,6 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#documentation">Docs</a>
 </p>
 
 <p align="center">
