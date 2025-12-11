@@ -141,14 +141,16 @@ TOOLS = [
     types.Tool(function_declarations=[
         types.FunctionDeclaration(
             name="discover_papers",
-            description="Search for papers using Semantic Scholar + paper-scraper. Use FIRST to find papers.",
+            description="Search for papers using Semantic Scholar + paper-scraper, OR traverse citation networks. Use FIRST to find papers.",
             parameters=types.Schema(
                 type=types.Type.OBJECT,
                 properties={
-                    "query": types.Schema(type=types.Type.STRING, description="Search query for the topic"),
-                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 15)")
+                    "query": types.Schema(type=types.Type.STRING, description="Search query (required unless using citation params)"),
+                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 15)"),
+                    "cited_by": types.Schema(type=types.Type.STRING, description="DOI/paper ID for forward citations (papers citing this)"),
+                    "references": types.Schema(type=types.Type.STRING, description="DOI/paper ID for backward citations (papers cited by this)")
                 },
-                required=["query"]
+                required=[]
             )
         ),
         types.FunctionDeclaration(
@@ -294,17 +296,31 @@ Validate a list of citation keys before writing.
 - Returns valid/invalid keys and suggestions
 - Use this to double-check your citations
 
-## Research Workflow (Library-First, Gap-Driven)
+## Research Workflow (Argument-Driven, Citation-Network Enhanced)
+
+PHASE 0: ARGUMENT STRUCTURE (if provided)
+- You may receive an argument map with thesis, claims, evidence requirements
+- Use this to guide what evidence you need to find
+- Focus library queries on specific evidence requirements
 
 PHASE 1: LIBRARY SCAN
 - list_library() to see available papers
 - query_library() for EACH sub-question from research plan
 - Identify which questions have good coverage vs gaps
 
-PHASE 2: TARGETED DISCOVERY (gaps only)
-- discover_papers() for questions that lack library coverage
+PHASE 2: MULTI-STRATEGY DISCOVERY (gaps only)
+**Strategy 1 - Keyword Search**:
+- discover_papers(query="...") for questions that lack library coverage
+
+**Strategy 2 - Citation Networks** (NEW!):
+- For seminal papers, find what cites them: discover_papers(cited_by="DOI/ID")
+- For key papers, find what they reference: discover_papers(references="DOI/ID")
+- Citation hubs = papers cited by MULTIPLE library papers (high impact)
+
+**Execution**:
 - add_paper() for 3-5 most relevant papers per gap (one at a time)
 - query_library() IMMEDIATELY after adding to use the new knowledge
+- Use BOTH keyword AND citation network searches for comprehensive coverage
 
 PHASE 3: EVIDENCE SYNTHESIS
 - For each planned section, query_library() to gather evidence
@@ -312,12 +328,30 @@ PHASE 3: EVIDENCE SYNTHESIS
 - fuzzy_cite() for EVERY paper you want to cite
 - Keep track of ALL @keys returned by fuzzy_cite()
 
-PHASE 4: WRITE DRAFT
-- Write Typst document using ONLY @keys from fuzzy_cite()
-- Every claim must have a citation from fuzzy_cite()
-- If a key wasn't returned by fuzzy_cite(), DO NOT USE IT
+PHASE 4: MULTI-PASS DRAFTING (NEW!)
+**Pass 1 - Outline**:
+- Create detailed outline with key points
+- Map evidence (@citation_keys) to each point
+- Verify evidence availability via query_library()
 
-🚨 PHASE 5: VALIDATE BEFORE FINALIZING (CRITICAL!)
+**Pass 2 - Section-by-Section**:
+- Draft each section independently
+- Validate citations in each section before moving on
+- Use fuzzy_cite() to get exact keys
+
+**Pass 3 - Integration**:
+- Combine sections
+- Add transitions
+- Final coherence check
+
+PHASE 5: SELF-CRITIQUE (NEW!)
+BEFORE peer review, self-check:
+1. Citation density: 3-5 per paragraph?
+2. Counter-arguments addressed?
+3. Major claims verified via query_library()?
+4. Logical flow clear?
+
+🚨 PHASE 6: VALIDATE BEFORE FINALIZING (CRITICAL!)
 BEFORE outputting the final document, you MUST:
 1. Extract ALL @citation_keys from your draft
 2. Call validate_citations(citation_keys) with the complete list
@@ -474,8 +508,8 @@ NEVER use ** for bold - this causes compilation errors!
 # AGENT LOOP
 # ============================================================================
 
-def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None) -> str:
-    """Run the research agent on a topic with optional research plan."""
+def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None, argument_map: Optional[Dict[str, Any]] = None) -> str:
+    """Run the research agent on a topic with optional research plan and argument map."""
     global _used_citation_keys
     _used_citation_keys = set()  # Reset for new run
     
@@ -492,7 +526,7 @@ def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None) -> str
     # Inject current date into system prompt
     system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date)
     
-    # Build user prompt with optional research plan
+    # Build user prompt with optional research plan and argument map
     plan_section = ""
     if research_plan:
         plan_section = f"""
@@ -503,22 +537,37 @@ RESEARCH PLAN:
 - Search Queries: {', '.join(research_plan.get('search_queries', [])[:3])}
 """
     
+    argument_section = ""
+    if argument_map:
+        argument_section = f"""
+ARGUMENT MAP (Evidence Requirements):
+- Thesis: {argument_map.get('thesis', 'N/A')}
+- Claims to Support:
+"""
+        for claim in argument_map.get('claims', [])[:5]:
+            argument_section += f"  {claim['id']}: {claim['claim']}\n"
+            if claim.get('evidence_needed'):
+                argument_section += f"    Evidence: {', '.join(claim['evidence_needed'])}\n"
+            if claim.get('counter_arguments'):
+                argument_section += f"    Counter-args: {', '.join(claim['counter_arguments'])}\n"
+    
     contents = [
         types.Content(
             role="user",
             parts=[types.Part(text=f"""Research this topic and produce a Typst document:
 
 TOPIC: {topic}
-{plan_section}
-IMPORTANT - Follow the RAG-First workflow:
+{plan_section}{argument_section}
+IMPORTANT - Follow the enhanced RAG-First workflow:
 1. FIRST query_library() with the main topic to see what knowledge already exists
-2. Identify gaps in the existing knowledge
-3. discover_papers() to find papers addressing those gaps
+2. Identify gaps in the existing knowledge (especially for argument map claims)
+3. Use BOTH keyword search AND citation networks to discover papers
 4. add_paper() for the most relevant papers
 5. query_library() again with more specific questions
-6. Repeat until comprehensive
-7. fuzzy_cite() to get @citation_keys
-8. Output complete Typst document (use date: "{current_date}")""")]
+6. Follow multi-pass drafting (outline → sections → integration)
+7. Self-critique before finalizing
+8. fuzzy_cite() to get @citation_keys
+9. Output complete Typst document (use date: "{current_date}")""")]
         )
     ]
     
@@ -809,6 +858,119 @@ def create_research_plan(topic: str) -> Dict[str, Any]:
             "expected_sections": ["Introduction", "Background", "Analysis", "Conclusion"],
             "search_queries": [topic]
         }
+
+
+# ============================================================================
+# ARGUMENT DISSECTION (Phase 0)
+# ============================================================================
+
+ARGUMENT_DISSECTION_PROMPT = """You are analyzing a research topic to create a rigorous argument map.
+
+Your task is to dissect the logical structure of the argument BEFORE searching for papers.
+This ensures targeted, evidence-driven research rather than exploratory browsing.
+
+Output a JSON structure with:
+1. "thesis": The central claim or main argument
+2. "claims": Array of 3-7 supporting sub-claims, each with:
+   - "id": Unique identifier (C1, C2, etc.)
+   - "claim": The specific sub-claim statement
+   - "evidence_needed": Array of evidence types (e.g., "theoretical analysis", "empirical benchmarks")
+   - "counter_arguments": Array of potential opposing views to address
+   - "dependencies": Array of claim IDs this depends on (e.g., ["C1"])
+
+Be explicit about evidence requirements. Output ONLY valid JSON, no markdown."""
+
+def create_argument_map(topic: str, research_plan: Dict[str, Any]) -> Dict[str, Any]:
+    """Create argument map before research (Phase 0: Argument Dissection)."""
+    console.print(Panel(
+        f"[bold magenta]🎯 Argument Dissection[/bold magenta]\\n\\n"
+        f"Mapping logical structure for:\\n[white]{topic}[/white]",
+        border_style="magenta"
+    ))
+    
+    default_map = {
+        "thesis": research_plan.get('main_question', topic),
+        "claims": [
+            {
+                "id": "C1",
+                "claim": research_plan.get('main_question', topic),
+                "evidence_needed": ["literature review"],
+                "counter_arguments": [],
+                "dependencies": []
+            }
+        ]
+    }
+    
+    # Build context from research plan
+    context = f"""
+TOPIC: {topic}
+
+RESEARCH PLAN:
+- Main Question: {research_plan.get('main_question', topic)}
+- Sub-questions: {', '.join(research_plan.get('sub_questions', [])[:5])}
+- Key Concepts: {', '.join(research_plan.get('key_concepts', [])[:5])}
+"""
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model=AGENT_MODEL,
+                contents=[
+                    types.Content(role="user", parts=[types.Part(text=ARGUMENT_DISSECTION_PROMPT + context)])
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                )
+            )
+            
+            if response.candidates and response.candidates[0].content.parts:
+                text = response.candidates[0].content.parts[0].text
+                if text and text.strip():
+                    break
+            
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Empty response, retrying ({attempt + 2}/{max_retries})...[/yellow]")
+                time.sleep(2)
+            else:
+                console.print("[yellow]Using default argument map[/yellow]")
+                return default_map
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Error: {e}, retrying ({attempt + 2}/{max_retries})...[/yellow]")
+                time.sleep(2)
+            else:
+                console.print(f"[yellow]Failed: {e}, using defaults[/yellow]")
+                return default_map
+    
+    # Extract JSON
+    try:
+        if "```json" in text:
+            json_match = re.search(r'```json\\s*(.*?)\\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+        elif "```" in text:
+            json_match = re.search(r'```\\s*(.*?)\\s*```', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(1)
+        
+        argument_map = json.loads(text)
+        console.print("[green]✓ Argument map created[/green]")
+        
+        # Display map
+        console.print(f"\\n[bold]Thesis:[/bold] {argument_map.get('thesis', 'N/A')}")
+        if argument_map.get('claims'):
+            console.print(f"[bold]Claims ({len(argument_map['claims'])}):[/bold]")
+            for claim in argument_map['claims'][:5]:
+                console.print(f"  {claim['id']}: {claim['claim'][:80]}...")
+                if claim.get('dependencies'):
+                    console.print(f"      [dim]Depends on: {', '.join(claim['dependencies'])}[/dim]")
+        
+        return argument_map
+    except json.JSONDecodeError:
+        console.print("[yellow]Could not parse argument map, using defaults[/yellow]")
+        return default_map
 
 
 # ============================================================================
@@ -1253,13 +1415,24 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
     log_debug(f"Research plan created: {json.dumps(research_plan)}")
     
+    # ========== PHASE 1b: ARGUMENT DISSECTION ==========
+    console.print(Panel(
+        f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]",
+        border_style="magenta", width=60
+    ))
+    
+    argument_map = create_argument_map(topic, research_plan)
+    save_checkpoint("argument_map", {"map": argument_map})
+    (artifacts_dir / "argument_map.json").write_text(json.dumps(argument_map, indent=2))
+    log_debug(f"Argument map created: {json.dumps(argument_map)}")
+    
     # ========== PHASE 2: RESEARCH & WRITE ==========
     console.print(Panel(
         f"[bold cyan]Phase 2: Research & Writing[/bold cyan]",
         border_style="cyan", width=60
     ))
     
-    typst_content = run_agent(topic, research_plan=research_plan)
+    typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
     
     # Save drafts and generate refs.bib
     save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
