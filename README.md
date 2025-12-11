@@ -280,7 +280,7 @@ graph TB
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **LLM** | Gemini 2.0 Flash | Planning, writing, reviewing |
+| **LLM** | Gemini 3.0 Pro | Planning, writing, reviewing |
 | **RAG Framework** | PaperQA2 | Question-answering over papers |
 | **Vector Database** | Qdrant | Persistent document embeddings |
 | **Embeddings** | text-embedding-004 | Document vectorization |
