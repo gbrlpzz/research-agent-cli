@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Deep Research Agent using PaperQA2 (v5) with Gemini.
+Deep Research Agent using PaperQA2 (v5) with configurable models via LiteLLM.
 Performs autonomous multi-step research: search -> evidence -> answer.
 """
 import sys
@@ -14,6 +14,9 @@ from rich.console import Console
 from rich.markdown import Markdown
 from dotenv import load_dotenv
 from datetime import datetime
+
+# Model routing (reasoning vs RAG)
+from utils.model_config import ModelRouting, ensure_model_env
 
 # Suppress verbose logging
 os.environ['LITELLM_LOG'] = 'ERROR'
@@ -43,22 +46,28 @@ def setup_agent_settings(library_path):
         console.print("[red]Error: paper-qa v5+ is required. Please run: pip install -r requirements.txt[/red]")
         sys.exit(1)
 
-    gemini_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-    if not gemini_key:
-        console.print("[red]Error: GEMINI_API_KEY not found in .env[/red]")
+    routing = ModelRouting.from_env()
+    try:
+        ensure_model_env(routing.rag_model)
+        ensure_model_env(routing.embedding_model)
+    except RuntimeError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print("\n[yellow]Set API keys in .env:[/yellow]")
+        console.print("  OPENAI_API_KEY=...")
+        console.print("  # or for Gemini:")
+        console.print("  GEMINI_API_KEY=...")
         sys.exit(1)
     
-    os.environ['GEMINI_API_KEY'] = gemini_key
-
+    # Keep LiteLLM quiet if installed (PaperQA uses it internally)
     try:
         import litellm
         litellm.set_verbose = False
-    except:
+    except Exception:
         pass
 
-    # 1. Configure LLMs (Gemini 2.5 Flash)
-    llm_model = "gemini/gemini-2.5-flash"
-    embedding_model = "gemini/text-embedding-004"
+    # 1. Configure LLMs
+    llm_model = routing.rag_model
+    embedding_model = routing.embedding_model
     
     # 2. Configure Environment for Search Tools
     # Set defined email for Crossref to be a 'polite' user
@@ -127,10 +136,11 @@ async def run_deep_research(query, library_path):
     import paperqa
     
     settings = setup_agent_settings(library_path)
+    routing = ModelRouting.from_env()
     
     console.print(f"[bold cyan]Starting Deep Research Agent[/bold cyan]")
     console.print(f"[dim]Query: {query}[/dim]")
-    console.print(f"[dim]Backend: Gemini 2.5 Flash[/dim]")
+    console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Concurrency: 1 (Conservative)[/dim]")
     console.print(f"[dim]Tools: Search (Semantic Scholar, Crossref), Evidence Gathering[/dim]")
     console.print()

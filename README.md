@@ -67,7 +67,7 @@ pip install -r requirements.txt
 
 # Configure API keys
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY (required)
+# Edit .env with your OPENAI_API_KEY (required by default)
 
 # Run your first research task
 research agent "Impact of attention mechanisms on neural machine translation"
@@ -130,7 +130,15 @@ Create a `.env` file in the project root:
 
 ```env
 # Required
-GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
+
+# Optional - Model routing (defaults shown)
+RESEARCH_REASONING_MODEL=openai/gpt-5.2-high
+RESEARCH_RAG_MODEL=openai/gpt-5.2-fast
+RESEARCH_EMBEDDING_MODEL=openai/text-embedding-3-large
+
+# Optional - If you want to use Gemini models instead
+# GEMINI_API_KEY=your_gemini_api_key
 
 # Optional - Enhanced discovery
 EXA_API_KEY=your_exa_key
@@ -248,7 +256,7 @@ graph TB
     subgraph RAG
         L[PaperQA2]
         M[Qdrant VectorDB]
-        N[Gemini Embeddings]
+        N[Embeddings Model]
     end
 
     subgraph Generation
@@ -281,10 +289,11 @@ graph TB
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **LLM** | Gemini 2.0 Flash | Planning, writing, reviewing |
+| **LLM (Reasoning)** | GPT-5.2 High | Planning, writing, reviewing |
+| **LLM (RAG)** | GPT-5.2 Fast | PaperQA2 answer + summarization over your library |
 | **RAG Framework** | PaperQA2 | Question-answering over papers |
 | **Vector Database** | Qdrant | Persistent document embeddings |
-| **Embeddings** | text-embedding-004 | Document vectorization |
+| **Embeddings** | text-embedding-3-large | Document vectorization |
 | **Bibliography** | Papis | Local PDF library management |
 | **Typesetting** | Typst | Publication-ready PDF generation |
 
@@ -296,7 +305,11 @@ graph TB
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | Yes | - | Google AI API key |
+| `OPENAI_API_KEY` | Yes (default) | - | OpenAI API key |
+| `RESEARCH_REASONING_MODEL` | No | `openai/gpt-5.2-high` | Model for planning/writing/reviewing |
+| `RESEARCH_RAG_MODEL` | No | `openai/gpt-5.2-fast` | Model for PaperQA RAG |
+| `RESEARCH_EMBEDDING_MODEL` | No | `openai/text-embedding-3-large` | Embedding model for indexing |
+| `GEMINI_API_KEY` | No | - | Google AI API key (only if you select Gemini models) |
 | `EXA_API_KEY` | No | - | Exa.ai API key for neural search |
 | `SEMANTIC_SCHOLAR_API_KEY` | No | - | S2 API key (higher rate limits) |
 | `AGENT_MAX_ITERATIONS` | No | 50 | Max agent loop iterations |
@@ -332,7 +345,8 @@ research-agent-cli/
 |------------|---------|---------|------|
 | **PaperQA2** | 5.0+ | RAG for academic papers | [paper-qa](https://github.com/Future-House/paper-qa) |
 | **Qdrant** | Latest | Vector database | [qdrant](https://qdrant.tech/) |
-| **Google Gemini** | 2.0 Flash | LLM for reasoning | [Google AI](https://ai.google.dev/) |
+| **OpenAI** | GPT-5.2 High/Fast | Reasoning + RAG models | [OpenAI](https://platform.openai.com/) |
+| **LiteLLM** | Latest | Unified model router (tool calling + providers) | [litellm](https://github.com/BerriAI/litellm) |
 | **Semantic Scholar** | API v1 | Paper discovery | [semanticscholar.org](https://www.semanticscholar.org/) |
 | **Exa.ai** | Latest | Neural search | [exa.ai](https://exa.ai/) |
 | **Papis** | Latest | Bibliography management | [papis](https://github.com/papis/papis) |
@@ -352,7 +366,8 @@ research-agent-cli/
 ## Roadmap
 
 - [ ] Resume from checkpoint (crash recovery)
-- [ ] Multi-model support (Claude, GPT-4, local models)
+- [x] Separate reasoning vs RAG models (via env/CLI model routing)
+- [ ] Additional providers (Claude, local models)
 - [ ] Web interface for report browsing
 - [ ] Collaborative research sessions
 - [ ] Figure and table extraction from PDFs
@@ -380,4 +395,4 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) fo
 
 ## Acknowledgments
 
-Built with [PaperQA2](https://github.com/Future-House/paper-qa) by Future House, [Qdrant](https://qdrant.tech/), and [Google Gemini](https://ai.google.dev/).
+Built with [PaperQA2](https://github.com/Future-House/paper-qa) by Future House, [Qdrant](https://qdrant.tech/), and [LiteLLM](https://github.com/BerriAI/litellm).

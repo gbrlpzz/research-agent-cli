@@ -1,0 +1,80 @@
+{
+  "thesis": "Applied Research and Technology Organisations (RTOs) are uniquely positioned to address EU territorial fragility within the upcoming FP10 programme by operationalizing place-based innovation ecosystems, provided specific funding instruments incentivize their engagement in peripheral regions.",
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "Territorial fragility in the EU is increasingly defined by the lack of local innovation capacity and institutional thickness, rather than just economic indicators like GDP.",
+      "evidence_needed": "Definitions from JRC reports, European Commission policy papers on cohesion, and academic literature redefining 'left-behind places' or 'innovation deserts'.",
+      "what_would_change_mind": "Evidence that fragility is primarily determined by external macroeconomic shocks or immutable geographic factors rather than endogenous innovation capacity.",
+      "counter_arguments": [
+        "Fragility is best addressed through direct infrastructure investment or social transfers, not innovation capacity.",
+        "Innovation is a result of economic health, not a driver of it in fragile regions."
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "C2",
+      "claim": "RTOs serve as critical intermediaries that can translate high-level EU innovation targets into localized industrial applications suitable for fragile regions.",
+      "evidence_needed": "Case studies of RTOs (e.g., Fraunhofer, TNO, Tecnalia) successfully implementing Smart Specialisation Strategies (S3) in lagging regions; Comparative data on RTO impact vs. university impact in these areas.",
+      "what_would_change_mind": "Data showing RTO activities are strictly concentrated in 'super-hubs' and have negligible spillover effects on their immediate lagging surroundings.",
+      "counter_arguments": [
+        "RTOs are naturally incentivized to work with elite industry players in wealthy regions to maximize revenue.",
+        "Local SMEs in fragile regions lack the absorptive capacity to engage with RTOs."
+      ],
+      "dependencies": [
+        "C1"
+      ]
+    },
+    {
+      "id": "C3",
+      "claim": "Current funding mechanisms in FP9 (Horizon Europe) systematically under-incentivize RTO engagement in territorially fragile areas due to excellence-based competition criteria.",
+      "evidence_needed": "Participation statistics of RTOs in Widening participation actions; Analysis of success rates for consortiums led by peripheral RTOs; Evaluation reports of Horizon Europe pillars.",
+      "what_would_change_mind": "Statistics showing proportionate or over-representation of RTOs from or working in fragile regions within Pillar 2 of Horizon Europe.",
+      "counter_arguments": [
+        "The lack of engagement is due to a lack of talent/merit in those regions, not structural disincentives in the funding mechanism.",
+        "Widening instruments are already sufficient to address this gap."
+      ],
+      "dependencies": []
+    },
+    {
+      "id": "C4",
+      "claim": "Successful past interventions demonstrate that RTOs increase regional resilience by diversifying local economic structures beyond mono-industrial dependencies.",
+      "evidence_needed": "Longitudinal economic data of regions with active RTO outposts; Impact assessments of specific RTO-led regional diversification projects.",
+      "what_would_change_mind": "Evidence that RTOs reinforce existing lock-ins (e.g., supporting a dying industry) rather than fostering diversification.",
+      "counter_arguments": [
+        "RTOs tend to support incumbent firms, potentially delaying necessary structural adjustment.",
+        "Regional resilience is more strongly correlated with education levels than RTO presence."
+      ],
+      "dependencies": [
+        "C2"
+      ]
+    },
+    {
+      "id": "C5",
+      "claim": "The emerging architecture of FP10 (e.g., Heitor Group recommendations) allows for new 'place-based' instruments that link RTO funding specifically to territorial impact indicators.",
+      "evidence_needed": "Textual analysis of FP10 position papers (EARTO, JRC, Expert Groups); Draft proposals for the next Multiannual Financial Framework.",
+      "what_would_change_mind": "Policy documents indicating a strict return to 'excellence-only' funding without geographic consideration or place-based impact metrics.",
+      "counter_arguments": [
+        "FP10 will likely prioritize dual-use (defense) and deep tech, which favors established hubs over fragile territories.",
+        "The EU commission resists mixing Cohesion objectives with Framework Programme research objectives."
+      ],
+      "dependencies": [
+        "C3"
+      ]
+    },
+    {
+      "id": "C6",
+      "claim": "Addressing territorial fragility via RTOs in FP10 requires a shift from project-based funding to long-term institutional capacity building in target regions.",
+      "evidence_needed": "Comparative analysis of Teaming/Twinning instruments vs. standard RIA/IA grants; Policy evaluations on the sustainability of project-based interventions in cohesion regions.",
+      "what_would_change_mind": "Proof that short-term, competitive project grants generate sustainable ecosystems in fragile regions.",
+      "counter_arguments": [
+        "Institutional funding reduces agility and competitiveness; competitive grants ensure quality.",
+        "Long-term funding risks creating 'cathedrals in the desert' without market demand."
+      ],
+      "dependencies": [
+        "C3",
+        "C5"
+      ]
+    }
+  ]
+}

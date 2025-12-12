@@ -19,7 +19,7 @@ if [ -z "$1" ]; then
     echo "  research add [id]             Quick add from DOI/arXiv (or clipboard)"
     echo "  research cite [query]         Search library and copy citation keys"
     echo "  research open [query]         Search library and open paper in browser"
-    echo "  research qa <question>        Ask questions about your library (uses Gemini)"
+    echo "  research qa <question>        Ask questions about your library (PaperQA RAG)"
     echo "  research help                 Show interactive tutorial with examples"
     echo ""
     echo "Examples:"

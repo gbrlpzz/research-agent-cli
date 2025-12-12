@@ -22,8 +22,8 @@ LIBRARY_PATH = REPO_ROOT / "library"
 PAPIS_CONFIG = REPO_ROOT / "papis.config"
 SCRIPTS_PATH = REPO_ROOT / "scripts"
 
-# Model for RAG queries
-FLASH_MODEL = "gemini-2.5-flash"
+# RAG model is configured via env vars (see README):
+# - RESEARCH_RAG_MODEL
 
 console = Console()
 
@@ -35,7 +35,7 @@ except ImportError:
     PRIVATE_SOURCES_AVAILABLE = False
 
 # Import tracking function for literature sheet
-from .citation import track_reviewed_paper
+from .citation import track_reviewed_paper, mark_used_as_evidence
 
 
 def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
@@ -273,6 +273,13 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
             for ctx in response.contexts[:5]:
                 if hasattr(ctx.text, 'name'):
                     sources.append(ctx.text.name)
+
+        # Mark sources as used-as-evidence in the literature sheet (best-effort by title/name)
+        for s in sources:
+            try:
+                mark_used_as_evidence(title=s, source="query_library")
+            except Exception:
+                pass
         
         return {
             "answer": response.formatted_answer or response.answer,

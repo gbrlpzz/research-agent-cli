@@ -16,6 +16,9 @@ from typing import Any, Dict, List
 from rich.console import Console
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+# Session literature tracking
+from .citation import track_reviewed_paper
+
 # Paths
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS_PATH = REPO_ROOT / "scripts"
@@ -123,6 +126,23 @@ def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, re
                         })
             
             console.print(f"[green]✓ Found {len(papers)} papers via citation network[/green]")
+            # Track discovery results in literature sheet (even if not added)
+            for p in papers[:limit]:
+                try:
+                    track_reviewed_paper(
+                        citation_key="",  # not in library yet
+                        title=p.get("title", "") or "",
+                        authors=", ".join(p.get("authors") or []) if isinstance(p.get("authors"), list) else str(p.get("authors") or ""),
+                        year=str(p.get("year") or ""),
+                        relevance=3,
+                        utility=2,
+                        source=f"discover_papers:{p.get('source','')}",
+                        doi=p.get("doi"),
+                        arxiv_id=p.get("arxiv_id"),
+                        citations=p.get("citations"),
+                    )
+                except Exception:
+                    pass
             return papers[:limit]
             
         except Exception as e:
@@ -225,6 +245,23 @@ def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, re
         console.print(f"[dim]paper-scraper: {e}[/dim]")
     
     console.print(f"[green]✓ Found {len(papers)} unique papers[/green]")
+    # Track discovery results in literature sheet (even if not added)
+    for p in papers[:limit]:
+        try:
+            track_reviewed_paper(
+                citation_key="",  # not in library yet
+                title=p.get("title", "") or "",
+                authors=", ".join(p.get("authors") or []) if isinstance(p.get("authors"), list) else str(p.get("authors") or ""),
+                year=str(p.get("year") or ""),
+                relevance=3,
+                utility=2,
+                source=f"discover_papers:{p.get('source','')}",
+                doi=p.get("doi"),
+                arxiv_id=p.get("arxiv_id"),
+                citations=p.get("citations"),
+            )
+        except Exception:
+            pass
     return papers[:limit]
 
 

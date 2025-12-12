@@ -17,7 +17,9 @@ from .citation import (
     clear_used_citation_keys,
     track_reviewed_paper,
     get_reviewed_papers,
-    export_literature_sheet
+    export_literature_sheet,
+    export_literature_sheet_markdown,
+    literature_sheet
 )
 
 __all__ = [
@@ -38,5 +40,7 @@ __all__ = [
     'track_reviewed_paper',
     'get_reviewed_papers',
     'export_literature_sheet',
+    'export_literature_sheet_markdown',
+    'literature_sheet',
 ]
 

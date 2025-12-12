@@ -66,13 +66,13 @@ def show_help():
     console.print()
     
     # Q&A Commands
-    qa_table = Table(title="🤖 Question Answering (PaperQA + Gemini)", show_header=True, header_style="bold cyan")
+    qa_table = Table(title="🤖 Question Answering (PaperQA RAG)", show_header=True, header_style="bold cyan")
     qa_table.add_column("Command", style="cyan", width=30)
     qa_table.add_column("Description", style="white")
     
     qa_table.add_row(
         "research qa <question>",
-        "Ask questions about your library\nUses Gemini 2.0 Flash (free tier)"
+        "Ask questions about your library\nUses your configured RAG model (default: GPT-5.2 Fast)"
     )
     console.print(qa_table)
     console.print()
@@ -105,7 +105,7 @@ def show_help():
         "\n"
         "[cyan]5. Ask your library:[/cyan]\n"
         "   research qa \"How does attention work?\"\n"
-        "   [dim]# Requires GEMINI_API_KEY in .env[/dim]\n",
+        "   [dim]# Requires OPENAI_API_KEY by default[/dim]\n",
         title="Examples",
         border_style="yellow"
     ))
