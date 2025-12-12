@@ -648,6 +648,42 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
 # CLI ENTRY POINT
 # ============================================================================
 
+def interactive_config(topic: str) -> dict:
+    """Show interactive config menu before research starts."""
+    from rich.prompt import Prompt, IntPrompt
+    
+    console.print()
+    console.print(Panel(
+        f"[bold cyan]Research Agent Config[/bold cyan]\n\n"
+        f"[white]Topic:[/white] {topic[:60]}{'...' if len(topic) > 60 else ''}",
+        border_style="cyan"
+    ))
+    console.print()
+    
+    # Model selection
+    model = Prompt.ask(
+        "[cyan]Model[/cyan]",
+        choices=["3-pro", "2.5-flash", "2.5-pro"],
+        default="2.5-flash"
+    )
+    model_map = {
+        "3-pro": "gemini/gemini-3-pro-preview",
+        "2.5-flash": "gemini/gemini-2.5-flash",
+        "2.5-pro": "gemini/gemini-2.5-pro-preview",
+    }
+    
+    # Iterations and revisions
+    max_iterations = IntPrompt.ask("[cyan]Max agent iterations[/cyan]", default=50)
+    revisions = IntPrompt.ask("[cyan]Revision rounds[/cyan]", default=3)
+    
+    console.print()
+    return {
+        "reasoning_model": model_map[model],
+        "max_iterations": max_iterations,
+        "revisions": revisions,
+    }
+
+
 if __name__ == "__main__":
     import argparse
     
@@ -659,10 +695,13 @@ Examples:
   research agent "Impact of attention mechanisms on NLP"
   research agent -r 5 "Vision Transformers vs CNNs"
   research agent --revisions 1 "Quick research topic"
+  research agent -i "Interactive config mode"
   research agent --reasoning-model openai/gpt-5.2-high --rag-model openai/gpt-5.2-fast "Topic"
         """
     )
     parser.add_argument('topic', nargs='+', help='Research topic')
+    parser.add_argument('--interactive', '-i', action='store_true',
+                       help='Show config menu before starting')
     parser.add_argument('--revisions', '-r', type=int, default=3,
                        help='Max peer review rounds (default: 3)')
     parser.add_argument('--reviewers', type=int, default=1,
@@ -690,8 +729,20 @@ Examples:
         parser.print_help()
         sys.exit(1)
     
+    # Interactive config mode
+    if args.interactive:
+        config = interactive_config(topic)
+        reasoning_model = config["reasoning_model"]
+        revisions = config["revisions"]
+        # Update phase module iteration limits
+        from phases.drafter import set_max_iterations as set_drafter_iterations
+        set_drafter_iterations(config["max_iterations"])
+    else:
+        reasoning_model = args.reasoning_model
+        revisions = args.revisions
+    
     routing = ModelRouting.from_env(
-        reasoning_model=args.reasoning_model,
+        reasoning_model=reasoning_model,
         rag_model=args.rag_model,
         embedding_model=args.embedding_model,
     )
@@ -713,4 +764,5 @@ Examples:
     console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
     
-    generate_report(topic, max_revisions=args.revisions, num_reviewers=args.reviewers)
+    generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers)
+
