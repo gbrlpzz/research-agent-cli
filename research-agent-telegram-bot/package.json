@@ -1,0 +1,16 @@
+{
+    "name": "research-agent-telegram-bot",
+    "version": "1.0.0",
+    "description": "Telegram bot for research-agent-cli",
+    "main": "bot.js",
+    "scripts": {
+        "start": "node bot.js"
+    },
+    "dependencies": {
+        "node-telegram-bot-api": "^0.66.0",
+        "dotenv": "^16.4.7"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}

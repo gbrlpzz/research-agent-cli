@@ -68,7 +68,10 @@ Your priority is MAXIMUM RIGOR:
    - Headings: =, ==, ===
    - Bold: *text*  (NEVER use **)
    - Lists: use "-" for bullet points (NOT "*" which is bold)
-   - Citations: @citation_key
+   - Citations: @citation_key (NO parentheses - APA style auto-adds them)
+     * CORRECT: "Some claim @Author_2020" → renders as "Some claim (Author, 2020)"
+     * WRONG: "Some claim (@Author_2020)" → renders as "Some claim ((Author, 2020))"
+     * NEVER output empty citations like "()" - if no citation exists, remove the claim or mark it uncertain
    - Bibliography MUST be: #bibliography(\"refs.bib\") (never master.bib)
 
 6) ASCII punctuation only:
