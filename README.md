@@ -1,299 +1,175 @@
 <p align="center">
   <h1 align="center">Research Agent CLI</h1>
   <p align="center">
-    <strong>Autonomous Research Assistant and Paper Writer</strong>
+    <strong>Autonomous Academic Research Pipeline</strong>
   </p>
   <p align="center">
-    An agentic system that conducts academic research, synthesizes findings, and generates compiled documents with verified citations.
+    A tool-calling agent that discovers papers, builds a local library, and produces cited Typst documents through iterative peer review.
   </p>
 </p>
 
 <p align="center">
-  <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#features">Features</a> •
-  <a href="#architecture">Architecture</a> •
+  <a href="#how-it-works">How It Works</a> •
+  <a href="#cli-reference">CLI Reference</a> •
+  <a href="#configuration">Configuration</a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License">
-  <img src="https://img.shields.io/badge/Gemini-3.0%20Pro-orange.svg" alt="Gemini">
+  <img src="https://img.shields.io/badge/LiteLLM-Multi--Model-orange.svg" alt="LiteLLM">
   <img src="https://img.shields.io/badge/PaperQA2-RAG-purple.svg" alt="PaperQA2">
 </p>
 
 ---
 
-## Overview
+## What This Does
 
-Research Agent CLI is a command-line tool that autonomously conducts academic research. Given a topic, it:
+Given a research topic, the agent:
 
-1. **Plans** research by decomposing topics into research questions
-2. **Discovers** relevant papers via Semantic Scholar, Exa.ai, and citation networks
-3. **Acquires** PDFs through ArXiv, Unpaywall, and configurable private sources
-4. **Synthesizes** information using RAG (PaperQA2 + Qdrant vector database)
-5. **Writes** structured documents with Typst, including proper citations
-6. **Reviews** output through an automated peer review system
-7. **Revises** based on feedback until quality thresholds are met
+1. **Decomposes** the topic into research questions and an argument map
+2. **Searches** Semantic Scholar, Exa.ai, and citation networks for relevant papers
+3. **Downloads** PDFs via ArXiv, Unpaywall, or configured private sources
+4. **Indexes** papers into a persistent Qdrant vector database
+5. **Queries** the indexed library using PaperQA2 RAG to ground claims
+6. **Drafts** a structured Typst document with inline citations
+7. **Reviews** the draft via an automated peer reviewer that checks citation validity
+8. **Revises** until the reviewer accepts or max rounds are reached
 
-The agent produces compiled PDFs with full bibliographies, saved to versioned report directories.
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Autonomous Research** | Multi-phase workflow from topic to finished document |
-| **Multi-Source Discovery** | Semantic Scholar, Exa.ai, paper-scraper, citation networks |
-| **RAG-Powered QA** | Ask questions about your paper library with citations |
-| **Citation Management** | Automatic BibTeX handling via Papis |
-| **Peer Review Loop** | Automated quality assurance with iterative revision |
-| **Typst Output** | Modern typesetting with custom academic templates |
-| **Persistent Index** | Qdrant vector database for fast repeated queries |
-| **Library Tools** | Add papers by DOI/arXiv, fuzzy citation search, open papers |
+The output is a compiled PDF with a filtered bibliography containing only cited works.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Clone and setup
+# Clone
 git clone https://github.com/gbrlpzz/research-agent-cli.git
 cd research-agent-cli
+
+# Setup
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Configure API keys
+# Configure (requires at least one LLM API key)
 cp .env.example .env
-# Edit .env with your OPENAI_API_KEY (required by default)
+# Edit .env: set GEMINI_API_KEY or OPENAI_API_KEY
 
-# Run your first research task
-research agent "Impact of attention mechanisms on neural machine translation"
+# Install Typst for PDF compilation
+brew install typst  # macOS
+# Or: https://github.com/typst/typst/releases
+
+# Run
+research agent "Attention mechanisms in transformer architectures"
 ```
 
-Output is saved to `reports/<timestamp>_<topic>/` containing:
-- `main.typ` - Typst source
-- `main.pdf` - Compiled document
-- `refs.bib` - Bibliography
-- `artifacts/` - Drafts, reviews, plans
+Output is written to `reports/<timestamp>_<topic>/`:
+```
+├── main.typ           # Typst source
+├── main.pdf           # Compiled document  
+├── refs.bib           # Bibliography (cited papers only)
+├── literature_sheet.csv
+└── artifacts/         # Plans, drafts, reviews
+```
+
+### Interactive Mode
+
+```bash
+research agent -i "Your topic"
+```
+
+Prompts for model selection (Gemini 3 Pro / 2.5 Flash / 2.5 Pro), max iterations, and revision rounds before starting.
 
 ---
 
-## Installation
+## How It Works
 
-### Prerequisites
-
-- **Python 3.10+**
-- **Typst** - For PDF compilation ([typst.app](https://typst.app))
-- **Papis** - Bibliography manager (installed via pip)
-
-### Step 1: Clone Repository
-
-```bash
-git clone https://github.com/gbrlpzz/research-agent-cli.git
-cd research-agent-cli
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              RESEARCH AGENT                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐  │
+│  │ Planning │ → │ Discovery│ → │ Indexing │ → │ Drafting │ → │  Review  │  │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘   └────┬─────┘  │
+│       │              │              │              │               │        │
+│  Research       Semantic       PaperQA2 +      Tool-calling    Verify      │
+│  questions      Scholar,       Qdrant          agent loop      citations   │
+│  + argument     Exa.ai,        persistent                      + claims    │
+│    map          citation       vector index                                 │
+│                 networks                            ▲               │       │
+│                                                     │               ▼       │
+│                                              ┌──────┴───────────────────┐   │
+│                                              │  Revision (if needed)    │   │
+│                                              └──────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+                               ┌──────────────┐
+                               │  Typst + PDF │
+                               └──────────────┘
 ```
 
-### Step 2: Create Virtual Environment
+### Phase Details
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-### Step 3: Install Dependencies
-
-```bash
-pip install -r requirements.txt
-
-# Paper-scraper (optional, for extended search):
-pip install git+https://github.com/blackadad/paper-scraper.git
-```
-
-### Step 4: Install Typst
-
-```bash
-# macOS
-brew install typst
-
-# Linux
-curl -fsSL https://typst.app/install.sh | sh
-
-# Or download from: https://github.com/typst/typst/releases
-```
-
-### Step 5: Configure Environment
-
-Create a `.env` file in the project root:
-
-```env
-# Required
-OPENAI_API_KEY=your_openai_api_key
-
-# Optional - Model routing (defaults shown)
-RESEARCH_REASONING_MODEL=openai/gpt-5.2-high
-RESEARCH_RAG_MODEL=openai/gpt-5.2-fast
-RESEARCH_EMBEDDING_MODEL=openai/text-embedding-3-large
-
-# Optional - If you want to use Gemini models instead
-# GEMINI_API_KEY=your_gemini_api_key
-
-# Optional - Enhanced discovery
-EXA_API_KEY=your_exa_key
-SEMANTIC_SCHOLAR_API_KEY=your_s2_key
-
-# Optional - Tuning
-AGENT_MAX_ITERATIONS=50
-REVISION_MAX_ITERATIONS=25
-MAX_REVIEWER_ITERATIONS=15
-API_TIMEOUT_SECONDS=120
-```
-
-### Step 6: Add to PATH (Optional)
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-export PATH="$PATH:/path/to/research-agent-cli/bin"
-```
+| Phase | What Happens |
+|-------|--------------|
+| **Planning** | LLM generates research questions, key concepts, search queries, and an argument map with evidence requirements |
+| **Discovery** | Searches Semantic Scholar API; optionally Exa.ai (neural search) and citation network traversal |
+| **Acquisition** | Downloads PDFs from ArXiv, Unpaywall, or private sources; stores in Papis-managed library |
+| **Indexing** | PaperQA2 chunks PDFs and stores embeddings in a persistent Qdrant database |
+| **Drafting** | Agent loop with tools: `query_library`, `discover_papers`, `fuzzy_cite`, `validate_citations` |
+| **Review** | Separate reviewer agent checks citation validity, claim grounding, and coverage |
+| **Revision** | If reviewer requests changes, revision agent incorporates feedback |
 
 ---
 
-## Usage
-
-### CLI Reference
+## CLI Reference
 
 | Command | Description |
 |---------|-------------|
+| `research agent <topic>` | Run full research pipeline |
+| `research agent -i <topic>` | Interactive mode (select model, iterations) |
+| `research agent -r N <topic>` | Set max revision rounds (default: 3) |
+| `research agent --resume <path>` | Resume interrupted research from checkpoint |
+| `research qa <question>` | Query your library with RAG |
+| `research qa -i` | Interactive QA chat |
 | `research <query>` | Search for papers (Semantic Scholar + paper-scraper) |
-| `research agent <topic>` | Run autonomous research agent |
-| `research qa <question>` | Ask questions about your library (RAG) |
 | `research add <id>` | Add paper by DOI or arXiv ID |
-| `research cite [query]` | Fuzzy search and copy citation keys |
-| `research open [query]` | Open paper from library in browser |
-| `research exa <query>` | Semantic search via Exa.ai (costs credits) |
-| `research edison <query>` | AI literature synthesis (costs credits) |
-| `research help` | Interactive tutorial |
+| `research cite [query]` | Fuzzy search citation keys |
+| `research open [query]` | Open paper in browser |
+| `research exa <query>` | Neural search via Exa.ai |
 
-### Examples
-
-#### Run the Research Agent
+### Agent Flags
 
 ```bash
-# Basic usage
-research agent "Transformer architectures in computer vision"
+research agent [OPTIONS] <topic>
 
-# With custom revision rounds
-research agent -r 5 "Few-shot learning in large language models"
-
-# Multiple parallel reviewers
-research agent --reviewers 2 "Attention mechanisms in NLP"
+Options:
+  -i, --interactive          Config menu before starting
+  --resume PATH              Resume from existing report directory
+  -r, --revisions N          Max peer review rounds (default: 3)
+  --reviewers N              Parallel reviewers (default: 1)
+  --reasoning-model MODEL    LLM for planning/writing/reviewing
+  --rag-model MODEL          LLM for PaperQA RAG queries
+  --embedding-model MODEL    Embedding model for indexing
 ```
 
-#### Query Your Library
+### Resume Examples
 
 ```bash
-# Ask a research question
-research qa "How does self-attention differ from recurrent mechanisms?"
+# Resume from interrupted session
+research agent --resume reports/20251212_150513_topic_name
 
-# Interactive chat mode
-research qa -i
+# Resume with different model
+research agent --resume reports/20251212_150513_topic_name \
+  --reasoning-model gemini/gemini-3-pro-preview
+
+# Resume and continue for more revision rounds
+research agent --resume reports/20251212_150513_topic_name -r 5
 ```
-
-#### Manage Papers
-
-```bash
-# Add by DOI
-research add 10.48550/arXiv.1706.03762
-
-# Add by arXiv ID
-research add 1706.03762
-
-# Search and add interactively
-research "vision transformers"  # Select papers with fzf
-```
-
-#### Citation Management
-
-```bash
-# Find citation key for a paper
-research cite vaswani
-
-# Copy key to clipboard (macOS)
-research cite transformer | pbcopy
-```
-
----
-
-## Architecture
-
-```mermaid
-graph TB
-    subgraph Input
-        A[Research Topic]
-    end
-
-    subgraph Planning
-        B[Research Planner]
-        C[Argument Dissection]
-    end
-
-    subgraph Discovery
-        D[Semantic Scholar]
-        E[Exa.ai]
-        F[Paper-Scraper]
-        G[Citation Networks]
-    end
-
-    subgraph Acquisition
-        H[ArXiv]
-        I[Unpaywall]
-        J[Private Sources]
-        K[Papis Library]
-    end
-
-    subgraph RAG
-        L[PaperQA2]
-        M[Gemini Embeddings]
-        N[Qdrant VectorDB]
-    end
-
-    subgraph Generation
-        O[Multi-Pass Drafting]
-        P[Self-Critique]
-        Q[Peer Review]
-        R[Revision Agent]
-    end
-
-    subgraph Output
-        S[Typst Document]
-        T[PDF Report]
-        U[Bibliography]
-    end
-
-    A --> B --> C
-    C --> D & E & F & G
-    D & E & F & G --> H & I & J
-    H & I & J --> K
-    K --> L
-    L --> M
-    M --> N
-    L --> O --> P --> Q
-    Q -->|Revisions Needed| R --> O
-    Q -->|Accept| S --> T
-    K --> U
-```
-
-### Component Overview
-
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **LLM** | Gemini 3.0 Pro | Planning, writing, reviewing |
-| **RAG Framework** | PaperQA2 | Question-answering over papers |
-| **Vector Database** | Qdrant | Persistent document embeddings |
-| **Embeddings** | text-embedding-3-large | Document vectorization |
-| **Bibliography** | Papis | Local PDF library management |
-| **Typesetting** | Typst | compiled PDF generation |
 
 ---
 
@@ -301,74 +177,91 @@ graph TB
 
 ### Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENAI_API_KEY` | Yes (default) | - | OpenAI API key |
-| `RESEARCH_REASONING_MODEL` | No | `openai/gpt-5.2-high` | Model for planning/writing/reviewing |
-| `RESEARCH_RAG_MODEL` | No | `openai/gpt-5.2-fast` | Model for PaperQA RAG |
-| `RESEARCH_EMBEDDING_MODEL` | No | `openai/text-embedding-3-large` | Embedding model for indexing |
-| `GEMINI_API_KEY` | No | - | Google AI API key (only if you select Gemini models) |
-| `EXA_API_KEY` | No | - | Exa.ai API key for neural search |
-| `SEMANTIC_SCHOLAR_API_KEY` | No | - | S2 API key (higher rate limits) |
-| `AGENT_MAX_ITERATIONS` | No | 50 | Max agent loop iterations |
-| `REVISION_MAX_ITERATIONS` | No | 25 | Max revision iterations |
-| `MAX_REVIEWER_ITERATIONS` | No | 15 | Max reviewer tool calls |
-| `API_TIMEOUT_SECONDS` | No | 120 | API call timeout |
+Create `.env` in the project root:
 
-### Directory Structure
+```env
+# At least one LLM API key is required
+GEMINI_API_KEY=your_key          # For Gemini models
+OPENAI_API_KEY=your_key          # For OpenAI models
+
+# Model routing (optional, defaults shown)
+RESEARCH_REASONING_MODEL=gemini/gemini-2.5-flash
+RESEARCH_RAG_MODEL=gemini/gemini-2.5-flash
+RESEARCH_EMBEDDING_MODEL=openai/text-embedding-3-large
+
+# Discovery APIs (optional, improves paper finding)
+SEMANTIC_SCHOLAR_API_KEY=your_key  # Higher rate limits
+EXA_API_KEY=your_key               # Neural search
+
+# Agent tuning (optional)
+AGENT_MAX_ITERATIONS=50
+REVISION_MAX_ITERATIONS=25
+MAX_REVIEWER_ITERATIONS=15
+API_TIMEOUT_SECONDS=120
+```
+
+### Model Options
+
+| Model | Cost | Best For |
+|-------|------|----------|
+| `gemini/gemini-3-pro-preview` | ~$2.26/run | Complex reasoning, counter-arguments |
+| `gemini/gemini-2.5-pro-preview` | ~$1.74/run | Balanced quality/cost |
+| `gemini/gemini-2.5-flash` | ~$0.13/run | Fast iteration, simple topics |
+
+Use `-i` flag to select interactively, or set via `--reasoning-model`.
+
+---
+
+## Project Structure
 
 ```
 research-agent-cli/
-├── bin/research          # CLI entry point
+├── bin/research              # CLI entry point
 ├── scripts/
-│   ├── agent.py          # Autonomous research agent
-│   ├── qa.py             # RAG question-answering
-│   ├── discover.py       # Paper search
-│   ├── add.py            # Paper acquisition
-│   ├── cite.py           # Citation lookup
-│   ├── tools/            # Shared tool implementations
-│   └── utils/            # Helper utilities
-├── library/              # Local PDF collection (Papis)
-├── reports/              # Generated research outputs
-├── templates/            # Typst templates
-└── master.bib            # Master bibliography
+│   ├── agent.py              # Main orchestrator
+│   ├── phases/               # Modular pipeline phases
+│   │   ├── planner.py        # Research planning
+│   │   ├── drafter.py        # Document drafting
+│   │   ├── reviewer.py       # Peer review
+│   │   ├── reviser.py        # Revision handling
+│   │   └── tool_registry.py  # Tool declarations
+│   ├── tools/                # Shared tool implementations
+│   ├── qa.py                 # RAG question-answering
+│   └── utils/                # Helpers (LLM, prompts, typst)
+├── library/                  # Local PDF collection
+├── reports/                  # Generated outputs
+├── templates/typst-template/ # Document template
+└── master.bib                # Master bibliography
 ```
 
 ---
 
-## Tech Stack
+## Dependencies
 
-| Technology | Version | Purpose | Link |
-|------------|---------|---------|------|
-| **PaperQA2** | 5.0+ | RAG for academic papers | [paper-qa](https://github.com/Future-House/paper-qa) |
-| **Qdrant** | Latest | Vector database | [qdrant](https://qdrant.tech/) |
-| **Google Gemini** | 3.0 Pro | LLM for reasoning | [Google AI](https://ai.google.dev/) |
-| **Semantic Scholar** | API v1 | Paper discovery | [semanticscholar.org](https://www.semanticscholar.org/) |
-| **Exa.ai** | Latest | Neural search | [exa.ai](https://exa.ai/) |
-| **Papis** | Latest | Bibliography management | [papis](https://github.com/papis/papis) |
-| **Typst** | 0.11+ | Document typesetting | [typst.app](https://typst.app/) |
-| **Rich** | Latest | Terminal UI | [rich](https://github.com/Textualize/rich) |
+| Component | Purpose |
+|-----------|---------|
+| [PaperQA2](https://github.com/Future-House/paper-qa) | RAG over academic papers |
+| [Qdrant](https://qdrant.tech/) | Persistent vector storage |
+| [LiteLLM](https://github.com/BerriAI/litellm) | Multi-provider LLM routing |
+| [Papis](https://github.com/papis/papis) | Bibliography management |
+| [Typst](https://typst.app/) | Document compilation |
+| [Rich](https://github.com/Textualize/rich) | Terminal interface |
+| [Semantic Scholar API](https://www.semanticscholar.org/product/api) | Paper discovery |
 
 ---
 
-## Contributing
+## Limitations
 
-Contributions are welcome. Please open an issue to discuss proposed changes before submitting a pull request.
+- **API Dependent**: Requires LLM API access (Gemini or OpenAI)
+- **PDF Availability**: Some papers may not have accessible PDFs
+- **Citation Accuracy**: Generated citations should be manually verified
+- **Rate Limits**: Semantic Scholar and Exa.ai have request limits
+- **English Only**: Optimized for English-language research
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/improvement`)
-3. Commit changes (`git commit -am 'Add improvement'`)
-4. Push to branch (`git push origin feature/improvement`)
-5. Open a Pull Request
+See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for details.
 
 ---
 
 ## License
 
-This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
-
----
-
-## Acknowledgments
-
-Built with [PaperQA2](https://github.com/Future-House/paper-qa) by Future House, [Qdrant](https://qdrant.tech/), and [LiteLLM](https://github.com/BerriAI/litellm).
+Apache License 2.0. See [LICENSE](LICENSE).

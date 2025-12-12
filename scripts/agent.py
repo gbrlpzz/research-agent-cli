@@ -45,28 +45,43 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 import logging
 
-# Model routing + unified LLM backend (LiteLLM)
 from utils.model_config import ModelRouting, apply_routing_to_env, ensure_model_env
 
 # Import from extracted modules
-from utils.prompts import (
-    SYSTEM_PROMPT,
-    PLANNER_PROMPT,
-    ARGUMENT_DISSECTION_PROMPT,
-    REVIEWER_PROMPT,
-    REVISION_PROMPT,
-)
-from utils.llm import llm_chat, _safe_json_loads, API_TIMEOUT_SECONDS
 from utils.typst_utils import (
     filter_bibtex_to_cited,
     extract_citations_from_typst,
     fix_typst_error,
     compile_and_fix,
 )
+
+# Import all phase modules
 from phases.planner import (
     create_research_plan,
     create_argument_map,
     set_model as set_planner_model,
+)
+from phases.drafter import (
+    run_agent,
+    set_model as set_drafter_model,
+)
+from phases.reviewer import (
+    peer_review,
+    set_model as set_reviewer_model,
+)
+from phases.reviser import (
+    revise_document,
+    set_model as set_reviser_model,
+)
+from phases.tool_registry import (
+    TOOLS,
+    TOOL_FUNCTIONS,
+    discover_papers,
+    add_paper,
+    query_library,
+    get_used_citation_keys,
+    get_reviewed_papers,
+    export_literature_sheet,
 )
 
 try:
@@ -138,727 +153,130 @@ def log_debug(msg: str):
         _debug_logger.debug(msg)
 
 
+def validate_checkpoint(checkpoint_file: Path) -> tuple[bool, Optional[str]]:
+    """Validate checkpoint file and return (is_valid, error_message)."""
+    if not checkpoint_file.exists():
+        return False, "Checkpoint file not found"
+    
+    try:
+        checkpoint_data = json.loads(checkpoint_file.read_text())
+    except json.JSONDecodeError as e:
+        return False, f"Corrupted checkpoint file: {e}"
+    except Exception as e:
+        return False, f"Failed to read checkpoint: {e}"
+    
+    # Validate required fields
+    if "phase" not in checkpoint_data:
+        return False, "Checkpoint missing 'phase' field"
+    if "timestamp" not in checkpoint_data:
+        return False, "Checkpoint missing 'timestamp' field"
+    if "data" not in checkpoint_data:
+        return False, "Checkpoint missing 'data' field"
+    
+    return True, None
+
+
+def restore_state_from_checkpoint(checkpoint: Dict, report_dir: Path) -> Dict[str, Any]:
+    """Restore all necessary state from checkpoint and artifacts."""
+    artifacts_dir = report_dir / "artifacts"
+    phase = checkpoint["phase"]
+    restored = {
+        "phase": phase,
+        "checkpoint_data": checkpoint["data"],
+        "research_plan": None,
+        "argument_map": None,
+        "typst_content": None,
+        "round_reviews_history": [],
+        "used_citation_keys": set(),
+        "current_revision_round": 0,
+    }
+    
+    # Restore research plan if available
+    plan_file = artifacts_dir / "research_plan.json"
+    if plan_file.exists():
+        try:
+            restored["research_plan"] = json.loads(plan_file.read_text())
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not restore research plan: {e}[/yellow]")
+    
+    # Restore argument map if available
+    argmap_file = artifacts_dir / "argument_map.json"
+    if argmap_file.exists():
+        try:
+            restored["argument_map"] = json.loads(argmap_file.read_text())
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not restore argument map: {e}[/yellow]")
+    
+    # Restore latest draft content
+    # Try to find the most recent draft file
+    draft_files = sorted(artifacts_dir.glob("draft_*.typ"))
+    if draft_files:
+        latest_draft = draft_files[-1]
+        try:
+            restored["typst_content"] = latest_draft.read_text()
+            console.print(f"[dim]Restored draft from: {latest_draft.name}[/dim]")
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not restore draft: {e}[/yellow]")
+    
+    # Restore review history
+    review_files = sorted(artifacts_dir.glob("peer_review_r*.json"))
+    if review_files:
+        # Group by round
+        rounds = {}
+        for rf in review_files:
+            # Extract round number from filename like "peer_review_r1_p1.json"
+            match = re.search(r'peer_review_r(\d+)_p\d+\.json', rf.name)
+            if match:
+                round_num = int(match.group(1))
+                if round_num not in rounds:
+                    rounds[round_num] = []
+                try:
+                    review_data = json.loads(rf.read_text())
+                    rounds[round_num].append(review_data)
+                except Exception:
+                    pass
+        
+        # Convert to list of rounds
+        if rounds:
+            max_round = max(rounds.keys())
+            restored["round_reviews_history"] = [rounds.get(i, []) for i in range(1, max_round + 1)]
+            restored["current_revision_round"] = max_round
+    
+    # Restore citation keys from checkpoint data
+    if "citations" in checkpoint["data"]:
+        citations = checkpoint["data"]["citations"]
+        if isinstance(citations, list):
+            restored["used_citation_keys"] = set(citations)
+    
+    return restored
+
+
 def set_model_routing(routing: ModelRouting) -> None:
     """Update global model routing and propagate into env vars."""
     global _ROUTING, AGENT_MODEL
     _ROUTING = routing
     apply_routing_to_env(routing)
     AGENT_MODEL = routing.reasoning_model
-    # Also update planner module's model
+    # Propagate to all phase modules
     set_planner_model(routing.reasoning_model)
-
-
-# ============================================================================
-# TOOL FUNCTIONS - Imported from shared tools module
-# ============================================================================
-
-from tools import (
-    discover_papers,
-    exa_search, 
-    add_paper,
-    list_library,
-    query_library,
-    fuzzy_cite,
-    validate_citations,
-    get_used_citation_keys,
-    clear_used_citation_keys,
-    track_reviewed_paper,
-    get_reviewed_papers,
-    export_literature_sheet,
-    # export_literature_sheet_markdown removed as unused
-    literature_sheet
-)
-
-
-# ============================================================================
-# TOOL DECLARATIONS (OpenAI/LiteLLM tool calling)
-# ============================================================================
-
-TOOLS: List[Dict[str, Any]] = [
-    {
-        "type": "function",
-        "function": {
-            "name": "discover_papers",
-            "description": "Search for papers using Semantic Scholar + paper-scraper, OR traverse citation networks. Use FIRST to find papers.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Search query (optional if using cited_by/references)"},
-                    "limit": {"type": "integer", "description": "Max results (default 15)"},
-                    "cited_by": {"type": "string", "description": "DOI/paper ID for forward citations (papers citing this)"},
-                    "references": {"type": "string", "description": "DOI/paper ID for backward citations (papers cited by this)"},
-                },
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "exa_search",
-            "description": "Neural search via Exa.ai. COSTS CREDITS - use only when discover_papers isn't enough.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Conceptual search query"},
-                    "limit": {"type": "integer", "description": "Max results (default 5)"},
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "add_paper",
-            "description": "Add a paper to library by arXiv ID or DOI. Downloads PDF and updates master.bib.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "identifier": {"type": "string", "description": "arXiv ID or DOI"},
-                    "source": {"type": "string", "description": "'arxiv', 'doi', or 'auto'"},
-                },
-                "required": ["identifier"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "query_library",
-            "description": "Ask a research question using PaperQA2 RAG. Uses persistent Qdrant index.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "question": {"type": "string", "description": "Research question"},
-                    "paper_filter": {"type": "string", "description": "Optional keyword filter"},
-                },
-                "required": ["question"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "fuzzy_cite",
-            "description": "Fuzzy search for @citation_keys. Returns keys that ACTUALLY exist in the library.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string", "description": "Author, title, year, or keyword"},
-                },
-                "required": ["query"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "validate_citations",
-            "description": "Validate citation keys before writing. Use to ensure all @keys exist in library.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "citation_keys": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "List of citation keys to validate",
-                    }
-                },
-                "required": ["citation_keys"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "list_library",
-            "description": "List all papers in the library. Check existing papers before adding more.",
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "literature_sheet",
-            "description": "Show the current session's consulted/reviewed literature sheet (what's been added/cited), with summary + top rows.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "limit": {"type": "integer", "description": "Max rows to return (default 20)"},
-                    "only_uncited": {"type": "boolean", "description": "If true, return only uncited reviewed papers"},
-                    "verbose": {"type": "boolean", "description": "If true, include extra fields (source, citations, etc.)"},
-                },
-            },
-        },
-    },
-]
-
-_REVIEWER_ALLOWED_TOOL_NAMES = {
-    "query_library",
-    "fuzzy_cite",
-    "validate_citations",
-    "list_library",
-    "discover_papers",
-    "literature_sheet",
-}
-REVIEWER_TOOLS: List[Dict[str, Any]] = [
-    t for t in TOOLS if t.get("function", {}).get("name") in _REVIEWER_ALLOWED_TOOL_NAMES
-]
-
-TOOL_FUNCTIONS = {
-    "discover_papers": discover_papers,
-    "exa_search": exa_search,
-    "add_paper": add_paper,
-    "query_library": query_library,
-    "fuzzy_cite": fuzzy_cite,
-    "validate_citations": validate_citations,
-    "list_library": list_library,
-    "literature_sheet": literature_sheet,
-}
-
-# ============================================================================
-# AGENT LOOP
-# ============================================================================
-
-def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None, argument_map: Optional[Dict[str, Any]] = None) -> str:
-    """Run the research agent on a topic with optional research plan and argument map."""
-    global _used_citation_keys
-    _used_citation_keys = set()  # Reset for new run
-    
-    # Get current date for the document
-    current_date = datetime.now().strftime("%B %Y")
-    
-    console.print(Panel(
-        f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
-        f"[white]{topic}[/white]\n\n"
-        f"[dim]Model: {AGENT_MODEL}[/dim]",
-        border_style="cyan"
-    ))
-    
-    # Inject current date into system prompt
-    system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date).replace("{current_date}", current_date)
-    
-    # Build user prompt with optional research plan and argument map
-    plan_section = ""
-    if research_plan:
-        plan_section = f"""
-RESEARCH PLAN:
-- Main Question: {research_plan.get('main_question', topic)}
-- Sub-questions: {', '.join(research_plan.get('sub_questions', [])[:3])}
-- Key Concepts: {', '.join(research_plan.get('key_concepts', [])[:5])}
-- Search Queries: {', '.join(research_plan.get('search_queries', [])[:3])}
-"""
-    
-    argument_section = ""
-    if argument_map:
-        argument_section = f"""
-ARGUMENT MAP (Evidence Requirements):
-- Thesis: {argument_map.get('thesis', 'N/A')}
-- Claims to Support:
-"""
-        for claim in argument_map.get('claims', [])[:5]:
-            argument_section += f"  {claim['id']}: {claim['claim']}\n"
-            if claim.get('evidence_needed'):
-                argument_section += f"    Evidence: {', '.join(claim['evidence_needed'])}\n"
-            if claim.get('counter_arguments'):
-                argument_section += f"    Counter-args: {', '.join(claim['counter_arguments'])}\n"
-    
-    user_prompt = f"""Research this topic and produce a Typst document:
-
-TOPIC: {topic}
-{plan_section}{argument_section}
-IMPORTANT - Follow the enhanced RAG-First workflow:
-1. FIRST query_library() with the main topic to see what knowledge already exists
-2. Identify gaps in the existing knowledge (especially for argument map claims)
-3. Use BOTH keyword search AND citation networks to discover papers
-4. add_paper() for the most relevant papers
-5. query_library() again with more specific questions
-6. Follow multi-pass drafting (outline → sections → integration)
-7. Self-critique before finalizing
-8. fuzzy_cite() to get @citation_keys
-9. Output complete Typst document (use date: "{current_date}")"""
-
-    # OpenAI-style messages (system prompt is updated dynamically each step)
-    messages: List[Dict[str, Any]] = [
-        {"role": "system", "content": system_prompt_with_date},
-        {"role": "user", "content": user_prompt},
-    ]
-    
-    console.print("\n[bold]Starting autonomous research...[/bold]\n")
-    
-    max_iterations = MAX_AGENT_ITERATIONS
-    iteration = 0
-    
-    while iteration < max_iterations:
-        iteration += 1
-        
-        # Update system prompt with latest available citations (Dynamic Injection)
-        current_papers = get_reviewed_papers()
-        citation_section = ""
-        if current_papers:
-            citation_list = []
-            for _, data in current_papers.items():
-                ck = (data.get("citation_key") or "").strip()
-                if not ck:
-                    continue
-                citation_list.append(f"- @{ck}")
-            
-            citation_section = "\n\n## AVAILABLE CITATION KEYS (Use ONLY these exact keys):\n" + "\n".join(citation_list[:30]) # Keep short to save tokens
-            
-        current_system_prompt = system_prompt_with_date + citation_section
-        
-        # Update system prompt (first message) with latest citations
-        messages[0]["content"] = current_system_prompt
-        
-        with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
-            try:
-                assistant_msg = llm_chat(
-                    model=AGENT_MODEL,
-                    messages=messages,
-                    tools=TOOLS,
-                    temperature=None,
-                    timeout_seconds=API_TIMEOUT_SECONDS,
-                )
-            except Exception as e:
-                console.print(f"[red]API error: {e}[/red]")
-                break
-        
-        tool_calls = assistant_msg.get("tool_calls") or []
-        if tool_calls:
-            # Preserve the tool_calls on the assistant message (OpenAI tool-calling protocol)
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.get("content") or "",
-                    "tool_calls": tool_calls,
-                }
-            )
-
-            for tc in tool_calls:
-                fn = (tc.get("function") or {}).get("name")
-                args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
-                tc_id = tc.get("id")
-                
-                console.print(f"[yellow]→ {fn}({json.dumps(args, default=str)[:80]})[/yellow]")
-                
-                if fn in TOOL_FUNCTIONS:
-                    try:
-                        result = TOOL_FUNCTIONS[fn](**args)
-                    except Exception as e:
-                        result = {"error": str(e)}
-                else:
-                    result = {"error": f"Unknown function: {fn}"}
-
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc_id,
-                        "content": json.dumps(result, default=str),
-                    }
-                )
-            continue
-
-        text = (assistant_msg.get("content") or "").strip()
-        if not text:
-            console.print("[yellow]Empty response, retrying...[/yellow]")
-            continue
-        
-        if "#import" in text and "project.with" in text and "#bibliography" in text:
-            console.print("[green]✓ Document generated[/green]")
-            if "```typst" in text:
-                match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
-                if match:
-                    return match.group(1).strip()
-            return text
-        
-        console.print(f"[dim]{text[:150]}...[/dim]")
-                
-        messages.append({"role": "assistant", "content": text})
-        messages.append(
-            {
-                "role": "user",
-                "content": "Continue. Output the complete Typst document when ready.",
-            }
-        )
-    
-    return "// Agent did not produce a document within iteration limit"
-
-
-# ============================================================================
-# PEER REVIEWER (note: prompts now imported from utils/prompts.py)
-# ============================================================================
-
-REVIEWER_PROMPT = """You are a rigorous academic peer reviewer.
-You are reviewing a Typst document on: "{topic}"
-
-Standard: MAXIMUM RIGOR. Reject/require revisions rather than letting unsupported claims pass.
-You have tools to verify claims, check citations, and identify missing literature.
-
-## Mandatory checks (use tools)
-1) Citation validity:
-   - Extract all @citation_keys you see and run validate_citations([..all keys..]).
-   - Any invalid key is a critical flaw unless removed/fixed.
-
-2) Claim verification:
-   - Select at least 5 concrete claims across different sections.
-   - For each, run query_library() with the claim phrased as a question.
-   - If the returned evidence does NOT support the claim, flag it as unsupported/overstated.
-
-3) Citation relevance (anti-citation-hallucination):
-   - If a paragraph is cited but the claim seems mismatched, query_library() to check whether the cited literature is actually about that claim.
-   - Flag "irrelevant citation padding" separately from "missing citation".
-
-4) Coverage + counter-arguments:
-   - If the document is one-sided, require major revisions or reject.
-   - If key counter-arguments are missing, recommend specific search queries (or DOIs if known).
-
-5) Typst integrity:
-   - Flag Markdown-style syntax (**bold, # headings, [@key]) or missing #bibliography("refs.bib").
-
-6) Overclaim + scope control:
-   - Flag causal language that is not warranted (e.g., "causes", "proves", "settles").
-   - Flag scope creep beyond the stated topic/research plan (claims not addressed by evidence).
-   - Flag rhetorical overstatement or missing uncertainty qualifiers where evidence is weak.
-
-## Previous Reviews
-If provided, check if the author addressed:
-{previous_reviews}
-
-## Output Format (keep these exact headings)
-**VERDICT**: [Accept | Minor Revisions | Major Revisions | Reject]
-
-**SUMMARY**: 
-Brief assessment of quality, central contributions, and whether claims are evidence-grounded.
-
-**STRENGTHS**:
-- ...
-
-**WEAKNESSES**:
-- ...
-
-**RECOMMENDED PAPERS** (only if needed):
-Write ONE line per recommendation in EXACTLY one of these formats:
-RECOMMEND DOI: 10.xxxx/yyyy | Reason: Why this paper is needed
-RECOMMEND SEARCH: "search query terms" | Reason: Why these papers are needed
-
-**SPECIFIC EDITS**:
-For each critical issue, use:
-Section: ...
-Issue: ...
-Suggestion: ...
-
-Be constructive but uncompromising on evidence and citation correctness.
-"""
-
-
-def peer_review(
-    typst_content: str, 
-    topic: str, 
-    round_num: int, 
-    reviewer_id: int, 
-    research_plan: Dict,
-    refs_bib: str,
-    previous_reviews: str = ""
-) -> Dict[str, Any]:
-    """
-    Conduct a peer review of the document using an LLM agent with tools.
-    """
-    console.print(Panel(
-        f"[bold blue]🔍 Reviewer #{reviewer_id} (Round {round_num})[/bold blue]\n\n"
-        f"Verifying document on: {topic[:60]}...",
-        border_style="blue"
-    ))
-    
-    # Context for the reviewer
-    context = f"""
-    TOPIC: {topic}
-    
-    RESEARCH PLAN:
-    {json.dumps(research_plan, indent=2)}
-    
-    BIBLIOGRAPHY (refs.bib):
-    {refs_bib}
-    
-    DOCUMENT CONTENT (Typst):
-    {typst_content}
-    """
-    
-    # Format message
-    user_msg = f"Please review this document (Round {round_num})."
-    if previous_reviews:
-        user_msg += f"\n\nHere is the feedback from the previous round waiting to be addressed:\n{previous_reviews}"
-
-    system_msg = REVIEWER_PROMPT.format(topic=topic, previous_reviews=previous_reviews)
-    messages: List[Dict[str, Any]] = [
-        {"role": "system", "content": system_msg},
-        {"role": "user", "content": context + "\n\n" + user_msg},
-    ]
-    
-    # Reviewer loop (configurable iteration limit to prevent infinite loops)
-    max_steps = MAX_REVIEWER_ITERATIONS
-    step = 0
-    final_review = None
-    
-    while step < max_steps:
-        step += 1
-        try:
-            assistant_msg = llm_chat(
-                model=AGENT_MODEL,
-                messages=messages,
-                tools=REVIEWER_TOOLS,
-                temperature=None,
-                timeout_seconds=REVIEWER_TIMEOUT_SECONDS,
-            )
-        except Exception as e:
-            log_debug(f"Reviewer API error: {e}")
-            break
-            
-        tool_calls = assistant_msg.get("tool_calls") or []
-        if tool_calls:
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.get("content") or "",
-                    "tool_calls": tool_calls,
-                }
-            )
-
-            for tc in tool_calls:
-                fn = (tc.get("function") or {}).get("name")
-                args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
-                tc_id = tc.get("id")
-                
-                console.print(f"[magenta]  Reviewer: {fn}(...)[/magenta]")
-                
-                if fn in TOOL_FUNCTIONS:
-                    try:
-                        result = TOOL_FUNCTIONS[fn](**args)
-                    except Exception as e:
-                        result = {"error": str(e)}
-                else:
-                    result = {"error": f"Unknown function: {fn}"}
-
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc_id,
-                        "content": json.dumps(result, default=str),
-                    }
-                )
-            continue
-
-        # Text response - the review in plain text format
-        text = (assistant_msg.get("content") or "").strip()
-        
-        # Parse plain text review
-        if "**VERDICT**" in text or "VERDICT:" in text:
-            # Extract verdict
-            verdict_match = re.search(r"\*\*VERDICT\*\*:\s*\[?([^\]\n]+)", text) or re.search(
-                r"VERDICT:\s*\[?([^\]\n]+)", text
-            )
-            verdict = verdict_match.group(1).strip().lower() if verdict_match else "minor_revisions"
-            if "accept" in verdict:
-                verdict = "accept"
-            elif "major" in verdict:
-                verdict = "major_revisions"
-            else:
-                verdict = "minor_revisions"
-            
-            # Extract summary
-            summary_match = re.search(r"\*\*SUMMARY\*\*:?\s*\n(.*?)(?=\n\*\*|$)", text, re.DOTALL)
-            summary = summary_match.group(1).strip() if summary_match else text[:200]
-            
-            # Extract weaknesses (for context)
-            weaknesses_match = re.search(r"\*\*WEAKNESSES\*\*:?\s*\n(.*?)(?=\n\*\*|$)", text, re.DOTALL)
-            weaknesses = weaknesses_match.group(1).strip() if weaknesses_match else ""
-            
-            # Extract recommended papers
-            recommendations = []
-            for line in text.split("\n"):
-                if "RECOMMEND DOI:" in line:
-                    doi_match = re.search(r"RECOMMEND DOI:\s*(10\.\S+)", line)
-                    reason_match = re.search(r"Reason:\s*(.+)", line)
-                    if doi_match:
-                        recommendations.append(
-                            {
-                                "doi": doi_match.group(1).strip(),
-                                "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer",
-                            }
-                        )
-                elif "RECOMMEND SEARCH:" in line:
-                    query_match = re.search(r"RECOMMEND SEARCH:\s*[\"']([^\"']+)[\"']", line)
-                    reason_match = re.search(r"Reason:\s*(.+)", line)
-                    if query_match:
-                        recommendations.append(
-                            {
-                                "query": query_match.group(1).strip(),
-                                "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer",
-                            }
-                        )
-            
-            final_review = {
-                "verdict": verdict,
-                "summary": summary,
-                "weaknesses": weaknesses,
-                "recommended_papers": recommendations,
-                "full_text": text,
-            }
-            console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
-            break  # Done!
-        
-        # If not done, append and continue
-        messages.append({"role": "assistant", "content": text})
-        if step == max_steps - 1:
-            messages.append({"role": "user", "content": "Please provide your final review now."})
-
-    if not final_review:
-        # Fallback
-        final_review = {
-            "verdict": "minor_revisions",
-            "summary": "Reviewer did not produce structured review",
-            "weaknesses": "",
-            "recommended_papers": [],
-            "full_text": ""
-        }
-        
-    return {
-        "reviewer_id": reviewer_id,
-        "round": round_num,
-        **final_review
-    }
-
-
-# ============================================================================
-# REVISION AGENT
-# ============================================================================
-
-REVISION_PROMPT = """You are revising an academic Typst document based on peer review feedback.
-
-Standard: MAXIMUM RIGOR. It is better to delete/soften an unsupported claim than to keep it.
-
-Your tasks:
-1) Read the ORIGINAL document carefully
-2) Study the PEER REVIEW feedback
-3) Create an IMPLEMENTATION PLAN (3-8 bullets) mapping each major issue -> concrete fix
-4) Produce the REVISED Typst document
-
-Hard rules:
-- You MAY remove claims, paragraphs, sections, or citations if they are unsupported or misleading.
-- Do NOT preserve a citation just to keep density; every citation must be relevant to the local claim.
-- Any newly introduced factual claim must be evidence-grounded (query_library).
-- Before final output, ensure all @citation_keys are valid (validate_citations) and fix/remove any invalid ones.
-
-Output: the complete revised Typst document (no commentary besides the implementation plan requested by the user prompt)."""
-
-
-def revise_document(original: str, review: str, topic: str, research_plan: Dict) -> str:
-    """Revise document based on peer review feedback."""
-    console.print(Panel(
-        f"[bold yellow]✏️ Revision Phase[/bold yellow]\n\n"
-        f"Addressing peer review feedback...",
-        border_style="yellow"
-    ))
-    
-    current_date = datetime.now().strftime("%B %Y")
-    
-    user_prompt = f"""Revise this document based on peer review.
-
-TOPIC: {topic}
-
-RESEARCH PLAN:
-{json.dumps(research_plan, indent=2)}
-
-ORIGINAL DOCUMENT:
-```typst
-{original}
-```
-
-PEER REVIEW:
-{review}
-
-First, create a brief IMPLEMENTATION PLAN (3-5 bullet points).
-Then output the complete REVISED Typst document.
-Use date: "{current_date}" in the document.
-"""
-
-    messages: List[Dict[str, Any]] = [
-        {"role": "system", "content": REVISION_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
-    
-    # Run revision loop
-    for iteration in range(15):
-        with console.status(f"[cyan]Revising (step {iteration + 1})..."):
-            try:
-                assistant_msg = llm_chat(
-                    model=AGENT_MODEL,
-                    messages=messages,
-                        tools=TOOLS,
-                    temperature=None,
-                    timeout_seconds=API_TIMEOUT_SECONDS,
-                )
-            except Exception as e:
-                console.print(f"[red]API error: {e}[/red]")
-                return original
-        
-        tool_calls = assistant_msg.get("tool_calls") or []
-        if tool_calls:
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.get("content") or "",
-                    "tool_calls": tool_calls,
-                }
-            )
-
-            for tc in tool_calls:
-                fn = (tc.get("function") or {}).get("name")
-                args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
-                tc_id = tc.get("id")
-                
-                console.print(f"[yellow]→ {fn}({json.dumps(args, default=str)[:60]})[/yellow]")
-                
-                if fn in TOOL_FUNCTIONS:
-                    try:
-                        result = TOOL_FUNCTIONS[fn](**args)
-                    except Exception as e:
-                        result = {"error": str(e)}
-                else:
-                    result = {"error": f"Unknown function: {fn}"}
-
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc_id,
-                        "content": json.dumps(result, default=str),
-                    }
-                )
-            continue
-
-        text = (assistant_msg.get("content") or "").strip()
-        
-        if "#import" in text and "project.with" in text:
-            console.print("[green]✓ Revision complete[/green]")
-            if "```typst" in text:
-                match = re.search(r"```typst\s*(.*?)\s*```", text, re.DOTALL)
-                if match:
-                    return match.group(1).strip()
-            return text
-        
-        messages.append({"role": "assistant", "content": text})
-        messages.append(
-            {"role": "user", "content": "Continue. Output the complete revised Typst document."}
-        )
-    
-    return original  # Fallback
+    set_drafter_model(routing.reasoning_model)
+    set_reviewer_model(routing.reasoning_model)
+    set_reviser_model(routing.reasoning_model)
 
 
 # ============================================================================
 # MULTI-PHASE ORCHESTRATOR
 # ============================================================================
 
-def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) -> Path:
-    """Generate a research report with planning, review, and revision phases."""
+def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, resume_from: Optional[Path] = None) -> Path:
+    """Generate a research report with planning, review, and revision phases.
+    
+    Args:
+        topic: Research topic
+        max_revisions: Maximum number of revision rounds
+        num_reviewers: Number of parallel reviewers
+        resume_from: Optional path to existing report directory to resume from
+    """
     global _used_citation_keys, _debug_logger, _session_start_time
     _used_citation_keys = set()
     _session_start_time = time.time()  # Track session start for timeout
@@ -876,13 +294,44 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     
     REPORTS_PATH.mkdir(parents=True, exist_ok=True)
     
-    # Create report directory early
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    topic_slug = "".join(c if c.isalnum() or c == " " else "" for c in topic[:40])
-    topic_slug = topic_slug.strip().replace(" ", "_").lower()
-    report_name = f"{timestamp}_{topic_slug}"
-    report_dir = REPORTS_PATH / report_name
-    report_dir.mkdir(parents=True, exist_ok=True)
+    # Resume logic: use existing directory or create new one
+    resumed_state = None
+    if resume_from:
+        # Resuming from existing report
+        report_dir = resume_from.resolve()
+        if not report_dir.exists():
+            raise RuntimeError(f"Resume directory does not exist: {report_dir}")
+        
+        checkpoint_file = report_dir / "artifacts" / "checkpoint.json"
+        is_valid, error_msg = validate_checkpoint(checkpoint_file)
+        if not is_valid:
+            raise RuntimeError(f"Cannot resume: {error_msg}")
+        
+        # Load and restore state
+        checkpoint = json.loads(checkpoint_file.read_text())
+        resumed_state = restore_state_from_checkpoint(checkpoint, report_dir)
+        
+        console.print(Panel(
+            f"[bold cyan]📂 Resuming from Checkpoint[/bold cyan]\n\n"
+            f"[white]Phase:[/white] {resumed_state['phase']}\n"
+            f"[white]Time:[/white] {checkpoint.get('timestamp', 'unknown')}\n"
+            f"[white]Round:[/white] {resumed_state['current_revision_round']}\n\n"
+            f"[dim]Will skip completed phases and resume from next phase.[/dim]",
+            title="Resume Mode",
+            border_style="cyan"
+        ))
+        
+        # Restore global state
+        _used_citation_keys = resumed_state["used_citation_keys"]
+        
+    else:
+        # Create new report directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        topic_slug = "".join(c if c.isalnum() or c == " " else "" for c in topic[:40])
+        topic_slug = topic_slug.strip().replace(" ", "_").lower()
+        report_name = f"{timestamp}_{topic_slug}"
+        report_dir = REPORTS_PATH / report_name
+        report_dir.mkdir(parents=True, exist_ok=True)
     
     # Checkpoint system for crash recovery
     checkpoint_file = report_dir / "artifacts" / "checkpoint.json"
@@ -910,20 +359,6 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
                 return None
         return None
     
-    # Check for existing checkpoint (resume capability)
-    existing_checkpoint = load_checkpoint()
-    if existing_checkpoint:
-        console.print(Panel(
-            f"[yellow]📂 Found checkpoint from previous run[/yellow]\n\n"
-            f"Phase: {existing_checkpoint['phase']}\n"
-            f"Time: {existing_checkpoint.get('timestamp', 'unknown')}\n\n"
-            f"[dim]Note: Resume functionality will skip to the last completed phase.\n"
-            f"The checkpoint system is currently for recovery only.[/dim]",
-            title="Previous Progress Detected",
-            border_style="yellow"
-        ))
-        console.print("[dim]Continuing with fresh run (resume in future version)...[/dim]\n")
-    
     # Create artifacts subfolder
     artifacts_dir = report_dir / "artifacts"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
@@ -932,45 +367,71 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     _debug_logger = setup_debug_log(report_dir)
     log_debug(f"Starting research session: {topic}")
     log_debug(f"Max revisions: {max_revisions}")
+    if resumed_state:
+        log_debug(f"Resuming from phase: {resumed_state['phase']}")
+    
+    # Initialize variables that may be restored or created fresh
+    research_plan = None
+    argument_map = None
+    typst_content = None
+    round_reviews_history = []
     
     # ========== PHASE 1: PLANNING ==========
-    console.print(Panel(
-        f"[bold blue]Phase 1: Research Planning[/bold blue]",
-        border_style="blue", width=60
-    ))
-    
-    research_plan = create_research_plan(topic)
-    save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
-    # Save plan to artifacts
-    (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
-    log_debug(f"Research plan created: {json.dumps(research_plan)}")
+    if not resumed_state or resumed_state['phase'] in ['research_plan']:
+        # Only run if not resuming or if we need to redo planning
+        console.print(Panel(
+            f"[bold blue]Phase 1: Research Planning[/bold blue]",
+            border_style="blue", width=60
+        ))
+        
+        research_plan = create_research_plan(topic)
+        save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
+        # Save plan to artifacts
+        (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
+        log_debug(f"Research plan created: {json.dumps(research_plan)}")
+    else:
+        # Skip and restore from checkpoint
+        console.print("[dim cyan]⏭ Skipping Phase 1 (Planning) - already completed[/dim cyan]")
+        research_plan = resumed_state['research_plan']
+        log_debug("Research plan restored from checkpoint")
     
     # ========== PHASE 1b: ARGUMENT DISSECTION ==========
-    console.print(Panel(
-        f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]",
-        border_style="magenta", width=60
-    ))
-    
-    argument_map = create_argument_map(topic, research_plan)
-    save_checkpoint("argument_map", {"map": argument_map})
-    (artifacts_dir / "argument_map.json").write_text(json.dumps(argument_map, indent=2))
-    log_debug(f"Argument map created: {json.dumps(argument_map)}")
+    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map']:
+        console.print(Panel(
+            f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]",
+            border_style="magenta", width=60
+        ))
+        
+        argument_map = create_argument_map(topic, research_plan)
+        save_checkpoint("argument_map", {"map": argument_map})
+        (artifacts_dir / "argument_map.json").write_text(json.dumps(argument_map, indent=2))
+        log_debug(f"Argument map created: {json.dumps(argument_map)}")
+    else:
+        console.print("[dim cyan]⏭ Skipping Phase 1b (Argument Dissection) - already completed[/dim cyan]")
+        argument_map = resumed_state['argument_map']
+        log_debug("Argument map restored from checkpoint")
     
     # ========== PHASE 2: RESEARCH & WRITE ==========
-    console.print(Panel(
-        f"[bold cyan]Phase 2: Research & Writing[/bold cyan]",
-        border_style="cyan", width=60
-    ))
-    
-    try:
-        typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
-    except RuntimeError as e:
-        # Fail fast on model access issues; don't continue generating empty drafts/reviews.
-        console.print(f"[red]Fatal LLM error: {e}[/red]")
-        raise
+    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft']:
+        console.print(Panel(
+            f"[bold cyan]Phase 2: Research & Writing[/bold cyan]",
+            border_style="cyan", width=60
+        ))
+        
+        try:
+            typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
+        except RuntimeError as e:
+            # Fail fast on model access issues; don't continue generating empty drafts/reviews.
+            console.print(f"[red]Fatal LLM error: {e}[/red]")
+            raise
 
-    if not typst_content or typst_content.strip().startswith("// Agent did not produce"):
-        raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
+        if not typst_content or typst_content.strip().startswith("// Agent did not produce"):
+            raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
+    else:
+        console.print("[dim cyan]⏭ Skipping Phase 2 (Research & Writing) - already completed[/dim cyan]")
+        typst_content = resumed_state['typst_content']
+        round_reviews_history = resumed_state['round_reviews_history']
+        log_debug("Draft content and review history restored from checkpoint")
     
     # Save drafts and generate refs.bib
     save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
@@ -1000,9 +461,16 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
     reviews = []
-    round_reviews_history = []
+    # round_reviews_history already initialized above (may be restored from checkpoint)
     
-    for revision_round in range(1, max_revisions + 1):
+    # Determine starting round for revision loop
+    start_round = 1
+    if resumed_state and resumed_state['current_revision_round'] > 0:
+        # Resume from next round after the last completed one
+        start_round = resumed_state['current_revision_round'] + 1
+        console.print(f"[dim cyan]⏭ Resuming from revision round {start_round}[/dim cyan]")
+    
+    for revision_round in range(start_round, max_revisions + 1):
         # Check session timeout at start of each revision round
         if check_session_timeout():
             console.print("[yellow]⚠ Skipping further revisions due to session timeout[/yellow]")
@@ -1161,7 +629,14 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
             console.print(f"[bold]Reviewer {i}:[/bold] [{verdict_color}]{verdict.upper()}[/{verdict_color}]")
             console.print(f"[italic]{rr.get('summary', '')}[/italic]")
             if rr.get('weaknesses'):
-                console.print(f"[red]• {len(rr.get('weaknesses'))} Weaknesses identified[/red]")
+                # Count weakness items (lines that start with - or number) not characters
+                weaknesses_text = rr.get('weaknesses', '')
+                if isinstance(weaknesses_text, str):
+                    weakness_lines = [l for l in weaknesses_text.strip().split('\n') if l.strip()]
+                    weakness_count = len(weakness_lines)
+                else:
+                    weakness_count = len(weaknesses_text)
+                console.print(f"[red]• {weakness_count} Weakness{'es' if weakness_count != 1 else ''} identified[/red]")
             if rr.get('matching_citations') or rr.get('missing_citations'):
                  console.print(f"[blue]• Citation feedback provided[/blue]")
             console.print("")
@@ -1255,24 +730,47 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     else:
         (report_dir / "refs.bib").write_text("% No references\n")
     
+    # Inject star_hash parameter into the document
+    if 'star_hash:' not in typst_content:
+        typst_content = typst_content.replace(
+            'date:',
+            'star_hash: "star_hash.svg",\n  date:'
+        )
+    
     # Write final main.typ
     main_typ = report_dir / "main.typ"
     main_typ.write_text(typst_content)
     
-    # Compile to PDF
-    with console.status("[dim]Compiling PDF..."):
+    # Copy compile.sh and compile using it (generates star hash + PDF)
+    compile_script = TEMPLATE_PATH / "compile.sh"
+    if compile_script.exists():
+        shutil.copy(compile_script, report_dir / "compile.sh")
+        (report_dir / "compile.sh").chmod(0o755)
+    
+    with console.status("[dim]Compiling PDF (with star hash)..."):
         try:
-            result = subprocess.run(
-                ["typst", "compile", "main.typ"],
-                cwd=report_dir,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+            # Use compile.sh for unified star hash + typst compile
+            if (report_dir / "compile.sh").exists():
+                result = subprocess.run(
+                    ["./compile.sh"],
+                    cwd=report_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+            else:
+                # Fallback to plain typst if compile.sh not available
+                result = subprocess.run(
+                    ["typst", "compile", "main.typ"],
+                    cwd=report_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
             if result.returncode != 0:
-                log_debug(f"Typst error: {result.stderr}")
+                log_debug(f"Compile error: {result.stderr}")
         except FileNotFoundError:
-            log_debug("typst not found")
+            log_debug("compile.sh or typst not found")
         except Exception as e:
             log_debug(f"Compile error: {e}")
     
@@ -1312,6 +810,42 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
 # CLI ENTRY POINT
 # ============================================================================
 
+def interactive_config(topic: str) -> dict:
+    """Show interactive config menu before research starts."""
+    from rich.prompt import Prompt, IntPrompt
+    
+    console.print()
+    console.print(Panel(
+        f"[bold cyan]Research Agent Config[/bold cyan]\n\n"
+        f"[white]Topic:[/white] {topic[:60]}{'...' if len(topic) > 60 else ''}",
+        border_style="cyan"
+    ))
+    console.print()
+    
+    # Model selection
+    model = Prompt.ask(
+        "[cyan]Model[/cyan]",
+        choices=["3-pro", "2.5-flash", "2.5-pro"],
+        default="2.5-flash"
+    )
+    model_map = {
+        "3-pro": "gemini/gemini-3-pro-preview",
+        "2.5-flash": "gemini/gemini-2.5-flash",
+        "2.5-pro": "gemini/gemini-2.5-pro-preview",
+    }
+    
+    # Iterations and revisions
+    max_iterations = IntPrompt.ask("[cyan]Max agent iterations[/cyan]", default=50)
+    revisions = IntPrompt.ask("[cyan]Revision rounds[/cyan]", default=3)
+    
+    console.print()
+    return {
+        "reasoning_model": model_map[model],
+        "max_iterations": max_iterations,
+        "revisions": revisions,
+    }
+
+
 if __name__ == "__main__":
     import argparse
     
@@ -1323,10 +857,15 @@ Examples:
   research agent "Impact of attention mechanisms on NLP"
   research agent -r 5 "Vision Transformers vs CNNs"
   research agent --revisions 1 "Quick research topic"
+  research agent -i "Interactive config mode"
   research agent --reasoning-model openai/gpt-5.2-high --rag-model openai/gpt-5.2-fast "Topic"
         """
     )
-    parser.add_argument('topic', nargs='+', help='Research topic')
+    parser.add_argument('topic', nargs='*', help='Research topic (optional if resuming)')
+    parser.add_argument('--interactive', '-i', action='store_true',
+                       help='Show config menu before starting')
+    parser.add_argument('--resume', type=str, default=None,
+                       help='Resume from existing report directory (e.g., reports/20251212_150513_...)')
     parser.add_argument('--revisions', '-r', type=int, default=3,
                        help='Max peer review rounds (default: 3)')
     parser.add_argument('--reviewers', type=int, default=1,
@@ -1348,14 +887,59 @@ Examples:
     )
     
     args = parser.parse_args()
-    topic = " ".join(args.topic)
     
-    if not topic:
-        parser.print_help()
-        sys.exit(1)
+    # Handle resume mode
+    resume_path = None
+    if args.resume:
+        resume_path = Path(args.resume).resolve()
+        if not resume_path.exists():
+            console.print(f"[red]Error: Resume directory does not exist: {resume_path}[/red]")
+            sys.exit(1)
+        
+        # Try to extract topic from checkpoint or directory name
+        checkpoint_file = resume_path / "artifacts" / "checkpoint.json"
+        topic = None
+        
+        if checkpoint_file.exists():
+            try:
+                checkpoint = json.loads(checkpoint_file.read_text())
+                # Try to get topic from checkpoint data or research plan
+                if "topic" in checkpoint.get("data", {}):
+                    topic = checkpoint["data"]["topic"]
+            except Exception:
+                pass
+        
+        # Fallback: extract from directory name or use provided topic
+        if not topic:
+            if args.topic:
+                topic = " ".join(args.topic)
+            else:
+                # Extract from directory name (remove timestamp prefix)
+                dir_name = resume_path.name
+                topic_part = "_".join(dir_name.split("_")[2:])  # Skip YYYYMMDD_HHMMSS
+                topic = topic_part.replace("_", " ").title()
+                console.print(f"[yellow]No topic provided, extracted from directory: {topic}[/yellow]")
+    else:
+        topic = " ".join(args.topic)
+        
+        if not topic:
+            parser.print_help()
+            sys.exit(1)
+    
+    # Interactive config mode
+    if args.interactive:
+        config = interactive_config(topic)
+        reasoning_model = config["reasoning_model"]
+        revisions = config["revisions"]
+        # Update phase module iteration limits
+        from phases.drafter import set_max_iterations as set_drafter_iterations
+        set_drafter_iterations(config["max_iterations"])
+    else:
+        reasoning_model = args.reasoning_model
+        revisions = args.revisions
     
     routing = ModelRouting.from_env(
-        reasoning_model=args.reasoning_model,
+        reasoning_model=reasoning_model,
         rag_model=args.rag_model,
         embedding_model=args.embedding_model,
     )
@@ -1377,4 +961,5 @@ Examples:
     console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
     
-    generate_report(topic, max_revisions=args.revisions, num_reviewers=args.reviewers)
+    generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers, resume_from=resume_path)
+
