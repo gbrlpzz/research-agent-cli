@@ -165,7 +165,7 @@ from tools import (
     track_reviewed_paper,
     get_reviewed_papers,
     export_literature_sheet,
-    export_literature_sheet_markdown,
+    # export_literature_sheet_markdown removed as unused
     literature_sheet
 )
 
@@ -1279,18 +1279,19 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     # Export literature review sheet
     literature_sheet = export_literature_sheet()
     (report_dir / "literature_sheet.csv").write_text(literature_sheet)
-    (report_dir / "literature_sheet.md").write_text(export_literature_sheet_markdown())
+    # Markdown sheet removed as requested
     log_debug(f"Literature sheet exported with {len(get_reviewed_papers())} papers")
     
     # Summary
     reviewed_count = len(get_reviewed_papers())
-    cited_count = sum(1 for p in get_reviewed_papers().values() if p.get('cited'))
+    # Robust citation count from used keys directly
+    cited_count = len(get_used_citation_keys())
     
     console.print("\n" + "="*60)
     console.print(Panel(
         f"[bold green]✓ Research Complete[/bold green]\n\n"
         f"[white]Topic:[/white] {topic[:50]}...\n"
-        f"[white]Reviews:[/white] {len(reviews)} rounds\n"
+        f"[white]Reviews:[/white] {len(reviews)} round{'s' if len(reviews) != 1 else ''}\n"
         f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n"
         f"[white]Papers:[/white] {cited_count} cited / {reviewed_count} reviewed\n\n"
         f"[dim]Output:[/dim]\n"
@@ -1298,7 +1299,6 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
         f"  📄 main.pdf\n"
         f"  📚 refs.bib\n"
         f"  📊 literature_sheet.csv\n"
-        f"  📊 literature_sheet.md\n"
         f"  📁 artifacts/ (plans, drafts, reviews)\n\n"
         f"[dim]{report_dir}[/dim]",
         border_style="green"
