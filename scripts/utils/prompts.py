@@ -88,7 +88,7 @@ Minimal Typst skeleton (adapt as needed):
 #show: project.with(
   title: \"Short Punchy Title\",  // ≤65 chars
   subtitle: \"Clarifying scope or method\",  // ≤100 chars
-  authors: (\"Research Agent\",),
+  authors: (\"Opera Incerta Research Agent\",),
   date: \"{current_date}\",
   abstract: [ ... ]
 )

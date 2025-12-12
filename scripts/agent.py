@@ -325,7 +325,7 @@ def run_agent(topic: str, research_plan: Optional[Dict[str, Any]] = None, argume
     _used_citation_keys = set()  # Reset for new run
     
     # Get current date for the document
-    current_date = datetime.now().strftime("%B %Y")
+    current_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     
     console.print(Panel(
         f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
@@ -758,7 +758,7 @@ def revise_document(original: str, review: str, topic: str, research_plan: Dict)
         border_style="yellow"
     ))
     
-    current_date = datetime.now().strftime("%B %Y")
+    current_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     
     user_prompt = f"""Revise this document based on peer review.
 
