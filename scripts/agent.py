@@ -45,7 +45,6 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 import logging
 
-# Model routing + unified LLM backend (LiteLLM)
 from utils.model_config import ModelRouting, apply_routing_to_env, ensure_model_env
 
 # Import from extracted modules
@@ -1255,24 +1254,47 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     else:
         (report_dir / "refs.bib").write_text("% No references\n")
     
+    # Inject star_hash parameter into the document
+    if 'star_hash:' not in typst_content:
+        typst_content = typst_content.replace(
+            'date:',
+            'star_hash: "star_hash.svg",\n  date:'
+        )
+    
     # Write final main.typ
     main_typ = report_dir / "main.typ"
     main_typ.write_text(typst_content)
     
-    # Compile to PDF
-    with console.status("[dim]Compiling PDF..."):
+    # Copy compile.sh and compile using it (generates star hash + PDF)
+    compile_script = TEMPLATE_PATH / "compile.sh"
+    if compile_script.exists():
+        shutil.copy(compile_script, report_dir / "compile.sh")
+        (report_dir / "compile.sh").chmod(0o755)
+    
+    with console.status("[dim]Compiling PDF (with star hash)..."):
         try:
-            result = subprocess.run(
-                ["typst", "compile", "main.typ"],
-                cwd=report_dir,
-                capture_output=True,
-                text=True,
-                timeout=60
-            )
+            # Use compile.sh for unified star hash + typst compile
+            if (report_dir / "compile.sh").exists():
+                result = subprocess.run(
+                    ["./compile.sh"],
+                    cwd=report_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+            else:
+                # Fallback to plain typst if compile.sh not available
+                result = subprocess.run(
+                    ["typst", "compile", "main.typ"],
+                    cwd=report_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
             if result.returncode != 0:
-                log_debug(f"Typst error: {result.stderr}")
+                log_debug(f"Compile error: {result.stderr}")
         except FileNotFoundError:
-            log_debug("typst not found")
+            log_debug("compile.sh or typst not found")
         except Exception as e:
             log_debug(f"Compile error: {e}")
     
