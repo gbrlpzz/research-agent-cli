@@ -4,7 +4,7 @@
     <strong>Autonomous Research Assistant and Paper Writer</strong>
   </p>
   <p align="center">
-    An agentic system that conducts academic research, synthesizes findings, and generates publication-ready documents with verified citations.
+    An agentic system that conducts academic research, synthesizes findings, and generates compiled documents with verified citations.
   </p>
 </p>
 
@@ -13,13 +13,12 @@
   <a href="#quick-start">Quick Start</a> •
   <a href="#features">Features</a> •
   <a href="#architecture">Architecture</a> •
-  <a href="#documentation">Docs</a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+">
   <img src="https://img.shields.io/badge/license-Apache%202.0-green.svg" alt="License">
-  <img src="https://img.shields.io/badge/Gemini-2.0%20Flash-orange.svg" alt="Gemini">
+  <img src="https://img.shields.io/badge/Gemini-3.0%20Pro-orange.svg" alt="Gemini">
   <img src="https://img.shields.io/badge/PaperQA2-RAG-purple.svg" alt="PaperQA2">
 </p>
 
@@ -37,7 +36,7 @@ Research Agent CLI is a command-line tool that autonomously conducts academic re
 6. **Reviews** output through an automated peer review system
 7. **Revises** based on feedback until quality thresholds are met
 
-The agent produces publication-ready PDFs with full bibliographies, saved to versioned report directories.
+The agent produces compiled PDFs with full bibliographies, saved to versioned report directories.
 
 ---
 
@@ -255,8 +254,8 @@ graph TB
 
     subgraph RAG
         L[PaperQA2]
-        M[Qdrant VectorDB]
-        N[Embeddings Model]
+        M[Gemini Embeddings]
+        N[Qdrant VectorDB]
     end
 
     subgraph Generation
@@ -289,13 +288,12 @@ graph TB
 
 | Component | Technology | Purpose |
 |-----------|------------|---------|
-| **LLM (Reasoning)** | GPT-5.2 High | Planning, writing, reviewing |
-| **LLM (RAG)** | GPT-5.2 Fast | PaperQA2 answer + summarization over your library |
+| **LLM** | Gemini 3.0 Pro | Planning, writing, reviewing |
 | **RAG Framework** | PaperQA2 | Question-answering over papers |
 | **Vector Database** | Qdrant | Persistent document embeddings |
 | **Embeddings** | text-embedding-3-large | Document vectorization |
 | **Bibliography** | Papis | Local PDF library management |
-| **Typesetting** | Typst | Publication-ready PDF generation |
+| **Typesetting** | Typst | compiled PDF generation |
 
 ---
 
@@ -333,7 +331,6 @@ research-agent-cli/
 ├── library/              # Local PDF collection (Papis)
 ├── reports/              # Generated research outputs
 ├── templates/            # Typst templates
-├── docs/                 # Documentation
 └── master.bib            # Master bibliography
 ```
 
@@ -345,33 +342,12 @@ research-agent-cli/
 |------------|---------|---------|------|
 | **PaperQA2** | 5.0+ | RAG for academic papers | [paper-qa](https://github.com/Future-House/paper-qa) |
 | **Qdrant** | Latest | Vector database | [qdrant](https://qdrant.tech/) |
-| **OpenAI** | GPT-5.2 High/Fast | Reasoning + RAG models | [OpenAI](https://platform.openai.com/) |
-| **LiteLLM** | Latest | Unified model router (tool calling + providers) | [litellm](https://github.com/BerriAI/litellm) |
+| **Google Gemini** | 3.0 Pro | LLM for reasoning | [Google AI](https://ai.google.dev/) |
 | **Semantic Scholar** | API v1 | Paper discovery | [semanticscholar.org](https://www.semanticscholar.org/) |
 | **Exa.ai** | Latest | Neural search | [exa.ai](https://exa.ai/) |
 | **Papis** | Latest | Bibliography management | [papis](https://github.com/papis/papis) |
 | **Typst** | 0.11+ | Document typesetting | [typst.app](https://typst.app/) |
 | **Rich** | Latest | Terminal UI | [rich](https://github.com/Textualize/rich) |
-
----
-
-## Documentation
-
-- [Methodology](docs/METHODOLOGY.md) - Research workflow and agent phases
-- [Technical Reference](docs/TECHNICAL.md) - Architecture and implementation details
-- [Limitations](docs/LIMITATIONS.md) - Known constraints and roadmap
-
----
-
-## Roadmap
-
-- [ ] Resume from checkpoint (crash recovery)
-- [x] Separate reasoning vs RAG models (via env/CLI model routing)
-- [ ] Additional providers (Claude, local models)
-- [ ] Web interface for report browsing
-- [ ] Collaborative research sessions
-- [ ] Figure and table extraction from PDFs
-- [ ] Multi-language support
 
 ---
 
