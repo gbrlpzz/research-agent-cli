@@ -210,6 +210,7 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
             console.print(f"[dim]📑 Auto-indexing new paper...[/dim]")
             from qa import load_existing_docs, save_docs, load_manifest, save_manifest, compute_md5
             from qa import setup_paperqa_settings
+            from paperqa import Docs
             import asyncio
             
             # Find the newly added PDF
@@ -220,19 +221,23 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
                     pdf_path = new_pdfs[0]
                     file_hash = compute_md5(pdf_path)
                     
-                    # Load existing docs and add the new paper
+                    # Load existing docs OR create new if pickle missing
                     docs = load_existing_docs(LIBRARY_PATH)
-                    if docs:
-                        settings = setup_paperqa_settings()
-                        asyncio.run(docs.aadd(pdf_path, dockey=file_hash, settings=settings))
-                        save_docs(LIBRARY_PATH, docs)
-                        
-                        # Update manifest
-                        manifest = load_manifest(LIBRARY_PATH)
-                        manifest[pdf_path.name] = file_hash
-                        save_manifest(LIBRARY_PATH, manifest)
-                        
-                        console.print(f"[green]✓ Paper indexed and ready for queries[/green]")
+                    if docs is None:
+                        console.print(f"[dim]Creating new index (no existing pickle)[/dim]")
+                        docs = Docs()
+                    
+                    # Add the new paper
+                    settings = setup_paperqa_settings()
+                    asyncio.run(docs.aadd(pdf_path, dockey=file_hash, settings=settings))
+                    save_docs(LIBRARY_PATH, docs)
+                    
+                    # ALWAYS update manifest (even if indexing fails later)
+                    manifest = load_manifest(LIBRARY_PATH)
+                    manifest[pdf_path.name] = file_hash
+                    save_manifest(LIBRARY_PATH, manifest)
+                    
+                    console.print(f"[green]✓ Paper indexed and ready for queries[/green]")
         except Exception as e:
             console.print(f"[dim]Auto-index skipped: {e}[/dim]")
         
