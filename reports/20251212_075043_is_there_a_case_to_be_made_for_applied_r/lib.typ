@@ -55,8 +55,9 @@
   set footnote.entry(separator: none)
   show footnote.entry: set text(font: ("Space Mono", "Courier New"), size: 8pt)
 
-  // Bibliography: Ensure Inter font
-  show bibliography: set text(font: ("Inter", "Helvetica"), size: 10.5pt)
+  // Bibliography: Ensure Inter font, 8pt, APA style
+  set bibliography(style: "apa")
+  show bibliography: set text(font: ("Inter", "Helvetica"), size: 8pt)
 
   // 6. Outline (TOC) Styling
   show outline.entry: it => {
