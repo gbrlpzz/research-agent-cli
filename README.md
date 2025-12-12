@@ -246,8 +246,8 @@ graph TB
 
     subgraph RAG
         L[PaperQA2]
-        M[Qdrant VectorDB]
-        N[Gemini Embeddings]
+        M[Gemini Embeddings]
+        N[Qdrant VectorDB]
     end
 
     subgraph Generation
