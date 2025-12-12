@@ -229,6 +229,9 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
     # Find all PDFs in library
     all_pdf_files = list(library_path.rglob("*.pdf"))
     
+    # Track if we should use manifest (default: yes if no filter or if filter fallback)
+    use_manifest = True
+    
     # Filter PDFs if pattern provided
     if filter_pattern:
         pdf_files = []
@@ -240,10 +243,13 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
         
         if not pdf_files:
             # Graceful fallback: use all PDFs instead of erroring
+            # IMPORTANT: Still use manifest to avoid re-indexing!
             console.print(f"[dim]Filter '{filter_pattern}' matched no PDFs, querying full library[/dim]")
             pdf_files = all_pdf_files
+            use_manifest = True  # Fallback to full library - use manifest!
         else:
             console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+            use_manifest = False  # Genuine filter - don't use manifest (user wants specific subset)
     else:
         pdf_files = all_pdf_files
     
@@ -257,7 +263,7 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
     
     docs = None
     try:
-        if not filter_pattern:
+        if use_manifest:
             # Try to load existing docs from pickle
             docs = load_existing_docs(library_path)
         
@@ -272,7 +278,7 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
         files_to_index = []
         files_hashes = {} # Map path -> hash
         
-        if not filter_pattern:
+        if use_manifest:
             # Load Blacklist & Manifest
             blacklist = load_blacklist(library_path)
             manifest = load_manifest(library_path)
@@ -475,18 +481,27 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
     # Index library (same logic as answer_question)
     all_pdf_files = list(library_path.rglob("*.pdf"))
     
+    # Track if we should use manifest
+    use_manifest = True
+    
     if filter_pattern:
         pdf_files = [p for p in all_pdf_files 
                      if filter_pattern.lower() in p.parent.name.lower() or 
                         filter_pattern.lower() in p.name.lower()]
-        console.print(f"[cyan]Using {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+        if pdf_files:
+            console.print(f"[cyan]Using {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+            use_manifest = False  # Genuine filter
+        else:
+            console.print(f"[dim]Filter '{filter_pattern}' matched no PDFs, using full library[/dim]")
+            pdf_files = all_pdf_files
+            use_manifest = True  # Fallback - use manifest
     else:
         pdf_files = all_pdf_files
         console.print(f"[dim]Found {len(pdf_files)} PDFs[/dim]")
     
     docs = None
     try:
-        if not filter_pattern:
+        if use_manifest:
             # Try to load existing docs from pickle
             docs = load_existing_docs(library_path)
         
@@ -505,7 +520,7 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
         files_to_index = []
         files_hashes = {} # Map path -> hash
         
-        if not filter_pattern:
+        if use_manifest:
             for pdf in pdf_files:
                 file_hash = compute_md5(pdf)
                 if file_hash:
@@ -515,7 +530,7 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
         else:
             files_to_index = pdf_files
 
-        if not files_to_index and not filter_pattern:
+        if not files_to_index and use_manifest:
             console.print("[dim]Library fully indexed (no new content)[/dim]")
         
         with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
@@ -530,7 +545,7 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
                 progress.advance(task)
         
         # Save docs to pickle for persistence
-        if not filter_pattern and len(files_to_index) > 0:
+        if use_manifest and len(files_to_index) > 0:
             save_docs(library_path, docs)
             console.print("[green]✓ Saved database to disk[/green]")
         
