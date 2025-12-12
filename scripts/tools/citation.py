@@ -6,7 +6,7 @@ Provides tools for managing and validating citations:
 - Validation of citation keys against the library
 """
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from rich.console import Console
 
@@ -19,9 +19,38 @@ console = Console()
 # Global state for tracking which papers were used during agent sessions
 _used_citation_keys: Set[str] = set()
 
-# Extended tracking: all papers reviewed with relevance/utility info
-# {citation_key: {title, authors, year, relevance, utility, cited, source}}
+# Extended tracking: all items encountered in the session (including discovered-but-not-added).
+# Keyed by a stable paper_id, not necessarily a library citation key.
+# paper_id examples:
+#   - cite:<citation_key>
+#   - doi:<doi>
+#   - arxiv:<arxiv_id>
+#   - titlehash:<hash>
 _reviewed_papers: Dict[str, Dict[str, Any]] = {}
+
+
+def _stable_title_hash(title: str) -> str:
+    import hashlib
+    t = (title or "").strip().lower().encode("utf-8")
+    return hashlib.sha1(t).hexdigest()[:10]
+
+
+def make_paper_id(
+    *,
+    citation_key: Optional[str] = None,
+    doi: Optional[str] = None,
+    arxiv_id: Optional[str] = None,
+    title: Optional[str] = None,
+) -> str:
+    if citation_key:
+        return f"cite:{citation_key.strip()}"
+    if doi:
+        return f"doi:{doi.strip()}"
+    if arxiv_id:
+        return f"arxiv:{arxiv_id.strip()}"
+    if title:
+        return f"titlehash:{_stable_title_hash(title)}"
+    return "unknown"
 
 
 def get_used_citation_keys() -> Set[str]:
@@ -43,26 +72,80 @@ def track_reviewed_paper(
     year: str,
     relevance: int = 3,  # 1-5 scale
     utility: int = 3,    # 1-5 scale
-    source: str = "discovery"
+    source: str = "discovery",
+    doi: Optional[str] = None,
+    arxiv_id: Optional[str] = None,
+    citations: Optional[int] = None,
+    used_as_evidence: bool = False,
 ):
     """Track a paper that was reviewed during the research process."""
     global _reviewed_papers
-    _reviewed_papers[citation_key] = {
-        "title": title,
-        "authors": authors,
-        "year": year,
-        "relevance": relevance,
-        "utility": utility,
-        "cited": citation_key in _used_citation_keys,
-        "source": source
+    paper_id = make_paper_id(citation_key=citation_key, doi=doi, arxiv_id=arxiv_id, title=title)
+
+    existing = _reviewed_papers.get(paper_id, {})
+    prev_rel = int(existing.get("relevance", 0) or 0)
+    prev_util = int(existing.get("utility", 0) or 0)
+
+    _reviewed_papers[paper_id] = {
+        "paper_id": paper_id,
+        "citation_key": citation_key or existing.get("citation_key", ""),
+        "doi": doi or existing.get("doi", ""),
+        "arxiv_id": arxiv_id or existing.get("arxiv_id", ""),
+        "citations": citations if citations is not None else existing.get("citations"),
+        "title": title or existing.get("title", ""),
+        "authors": authors or existing.get("authors", ""),
+        "year": year or existing.get("year", ""),
+        "relevance": max(prev_rel, int(relevance or 0)),
+        "utility": max(prev_util, int(utility or 0)),
+        "cited": (citation_key in _used_citation_keys) if citation_key else bool(existing.get("cited")),
+        "used_as_evidence": bool(existing.get("used_as_evidence")) or bool(used_as_evidence),
+        "source": source or existing.get("source", ""),
     }
+
+
+def mark_used_as_evidence(*, citation_key: Optional[str] = None, title: Optional[str] = None, source: str = "query_library") -> None:
+    """
+    Mark a paper as having been used as evidence in a RAG answer.
+    Best-effort matching by citation_key (preferred) or title.
+    """
+    global _reviewed_papers
+
+    if citation_key:
+        pid = make_paper_id(citation_key=citation_key)
+        if pid in _reviewed_papers:
+            _reviewed_papers[pid]["used_as_evidence"] = True
+            _reviewed_papers[pid]["source"] = _reviewed_papers[pid].get("source") or source
+            return
+
+    if title:
+        pid = make_paper_id(title=title)
+        if pid not in _reviewed_papers:
+            _reviewed_papers[pid] = {
+                "paper_id": pid,
+                "citation_key": "",
+                "doi": "",
+                "arxiv_id": "",
+                "citations": None,
+                "title": title,
+                "authors": "",
+                "year": "",
+                "relevance": 3,
+                "utility": 3,
+                "cited": False,
+                "used_as_evidence": True,
+                "source": source,
+            }
+        else:
+            _reviewed_papers[pid]["used_as_evidence"] = True
 
 
 def update_cited_status():
     """Update the 'cited' flag for all reviewed papers based on used keys."""
     global _reviewed_papers
-    for key in _reviewed_papers:
-        _reviewed_papers[key]["cited"] = key in _used_citation_keys
+    for pid, data in _reviewed_papers.items():
+        ck = data.get("citation_key") or ""
+        if ck:
+            data["cited"] = ck in _used_citation_keys
 
 
 def get_reviewed_papers() -> Dict[str, Dict[str, Any]]:
@@ -79,8 +162,13 @@ def export_literature_sheet() -> str:
     """
     update_cited_status()
     
+    # Keep the CSV focused on decision-making:
+    # - identifiers (so you can add it)
+    # - title/year (so you can recognize it)
+    # - relevance + used flags (so you can prioritize)
+    # - source/citations (lightweight provenance)
     if not _reviewed_papers:
-        return "citation_key,title,authors,year,relevance,utility,cited,source\n"
+        return "paper_id,citation_key,doi,arxiv_id,title,year,relevance,used,cited,used_as_evidence,source,citations\n"
     
     import csv
     import io
@@ -89,27 +177,181 @@ def export_literature_sheet() -> str:
     writer = csv.writer(output)
     
     # Header
-    writer.writerow(["citation_key", "title", "authors", "year", "relevance", "utility", "cited", "source"])
-    
-    # Sort by relevance then utility
-    sorted_papers = sorted(
-        _reviewed_papers.items(),
-        key=lambda x: (-x[1].get("relevance", 0), -x[1].get("utility", 0))
+    writer.writerow(
+        [
+            "paper_id",
+            "citation_key",
+            "doi",
+            "arxiv_id",
+            "title",
+            "year",
+            "relevance",
+            "used",
+            "cited",
+            "used_as_evidence",
+            "source",
+            "citations",
+        ]
     )
     
-    for key, data in sorted_papers:
+    # Sort by whether used (cited or evidence), then relevance/utility
+    sorted_papers = sorted(
+        _reviewed_papers.items(),
+        key=lambda x: (
+            0 if (x[1].get("cited") or x[1].get("used_as_evidence")) else 1,
+            0 if x[1].get("cited") else 1,
+            -int(x[1].get("relevance", 0) or 0),
+            -int(x[1].get("utility", 0) or 0),
+            str(x[1].get("year") or ""),
+            x[0],
+        ),
+    )
+    
+    for _, data in sorted_papers:
         writer.writerow([
-            key,
-            data.get('title', ''),
-            data.get('authors', ''),
-            data.get('year', ''),
-            data.get('relevance', 0),
-            data.get('utility', 0),
-            "true" if data.get('cited') else "false",
-            data.get('source', '')
+            data.get("paper_id", ""),
+            data.get("citation_key", ""),
+            data.get("doi", ""),
+            data.get("arxiv_id", ""),
+            data.get("title", ""),
+            data.get("year", ""),
+            data.get("relevance", 0),
+            "true" if (data.get("cited") or data.get("used_as_evidence")) else "false",
+            "true" if data.get("cited") else "false",
+            "true" if data.get("used_as_evidence") else "false",
+            data.get("source", ""),
+            data.get("citations", ""),
         ])
         
     return output.getvalue()
+
+
+def export_literature_sheet_markdown(limit: int = 200) -> str:
+    """
+    Export a Markdown table literature sheet (human-readable).
+    This is useful for quick inspection in reports/.
+    """
+    update_cited_status()
+
+    header = (
+        "| paper_id | citation_key | title | year | relevance | used | cited | used_as_evidence | source |\n"
+        "|---|---|---|---:|---:|---|---|---|---|\n"
+    )
+    if not _reviewed_papers:
+        return header
+
+    sorted_papers = sorted(
+        _reviewed_papers.items(),
+        key=lambda x: (
+            0 if (x[1].get("cited") or x[1].get("used_as_evidence")) else 1,
+            0 if x[1].get("cited") else 1,
+            -int(x[1].get("relevance", 0) or 0),
+            x[0],
+        ),
+    )
+
+    lines = [header]
+    for key, data in sorted_papers[: max(1, int(limit))]:
+        def esc(v: Any) -> str:
+            s = str(v or "")
+            return s.replace("|", "\\|").replace("\n", " ").strip()
+
+        lines.append(
+            f"| {esc(data.get('paper_id', key))} | {esc(data.get('citation_key'))} | {esc(data.get('title'))} | "
+            f"{esc(data.get('year'))} | {data.get('relevance', 0)} | "
+            f"{'yes' if (data.get('cited') or data.get('used_as_evidence')) else 'no'} | "
+            f"{'yes' if data.get('cited') else 'no'} | {'yes' if data.get('used_as_evidence') else 'no'} | {esc(data.get('source'))} |\\n"
+        )
+
+    return "".join(lines)
+
+
+def literature_sheet(limit: int = 20, only_uncited: bool = False, verbose: bool = False) -> Dict[str, Any]:
+    """
+    Tool-friendly access to the current session's literature sheet.
+
+    Returns a JSON-like dict (summary + rows) so the agent can reason about:
+    - what has been reviewed/added/cited
+    - what is uncited
+    - what looks high relevance/utility
+    """
+    update_cited_status()
+
+    items = sorted(
+        _reviewed_papers.items(),
+        key=lambda x: (-x[1].get("relevance", 0), -x[1].get("utility", 0), x[0]),
+    )
+    if only_uncited:
+        items = [(k, v) for (k, v) in items if not v.get("cited")]
+
+    limit_n = max(1, int(limit))
+    rows: List[Dict[str, Any]] = []
+    for key, data in items[:limit_n]:
+        used = bool(data.get("cited")) or bool(data.get("used_as_evidence"))
+        row: Dict[str, Any] = {
+            "paper_id": data.get("paper_id", key),
+            "title": (data.get("title", "") or "")[:100],
+            "used": used,
+        }
+
+        # Include identifiers only when needed
+        ck = (data.get("citation_key") or "").strip()
+        if ck:
+            row["citation_key"] = ck
+        else:
+            doi = (data.get("doi") or "").strip()
+            arxiv_id = (data.get("arxiv_id") or "").strip()
+            if doi:
+                row["doi"] = doi
+            if arxiv_id:
+                row["arxiv_id"] = arxiv_id
+
+        y = (data.get("year") or "").strip()
+        if y:
+            row["year"] = y
+
+        # Only include relevance when it's not the default (3) or when verbose
+        rel = int(data.get("relevance", 3) or 3)
+        if verbose or rel != 3:
+            row["relevance"] = rel
+
+        # Only include these booleans when true, unless verbose
+        if verbose or data.get("cited"):
+            if data.get("cited"):
+                row["cited"] = True
+        if verbose or data.get("used_as_evidence"):
+            if data.get("used_as_evidence"):
+                row["used_as_evidence"] = True
+
+        if verbose:
+            src = (data.get("source") or "").strip()
+            if src:
+                row["source"] = src
+            cits = data.get("citations")
+            if cits is not None and cits != "":
+                row["citations"] = cits
+
+        rows.append(row)
+
+    reviewed_count = len(_reviewed_papers)
+    cited_count = sum(1 for v in _reviewed_papers.values() if v.get("cited"))
+    evidence_count = sum(1 for v in _reviewed_papers.values() if v.get("used_as_evidence"))
+    used_count = sum(1 for v in _reviewed_papers.values() if v.get("cited") or v.get("used_as_evidence"))
+    uncited_count = reviewed_count - cited_count
+    unused_count = reviewed_count - used_count
+
+    return {
+        "summary": {
+            "reviewed_count": reviewed_count,
+            "cited_count": cited_count,
+            "used_as_evidence_count": evidence_count,
+            "used_count": used_count,
+            "uncited_count": uncited_count,
+            "unused_count": unused_count,
+            "returned_rows": len(rows),
+        },
+        "rows": rows,
+    }
 
 
 def fuzzy_cite(query: str) -> List[Dict[str, str]]:
@@ -160,20 +402,24 @@ def fuzzy_cite(query: str) -> List[Dict[str, str]]:
                 # Track for refs.bib filtering
                 _used_citation_keys.add(citation_key)
                 
-                # Track in reviewed papers with high relevance (since it matched query)
-                if citation_key not in _reviewed_papers:
-                    _reviewed_papers[citation_key] = {
-                        "title": title,
-                        "authors": authors[:60],
-                        "year": year,
-                        "relevance": 4,  # High since it matched fuzzy query
-                        "utility": 4,    # High since agent requested it
-                        "cited": True,
-                        "source": "fuzzy_cite"
-                    }
-                else:
-                    # Update existing entry to mark as cited
-                    _reviewed_papers[citation_key]["cited"] = True
+                # Track/upgrade in reviewed papers (use paper_id model)
+                try:
+                    track_reviewed_paper(
+                        citation_key=citation_key,
+                        title=title,
+                        authors=authors[:60],
+                        year=year,
+                        relevance=4,  # High since it matched query
+                        utility=4,    # High since agent requested it
+                        source="fuzzy_cite",
+                        used_as_evidence=False,
+                    )
+                    # Ensure cited flag is reflected
+                    pid = make_paper_id(citation_key=citation_key)
+                    if pid in _reviewed_papers:
+                        _reviewed_papers[pid]["cited"] = True
+                except Exception:
+                    pass
         except:
             pass
     
@@ -191,6 +437,41 @@ def fuzzy_cite(query: str) -> List[Dict[str, str]]:
     
     console.print(f"[green]✓ Found {len(results)} matches[/green]")
     return results[:10]
+
+
+def citation_key_to_pdf_filter(citation_key: str) -> str:
+    """
+    Map a citation key to a PDF filter pattern for query_library.
+    
+    Because citation keys don't match PDF filenames, this function finds
+    the PDF associated with a citation key by looking up the info.yaml.
+    
+    Args:
+        citation_key: The citation key (e.g., "vaswani2017attention")
+    
+    Returns:
+        A filter pattern that will match the PDF (folder name or filename fragment),
+        or empty string if not found
+    """
+    import yaml
+    
+    key_lower = citation_key.lower().strip()
+    
+    for info_file in LIBRARY_PATH.rglob("info.yaml"):
+        try:
+            with open(info_file) as f:
+                data = yaml.safe_load(f)
+            
+            ref = data.get('ref', '').lower()
+            if ref == key_lower:
+                # Found it - return the folder name as the filter
+                folder_name = info_file.parent.name
+                return folder_name
+        except:
+            pass
+    
+    # Fallback: return empty string (will query full library)
+    return ""
 
 
 
@@ -274,5 +555,4 @@ def validate_citations(citation_keys: List[str]) -> Dict[str, Any]:
         "valid": valid,
         "invalid": invalid,
         "suggestions": suggestions,
-        "all_library_keys": list(library_keys.values())[:20]
     }

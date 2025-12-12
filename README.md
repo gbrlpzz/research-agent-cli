@@ -66,7 +66,7 @@ pip install -r requirements.txt
 
 # Configure API keys
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY (required)
+# Edit .env with your OPENAI_API_KEY (required by default)
 
 # Run your first research task
 research agent "Impact of attention mechanisms on neural machine translation"
@@ -129,7 +129,15 @@ Create a `.env` file in the project root:
 
 ```env
 # Required
-GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
+
+# Optional - Model routing (defaults shown)
+RESEARCH_REASONING_MODEL=openai/gpt-5.2-high
+RESEARCH_RAG_MODEL=openai/gpt-5.2-fast
+RESEARCH_EMBEDDING_MODEL=openai/text-embedding-3-large
+
+# Optional - If you want to use Gemini models instead
+# GEMINI_API_KEY=your_gemini_api_key
 
 # Optional - Enhanced discovery
 EXA_API_KEY=your_exa_key
@@ -283,7 +291,7 @@ graph TB
 | **LLM** | Gemini 3.0 Pro | Planning, writing, reviewing |
 | **RAG Framework** | PaperQA2 | Question-answering over papers |
 | **Vector Database** | Qdrant | Persistent document embeddings |
-| **Embeddings** | text-embedding-004 | Document vectorization |
+| **Embeddings** | text-embedding-3-large | Document vectorization |
 | **Bibliography** | Papis | Local PDF library management |
 | **Typesetting** | Typst | compiled PDF generation |
 
@@ -295,7 +303,11 @@ graph TB
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | Yes | - | Google AI API key |
+| `OPENAI_API_KEY` | Yes (default) | - | OpenAI API key |
+| `RESEARCH_REASONING_MODEL` | No | `openai/gpt-5.2-high` | Model for planning/writing/reviewing |
+| `RESEARCH_RAG_MODEL` | No | `openai/gpt-5.2-fast` | Model for PaperQA RAG |
+| `RESEARCH_EMBEDDING_MODEL` | No | `openai/text-embedding-3-large` | Embedding model for indexing |
+| `GEMINI_API_KEY` | No | - | Google AI API key (only if you select Gemini models) |
 | `EXA_API_KEY` | No | - | Exa.ai API key for neural search |
 | `SEMANTIC_SCHOLAR_API_KEY` | No | - | S2 API key (higher rate limits) |
 | `AGENT_MAX_ITERATIONS` | No | 50 | Max agent loop iterations |
@@ -359,4 +371,4 @@ This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE) fo
 
 ## Acknowledgments
 
-Built with [PaperQA2](https://github.com/Future-House/paper-qa) by Future House, [Qdrant](https://qdrant.tech/), and [Google Gemini](https://ai.google.dev/).
+Built with [PaperQA2](https://github.com/Future-House/paper-qa) by Future House, [Qdrant](https://qdrant.tech/), and [LiteLLM](https://github.com/BerriAI/litellm).

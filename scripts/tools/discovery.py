@@ -16,6 +16,9 @@ from typing import Any, Dict, List
 from rich.console import Console
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+# Session literature tracking
+from .citation import track_reviewed_paper
+
 # Paths
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCRIPTS_PATH = REPO_ROOT / "scripts"
@@ -123,6 +126,42 @@ def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, re
                         })
             
             console.print(f"[green]✓ Found {len(papers)} papers via citation network[/green]")
+            
+            # AUTO-ADD: Automatically add all papers with DOI or arXiv ID to library
+            added_count = 0
+            from .library import add_paper
+            
+            for p in papers[:limit]:
+                identifier = p.get('doi') or p.get('arxiv_id')
+                if identifier:
+                    try:
+                        source = "doi" if p.get('doi') else "arxiv"
+                        result = add_paper(identifier, source)
+                        if result.get("status") in ("success", "already_exists"):
+                            added_count += 1
+                    except Exception as e:
+                        console.print(f"[dim]Could not add {identifier}: {e}[/dim]")
+            
+            if added_count > 0:
+                console.print(f"[green]✓ Added/verified {added_count} papers in library[/green]")
+            
+            # Track discovery results in literature sheet
+            for p in papers[:limit]:
+                try:
+                    track_reviewed_paper(
+                        citation_key="",
+                        title=p.get("title", "") or "",
+                        authors=", ".join(p.get("authors") or []) if isinstance(p.get("authors"), list) else str(p.get("authors") or ""),
+                        year=str(p.get("year") or ""),
+                        relevance=3,
+                        utility=2,
+                        source=f"discover_papers:{p.get('source','')}",
+                        doi=p.get("doi"),
+                        arxiv_id=p.get("arxiv_id"),
+                        citations=p.get("citations"),
+                    )
+                except Exception:
+                    pass
             return papers[:limit]
             
         except Exception as e:
@@ -225,6 +264,42 @@ def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, re
         console.print(f"[dim]paper-scraper: {e}[/dim]")
     
     console.print(f"[green]✓ Found {len(papers)} unique papers[/green]")
+    
+    # AUTO-ADD: Automatically add all papers with DOI or arXiv ID to library
+    added_count = 0
+    from .library import add_paper
+    
+    for p in papers[:limit]:
+        identifier = p.get('doi') or p.get('arxiv_id')
+        if identifier:
+            try:
+                source = "doi" if p.get('doi') else "arxiv"
+                result = add_paper(identifier, source)
+                if result.get("status") in ("success", "already_exists"):
+                    added_count += 1
+            except Exception as e:
+                console.print(f"[dim]Could not add {identifier}: {e}[/dim]")
+    
+    if added_count > 0:
+        console.print(f"[green]✓ Added/verified {added_count} papers in library[/green]")
+    
+    # Track discovery results in literature sheet
+    for p in papers[:limit]:
+        try:
+            track_reviewed_paper(
+                citation_key="",  # not in library yet
+                title=p.get("title", "") or "",
+                authors=", ".join(p.get("authors") or []) if isinstance(p.get("authors"), list) else str(p.get("authors") or ""),
+                year=str(p.get("year") or ""),
+                relevance=3,
+                utility=2,
+                source=f"discover_papers:{p.get('source','')}",
+                doi=p.get("doi"),
+                arxiv_id=p.get("arxiv_id"),
+                citations=p.get("citations"),
+            )
+        except Exception:
+            pass
     return papers[:limit]
 
 

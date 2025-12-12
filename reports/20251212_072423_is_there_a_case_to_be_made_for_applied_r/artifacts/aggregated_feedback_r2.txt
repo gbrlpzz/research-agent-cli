@@ -1,0 +1,24 @@
+Processing 1 reviews.
+
+## 📚 PRE-REVISION LITERATURE UPDATE
+The following papers suggested by reviewers have been AUTOMATICALLY ADDED to the library. YOU MUST REVIEW AND INTEGRATE THEM:
+- Discovered: SLIGN-CCUS: The Results of an ACT Project on the Full CCUS Chain to Accelerate Implementation of Decarbonisation in Industrial Areas (10.2139/ssrn.3821564)
+- Discovered: A MODERN ARCTIC RESOURCE PROJECT FOR RUSSIA'S INDUSTRIAL POLICY: A POLE OF GROWTH FOR THE NATIONAL ECONOMY OR A “CATHEDRAL IN THE DESERT”? (10.37614/2220-802X.2.2020.69.001)
+
+### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS
+**Paper**: Discovered: SLIGN-CCUS: The Results of an ACT Project on the Full CCUS Chain to Accelerate Implementation of Decarbonisation in Industrial Areas (10.2139/ssrn.3821564)
+**Summary**: {'answer': "Question: What are the key findings of the paper 'SLIGN-CCUS: The Results of an ACT Project on the Full CCUS Chain to Accelerate Implementation of Decarbonisation in Industrial Areas'?\n\nI cannot answer.", 'sources': ['nilsen2018theroleof pages 9-11', 'crescenzi2018cohesionpolicyincentives pages 11-11', 'crescenzi2018cohesionpolicyincentives pages 1-2', 'crescenzi2018cohesionpolicyincentives pages 4-5', 'crescenzi2018cohesionpolicyincentives pages 2-3']}
+
+**Paper**: Discovered: A MODERN ARCTIC RESOURCE PROJECT FOR RUSSIA'S INDUSTRIAL POLICY: A POLE OF GROWTH FOR THE NATIONAL ECONOMY OR A “CATHEDRAL IN THE DESERT”? (10.37614/2220-802X.2.2020.69.001)
+**Summary**: {'answer': "Question: What are the key findings of the paper 'A MODERN ARCTIC RESOURCE PROJECT FOR RUSSIA'S INDUSTRIAL POLICY: A POLE OF GROWTH FOR THE NATIONAL ECONOMY OR A “CATHEDRAL IN THE DESERT”?'?\n\nI cannot answer.", 'sources': ['nilsen2018theroleof pages 9-11', 'nilsen2018theroleof pages 1-2', 'nilsen2018theroleof pages 8-9', 'nilsen2018theroleof pages 2-4', 'polishchuk2021universityimpacton pages 1-3']}
+
+[End of New Literature]
+
+--- REVIEWER 1 (major_revisions) ---
+Summary: This manuscript has improved since the first round, particularly in removing the irrelevant Tanzanian case study and qualifying the biomedical references. The central argument—that FP10 must move beyond "excellence" to build institutional capacity in fragile regions—remains compelling and well-aligned with the "geography of discontent" literature. However, the author failed to address a critical instruction regarding the **Heitor Group** citation, which remains absent from the bibliography. Furthermore, new verification checks reveal that the citation of @New_tech_spaces_Ciapet_2018 directly misrepresents the source's findings, and the attribution of the "cathedrals in the desert" metaphor remains problematic. These issues indicate a persistent lack of bibliographic rigor that must be corrected before publication.
+Weaknesses: - **Missing Bibliography Entry (Recurrent)**: The previous review explicitly requested the inclusion of the "Heitor Group" report in the bibliography. While the text now mentions "(Heitor et al., 2024)", there is **no corresponding entry in `refs.bib`** nor a proper `@citation_key`. As this report is central to the "Strategic Implications" section, this omission is a critical failure of the revision.
+- **Citation Misrepresentation**: The manuscript claims that @New_tech_spaces_Ciapet_2018 "find that RTO networks are heavily concentrated in the 'old tech places' of the industrial core." This contradicts the source's actual findings. Ciapetti and Perulli explicitly state they found *no significant spatial autocorrelation* to support the idea that RTOs are broadly concentrated in old industrial regions; they argue that technological diversity is a better predictor than the "old tech" base.
+- **Attribution & "Quote" Precision**: The phrase "cathedrals in the desert" is now attributed to @Cohesion_Policy_Cresce_2020. While Crescenzi et al. discuss the effectiveness of policies in Southern Italy, they do not appear to use this specific metaphorical phrase in the cited text. If the authors do not use the exact phrase, remove the quotation marks or cite the original source of the metaphor (e.g., development literature on the Mezzogiorno).
+Hallucinations: None
+Specific Edits: None
+

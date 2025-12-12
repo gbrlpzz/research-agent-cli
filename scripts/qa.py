@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Question-answering system using paper-qa with Gemini.
+Question-answering system using PaperQA (configurable models via LiteLLM).
 Queries all PDFs in the local library to answer questions with citations.
 Supports subset filtering, answer export, and interactive chat.
 """
@@ -24,6 +24,9 @@ from rich.prompt import Prompt
 from rich.markdown import Markdown
 from dotenv import load_dotenv
 import logging
+
+# Model routing (reasoning vs RAG)
+from utils.model_config import ModelRouting, ensure_model_env
 
 # Setup
 console = Console()
@@ -53,38 +56,47 @@ warnings.filterwarnings('ignore', category=DeprecationWarning, module='paperqa')
 warnings.filterwarnings('ignore', message='.*synchronous.*deprecated.*')
 warnings.filterwarnings('ignore', message='coroutine.*was never awaited')
 
-def setup_gemini_settings():
-    """Configure paper-qa to use Gemini."""
+def setup_paperqa_settings(
+    *,
+    rag_model: "Optional[str]" = None,
+    embedding_model: "Optional[str]" = None,
+):
+    """Configure paper-qa Settings for library RAG (model is configurable)."""
     from paperqa import Settings
     
-    # Check for Gemini API key
-    gemini_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY')
-    if not gemini_key:
-        console.print("[bold red]Error:[/bold red] GEMINI_API_KEY not found in .env")
-        console.print("\n[yellow]Please add your Gemini API key to .env:[/yellow]")
-        console.print("  GEMINI_API_KEY=your_key_here")
-        console.print("\n[dim]Get a free key at: https://makersuite.google.com/app/apikey[/dim]")
+    routing = ModelRouting.from_env(rag_model=rag_model, embedding_model=embedding_model)
+
+    try:
+        ensure_model_env(routing.rag_model)
+        ensure_model_env(routing.embedding_model)
+    except RuntimeError as e:
+        console.print(f"[bold red]Error:[/bold red] {e}")
+        console.print("\n[yellow]Configuration:[/yellow]")
+        console.print("  - Default RAG model: openai/gpt-5.2-fast")
+        console.print("  - Default embedding: openai/text-embedding-3-large")
+        console.print("\n[yellow]Set API keys in .env:[/yellow]")
+        console.print("  OPENAI_API_KEY=...")
+        console.print("  # or for Gemini:")
+        console.print("  GEMINI_API_KEY=...")
         sys.exit(1)
     
-    # Set environment variable for litellm
-    os.environ['GEMINI_API_KEY'] = gemini_key
-    
-    # Ensure litellm stays quiet
+    # Suppress LiteLLM verbose output (PaperQA uses LiteLLM internally)
     try:
         import litellm
+        litellm.suppress_debug_info = True
         litellm.set_verbose = False
-    except:
+    except Exception:
         pass
     
-    # Configure settings for Gemini
+    # Configure settings
     settings = Settings()
-    settings.llm = "gemini/gemini-2.5-flash"  # Gemini 2.5 Flash
-    settings.summary_llm = "gemini/gemini-2.5-flash"
-    settings.embedding = "gemini/text-embedding-004"  # Use Gemini embeddings (free) instead of OpenAI
+    settings.llm = routing.rag_model
+    settings.summary_llm = routing.rag_model
+    settings.embedding = routing.embedding_model
     settings.answer.answer_max_sources = 10  # Increased for rigor
     settings.answer.evidence_k = 15  # Increased for rigor (supports 3-5 citations/para)
     
-    logging.info(f"Configured paper-qa with Gemini: {settings.llm}")
+    logging.info(f"Configured paper-qa: llm={settings.llm}, embedding={settings.embedding}")
     return settings
 
 
@@ -212,10 +224,13 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
     from paperqa import Docs
     
     # Setup settings
-    settings = setup_gemini_settings()
+    settings = setup_paperqa_settings()
     
     # Find all PDFs in library
     all_pdf_files = list(library_path.rglob("*.pdf"))
+    
+    # Track if we should use manifest (default: yes if no filter or if filter fallback)
+    use_manifest = True
     
     # Filter PDFs if pattern provided
     if filter_pattern:
@@ -227,11 +242,14 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
                 pdf_files.append(pdf)
         
         if not pdf_files:
-            console.print(f"[yellow]No PDFs matching '{filter_pattern}' found[/yellow]")
-            console.print(f"[dim]Found {len(all_pdf_files)} total PDFs in library[/dim]")
-            raise ValueError(f"No PDFs matching '{filter_pattern}' found")
-        
-        console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+            # Graceful fallback: use all PDFs instead of erroring
+            # IMPORTANT: Still use manifest to avoid re-indexing!
+            console.print(f"[dim]Filter '{filter_pattern}' matched no PDFs, querying full library[/dim]")
+            pdf_files = all_pdf_files
+            use_manifest = True  # Fallback to full library - use manifest!
+        else:
+            console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+            use_manifest = False  # Genuine filter - don't use manifest (user wants specific subset)
     else:
         pdf_files = all_pdf_files
     
@@ -245,7 +263,7 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
     
     docs = None
     try:
-        if not filter_pattern:
+        if use_manifest:
             # Try to load existing docs from pickle
             docs = load_existing_docs(library_path)
         
@@ -260,7 +278,7 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
         files_to_index = []
         files_hashes = {} # Map path -> hash
         
-        if not filter_pattern:
+        if use_manifest:
             # Load Blacklist & Manifest
             blacklist = load_blacklist(library_path)
             manifest = load_manifest(library_path)
@@ -276,10 +294,6 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
                     # If file is in manifest AND hash matches, it's already indexed consistently
                     if pdf.name in manifest and manifest[pdf.name] == file_hash:
                         continue
-                    
-                    # Otherwise index it
-                    files_to_index.append(pdf)
-                    files_hashes[pdf] = file_hash
                     
                     # Otherwise index it
                     files_to_index.append(pdf)
@@ -462,23 +476,32 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
     console.print()
     
     # Setup
-    settings = setup_gemini_settings()
+    settings = setup_paperqa_settings()
     
     # Index library (same logic as answer_question)
     all_pdf_files = list(library_path.rglob("*.pdf"))
+    
+    # Track if we should use manifest
+    use_manifest = True
     
     if filter_pattern:
         pdf_files = [p for p in all_pdf_files 
                      if filter_pattern.lower() in p.parent.name.lower() or 
                         filter_pattern.lower() in p.name.lower()]
-        console.print(f"[cyan]Using {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+        if pdf_files:
+            console.print(f"[cyan]Using {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+            use_manifest = False  # Genuine filter
+        else:
+            console.print(f"[dim]Filter '{filter_pattern}' matched no PDFs, using full library[/dim]")
+            pdf_files = all_pdf_files
+            use_manifest = True  # Fallback - use manifest
     else:
         pdf_files = all_pdf_files
         console.print(f"[dim]Found {len(pdf_files)} PDFs[/dim]")
     
     docs = None
     try:
-        if not filter_pattern:
+        if use_manifest:
             # Try to load existing docs from pickle
             docs = load_existing_docs(library_path)
         
@@ -497,7 +520,7 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
         files_to_index = []
         files_hashes = {} # Map path -> hash
         
-        if not filter_pattern:
+        if use_manifest:
             for pdf in pdf_files:
                 file_hash = compute_md5(pdf)
                 if file_hash:
@@ -507,7 +530,7 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
         else:
             files_to_index = pdf_files
 
-        if not files_to_index and not filter_pattern:
+        if not files_to_index and use_manifest:
             console.print("[dim]Library fully indexed (no new content)[/dim]")
         
         with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as progress:
@@ -522,7 +545,7 @@ async def _async_interactive_chat(library_path, filter_pattern=None, export_dir=
                 progress.advance(task)
         
         # Save docs to pickle for persistence
-        if not filter_pattern and len(files_to_index) > 0:
+        if use_manifest and len(files_to_index) > 0:
             save_docs(library_path, docs)
             console.print("[green]✓ Saved database to disk[/green]")
         
@@ -594,7 +617,9 @@ Examples:
     
     # Chat mode
     if args.chat:
-        console.print(f"\n[bold]Starting Interactive Chat with Gemini 2.5 Flash...[/bold]")
+        routing = ModelRouting.from_env()
+        console.print(f"\n[bold]Starting Interactive Chat[/bold]")
+        console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
         interactive_chat(library_path, args.papers, args.export)
     else:
         # Single question mode
@@ -603,7 +628,9 @@ Examples:
             sys.exit(1)
         
         question = " ".join(args.question)
-        console.print(f"\n[bold]Querying library with Gemini 2.5 Flash...[/bold]")
+        routing = ModelRouting.from_env()
+        console.print(f"\n[bold]Querying library[/bold]")
+        console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
         
         # Get answer
         response = answer_question(question, library_path, args.papers)

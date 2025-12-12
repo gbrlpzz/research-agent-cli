@@ -22,8 +22,8 @@ LIBRARY_PATH = REPO_ROOT / "library"
 PAPIS_CONFIG = REPO_ROOT / "papis.config"
 SCRIPTS_PATH = REPO_ROOT / "scripts"
 
-# Model for RAG queries
-FLASH_MODEL = "gemini-2.5-flash"
+# RAG model is configured via env vars (see README):
+# - RESEARCH_RAG_MODEL
 
 console = Console()
 
@@ -35,7 +35,7 @@ except ImportError:
     PRIVATE_SOURCES_AVAILABLE = False
 
 # Import tracking function for literature sheet
-from .citation import track_reviewed_paper
+from .citation import track_reviewed_paper, mark_used_as_evidence
 
 
 def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
@@ -146,6 +146,21 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
                     target = latest_dir / f"{identifier.replace('/', '_')}.pdf"
                     shutil.copy(str(pdf_path), str(target))
                     console.print(f"[green]✓ PDF added manually[/green]")
+                elif not pdfs and PRIVATE_SOURCES_AVAILABLE and fetch_pdf_private:
+                    # FALLBACK: Papis got metadata but no PDF - try private sources
+                    console.print(f"[dim]No PDF from papis, trying private sources...[/dim]")
+                    try:
+                        fallback_pdf = fetch_pdf_private(identifier)
+                        if fallback_pdf and fallback_pdf.exists():
+                            target = latest_dir / f"{identifier.replace('/', '_')}.pdf"
+                            shutil.copy(str(fallback_pdf), str(target))
+                            console.print(f"[green]✓ PDF fetched via private sources fallback[/green]")
+                            try:
+                                fallback_pdf.unlink()
+                            except:
+                                pass
+                    except Exception as e:
+                        console.print(f"[dim]Private sources fallback failed: {e}[/dim]")
         else:
             console.print(f"[yellow]Papis failed: {result.stderr.strip()[:100]}[/yellow]")
     except subprocess.TimeoutExpired:
@@ -189,6 +204,42 @@ def add_paper(identifier: str, source: str = "auto") -> Dict[str, Any]:
                     )
         except Exception as e:
             pass  # Don't fail add_paper if tracking fails
+        
+        # AUTO-INDEX: Trigger immediate indexing so paper is available for queries
+        try:
+            console.print(f"[dim]📑 Auto-indexing new paper...[/dim]")
+            from qa import load_existing_docs, save_docs, load_manifest, save_manifest, compute_md5
+            from qa import setup_paperqa_settings
+            from paperqa import Docs
+            import asyncio
+            
+            # Find the newly added PDF
+            recent_dirs = sorted(LIBRARY_PATH.glob("*"), key=lambda x: x.stat().st_mtime, reverse=True)
+            if recent_dirs:
+                new_pdfs = list(recent_dirs[0].glob("*.pdf"))
+                if new_pdfs:
+                    pdf_path = new_pdfs[0]
+                    file_hash = compute_md5(pdf_path)
+                    
+                    # Load existing docs OR create new if pickle missing
+                    docs = load_existing_docs(LIBRARY_PATH)
+                    if docs is None:
+                        console.print(f"[dim]Creating new index (no existing pickle)[/dim]")
+                        docs = Docs()
+                    
+                    # Add the new paper
+                    settings = setup_paperqa_settings()
+                    asyncio.run(docs.aadd(pdf_path, dockey=file_hash, settings=settings))
+                    save_docs(LIBRARY_PATH, docs)
+                    
+                    # ALWAYS update manifest (even if indexing fails later)
+                    manifest = load_manifest(LIBRARY_PATH)
+                    manifest[pdf_path.name] = file_hash
+                    save_manifest(LIBRARY_PATH, manifest)
+                    
+                    console.print(f"[green]✓ Paper indexed and ready for queries[/green]")
+        except Exception as e:
+            console.print(f"[dim]Auto-index skipped: {e}[/dim]")
         
         console.print(f"[green]✓ Added {identifier}[/green]")
         return {"status": "success", "identifier": identifier}
@@ -273,6 +324,13 @@ def query_library(question: str, paper_filter: Optional[str] = None) -> Dict[str
             for ctx in response.contexts[:5]:
                 if hasattr(ctx.text, 'name'):
                     sources.append(ctx.text.name)
+
+        # Mark sources as used-as-evidence in the literature sheet (best-effort by title/name)
+        for s in sources:
+            try:
+                mark_used_as_evidence(title=s, source="query_library")
+            except Exception:
+                pass
         
         return {
             "answer": response.formatted_answer or response.answer,

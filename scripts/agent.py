@@ -10,7 +10,7 @@ An agentic research assistant that autonomously:
 4. Synthesizes information using PaperQA2 RAG with persistent Qdrant
 5. Generates a Typst document with proper citations
 
-Uses Gemini 3 Pro Preview for planning and writing with function calling
+Uses configurable models via LiteLLM (default: Gemini 2.5 Pro for reasoning, Gemini 2.5 Flash for RAG)
 to orchestrate the research pipeline. Outputs compiled Typst documents
 in the reports/ folder using the project's typst-template.
 
@@ -43,9 +43,36 @@ from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
-from google import genai
-from google.genai import types
 import logging
+
+# Model routing + unified LLM backend (LiteLLM)
+from utils.model_config import ModelRouting, apply_routing_to_env, ensure_model_env
+
+# Import from extracted modules
+from utils.prompts import (
+    SYSTEM_PROMPT,
+    PLANNER_PROMPT,
+    ARGUMENT_DISSECTION_PROMPT,
+    REVIEWER_PROMPT,
+    REVISION_PROMPT,
+)
+from utils.llm import llm_chat, _safe_json_loads, API_TIMEOUT_SECONDS
+from utils.typst_utils import (
+    filter_bibtex_to_cited,
+    extract_citations_from_typst,
+    fix_typst_error,
+    compile_and_fix,
+)
+from phases.planner import (
+    create_research_plan,
+    create_argument_map,
+    set_model as set_planner_model,
+)
+
+try:
+    import litellm  # type: ignore
+except Exception:  # pragma: no cover
+    litellm = None
 
 # Setup
 console = Console()
@@ -59,12 +86,10 @@ TEMPLATE_PATH = REPO_ROOT / "templates" / "typst-template"
 MASTER_BIB = REPO_ROOT / "master.bib"
 PAPIS_CONFIG = REPO_ROOT / "papis.config"
 
-# Configure Gemini client
-client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
-
-# Models - using Gemini 3 Pro Preview as specified
-AGENT_MODEL = "gemini-3-pro-preview"
-FLASH_MODEL = "gemini-2.5-flash"  # For RAG (faster)
+# Models (defaults: Gemini 2.5 Pro for reasoning; Gemini 2.5 Flash for RAG)
+_ROUTING = ModelRouting.from_env()
+apply_routing_to_env(_ROUTING)
+AGENT_MODEL = _ROUTING.reasoning_model
 
 # Configurable iteration limits (can be tuned via .env for complex topics)
 MAX_AGENT_ITERATIONS = int(os.getenv('AGENT_MAX_ITERATIONS', '50'))  # Increased from hardcoded 35
@@ -113,6 +138,16 @@ def log_debug(msg: str):
         _debug_logger.debug(msg)
 
 
+def set_model_routing(routing: ModelRouting) -> None:
+    """Update global model routing and propagate into env vars."""
+    global _ROUTING, AGENT_MODEL
+    _ROUTING = routing
+    apply_routing_to_env(routing)
+    AGENT_MODEL = routing.reasoning_model
+    # Also update planner module's model
+    set_planner_model(routing.reasoning_model)
+
+
 # ============================================================================
 # TOOL FUNCTIONS - Imported from shared tools module
 # ============================================================================
@@ -129,112 +164,145 @@ from tools import (
     clear_used_citation_keys,
     track_reviewed_paper,
     get_reviewed_papers,
-    export_literature_sheet
+    export_literature_sheet,
+    # export_literature_sheet_markdown removed as unused
+    literature_sheet
 )
 
 
 # ============================================================================
-# TOOL DECLARATIONS FOR GEMINI FUNCTION CALLING
+# TOOL DECLARATIONS (OpenAI/LiteLLM tool calling)
 # ============================================================================
 
-TOOLS = [
-    types.Tool(function_declarations=[
-        types.FunctionDeclaration(
-            name="discover_papers",
-            description="Search for papers using Semantic Scholar + paper-scraper, OR traverse citation networks. Use FIRST to find papers.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "query": types.Schema(type=types.Type.STRING, description="Search query (required unless using citation params)"),
-                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 15)"),
-                    "cited_by": types.Schema(type=types.Type.STRING, description="DOI/paper ID for forward citations (papers citing this)"),
-                    "references": types.Schema(type=types.Type.STRING, description="DOI/paper ID for backward citations (papers cited by this)")
+TOOLS: List[Dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "discover_papers",
+            "description": "Search for papers using Semantic Scholar + paper-scraper, OR traverse citation networks. Use FIRST to find papers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Search query (optional if using cited_by/references)"},
+                    "limit": {"type": "integer", "description": "Max results (default 15)"},
+                    "cited_by": {"type": "string", "description": "DOI/paper ID for forward citations (papers citing this)"},
+                    "references": {"type": "string", "description": "DOI/paper ID for backward citations (papers cited by this)"},
                 },
-                required=[]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="exa_search",
-            description="Neural search via Exa.ai. COSTS CREDITS - use only when discover_papers isn't enough.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "query": types.Schema(type=types.Type.STRING, description="Conceptual search query"),
-                    "limit": types.Schema(type=types.Type.INTEGER, description="Max results (default 5)")
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "exa_search",
+            "description": "Neural search via Exa.ai. COSTS CREDITS - use only when discover_papers isn't enough.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Conceptual search query"},
+                    "limit": {"type": "integer", "description": "Max results (default 5)"},
                 },
-                required=["query"]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="add_paper",
-            description="Add a paper to library by arXiv ID or DOI. Downloads PDF and updates master.bib.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "identifier": types.Schema(type=types.Type.STRING, description="arXiv ID or DOI"),
-                    "source": types.Schema(type=types.Type.STRING, description="'arxiv', 'doi', or 'auto'")
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_paper",
+            "description": "Add a paper to library by arXiv ID or DOI. Downloads PDF and updates master.bib.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "identifier": {"type": "string", "description": "arXiv ID or DOI"},
+                    "source": {"type": "string", "description": "'arxiv', 'doi', or 'auto'"},
                 },
-                required=["identifier"]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="query_library",
-            description="Ask a research question using PaperQA2 RAG. Uses persistent Qdrant index.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "question": types.Schema(type=types.Type.STRING, description="Research question"),
-                    "paper_filter": types.Schema(type=types.Type.STRING, description="Optional keyword filter")
+                "required": ["identifier"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_library",
+            "description": "Ask a research question using PaperQA2 RAG. Uses persistent Qdrant index.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "description": "Research question"},
+                    "paper_filter": {"type": "string", "description": "Optional keyword filter"},
                 },
-                required=["question"]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="fuzzy_cite",
-            description="Fuzzy search for @citation_keys. Returns keys that ACTUALLY exist in the library.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "query": types.Schema(type=types.Type.STRING, description="Author, title, year, or keyword")
+                "required": ["question"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "fuzzy_cite",
+            "description": "Fuzzy search for @citation_keys. Returns keys that ACTUALLY exist in the library.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Author, title, year, or keyword"},
                 },
-                required=["query"]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="validate_citations",
-            description="Validate citation keys before writing. Use to ensure all @keys exist in library.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={
-                    "citation_keys": types.Schema(
-                        type=types.Type.ARRAY,
-                        items=types.Schema(type=types.Type.STRING),
-                        description="List of citation keys to validate"
-                    )
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "validate_citations",
+            "description": "Validate citation keys before writing. Use to ensure all @keys exist in library.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "citation_keys": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "List of citation keys to validate",
+                    }
                 },
-                required=["citation_keys"]
-            )
-        ),
-        types.FunctionDeclaration(
-            name="list_library",
-            description="List all papers in the library. Check existing papers before adding more.",
-            parameters=types.Schema(
-                type=types.Type.OBJECT,
-                properties={},
-                required=[]
-            )
-        )
-    ])
+                "required": ["citation_keys"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_library",
+            "description": "List all papers in the library. Check existing papers before adding more.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "literature_sheet",
+            "description": "Show the current session's consulted/reviewed literature sheet (what's been added/cited), with summary + top rows.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "limit": {"type": "integer", "description": "Max rows to return (default 20)"},
+                    "only_uncited": {"type": "boolean", "description": "If true, return only uncited reviewed papers"},
+                    "verbose": {"type": "boolean", "description": "If true, include extra fields (source, citations, etc.)"},
+                },
+            },
+        },
+    },
 ]
 
-# Tools available to the REVIEWER (Read-only / Discovery)
-# Tools available to the REVIEWER (Read-only / Discovery)
-# Create a new Tool object with only the allowed function declarations
-REVIEWER_TOOLS = [
-    types.Tool(function_declarations=[
-        fd for fd in TOOLS[0].function_declarations
-        if fd.name in ["query_library", "fuzzy_cite", "validate_citations", "list_library", "discover_papers"]
-    ])
+_REVIEWER_ALLOWED_TOOL_NAMES = {
+    "query_library",
+    "fuzzy_cite",
+    "validate_citations",
+    "list_library",
+    "discover_papers",
+    "literature_sheet",
+}
+REVIEWER_TOOLS: List[Dict[str, Any]] = [
+    t for t in TOOLS if t.get("function", {}).get("name") in _REVIEWER_ALLOWED_TOOL_NAMES
 ]
 
 TOOL_FUNCTIONS = {
@@ -244,265 +312,9 @@ TOOL_FUNCTIONS = {
     "query_library": query_library,
     "fuzzy_cite": fuzzy_cite,
     "validate_citations": validate_citations,
-    "list_library": list_library
+    "list_library": list_library,
+    "literature_sheet": literature_sheet,
 }
-
-# ============================================================================
-# SYSTEM PROMPT
-# ============================================================================
-
-SYSTEM_PROMPT = """You are an autonomous research agent that produces academic Typst documents.
-
-You are a RIGOROUS SCHOLAR. Every claim must be grounded. Every citation must be verified.
-
-## Available Tools
-
-### 1. query_library(question, paper_filter)
-RAG Q&A using PaperQA2 with persistent Qdrant index.
-- START HERE to see what knowledge exists in the library
-- Returns detailed answers with citations from indexed papers
-- Use first to understand current knowledge, then identify gaps
-
-### 2. list_library()
-Show all papers in the library.
-- Check what papers are available before searching for more
-
-### 3. discover_papers(query, limit)
-Search Semantic Scholar + paper-scraper for papers.
-- Use AFTER querying library to fill knowledge gaps
-- Returns: title, authors, year, abstract, arxiv_id, doi, citations
-- Prioritize high-citation and recent papers
-
-### 4. exa_search(query, limit)  
-Neural search via Exa.ai. ⚠️ COSTS CREDITS!
-- Only use when discover_papers doesn't find enough
-- Good for conceptual/semantic queries
-
-### 5. add_paper(identifier, source)
-Download paper to library by arXiv ID or DOI.
-- Uses private sources (most reliable) for DOIs
-- Falls back to open access if private fails
-- Updates master.bib automatically
-- Add papers ONE BY ONE as you need them
-
-### 6. fuzzy_cite(query)
-Find @citation_keys for papers in library.
-- Fuzzy matches author, title, year
-- Returns ONLY keys that actually exist
-- ALWAYS use this before citing
-
-### 7. validate_citations(citation_keys)
-Validate a list of citation keys before writing.
-- Returns valid/invalid keys and suggestions
-- Use this to double-check your citations
-
-## Research Workflow (Argument-Driven, Citation-Network Enhanced)
-
-PHASE 0: ARGUMENT STRUCTURE (if provided)
-- You may receive an argument map with thesis, claims, evidence requirements
-- Use this to guide what evidence you need to find
-- Focus library queries on specific evidence requirements
-
-PHASE 1: LIBRARY SCAN
-- list_library() to see available papers
-- query_library() for EACH sub-question from research plan
-- Identify which questions have good coverage vs gaps
-
-PHASE 2: MULTI-STRATEGY DISCOVERY (gaps only)
-**Strategy 1 - Keyword Search**:
-- discover_papers(query="...") for questions that lack library coverage
-
-**Strategy 2 - Citation Networks** (NEW!):
-- For seminal papers, find what cites them: discover_papers(cited_by="DOI/ID")
-- For key papers, find what they reference: discover_papers(references="DOI/ID")
-- Citation hubs = papers cited by MULTIPLE library papers (high impact)
-
-**Execution**:
-- add_paper() for 3-5 most relevant papers per gap (one at a time)
-- query_library() IMMEDIATELY after adding to use the new knowledge
-- Use BOTH keyword AND citation network searches for comprehensive coverage
-
-PHASE 3: EVIDENCE SYNTHESIS
-- For each planned section, query_library() to gather evidence
-- Build argument structure with citations from RAG answers
-- fuzzy_cite() for EVERY paper you want to cite
-- Keep track of ALL @keys returned by fuzzy_cite()
-
-PHASE 4: MULTI-PASS DRAFTING (NEW!)
-**Pass 1 - Outline**:
-- Create detailed outline with key points
-- Map evidence (@citation_keys) to each point
-- Verify evidence availability via query_library()
-
-**Pass 2 - Section-by-Section**:
-- Draft each section independently
-- Validate citations in each section before moving on
-- Use fuzzy_cite() to get exact keys
-
-**Pass 3 - Integration**:
-- Combine sections
-- Add transitions
-- Final coherence check
-
-PHASE 5: SELF-CRITIQUE (NEW!)
-BEFORE peer review, self-check:
-1. Citation density: 3-5 per paragraph?
-2. Counter-arguments addressed?
-3. Major claims verified via query_library()?
-4. Logical flow clear?
-
-🚨 PHASE 6: VALIDATE BEFORE FINALIZING (CRITICAL!)
-BEFORE outputting the final document, you MUST:
-1. Extract ALL @citation_keys from your draft
-2. Call validate_citations(citation_keys) with the complete list
-3. If ANY keys are invalid:
-   - Call discover_papers() to find the missing papers
-   - Call add_paper() to add them to library
-   - Call fuzzy_cite() to get the CORRECT citation keys
-   - Replace the invalid keys with the correct ones
-4. ONLY output the document after ALL citations are validated
-
-IMPORTANT: Do NOT discover papers randomly. Query library FIRST to avoid wasting time on papers you already have.
-
-## Document Length Guidelines
-
-You are FREE to write as comprehensively as needed to do justice to the topic.
-
-**Length Expectations:**
-- **Simple topics**: 2-3 pages minimum (don't rush)
-- **Complex topics**: 10-20 pages encouraged (be thorough)
-- **NEVER sacrifice depth for brevity**
-
-**Structural Freedom:**
-- Include ALL relevant sections (Introduction, Background, Methodology, Analysis, Discussion, Related Work, Limitations, Conclusion)
-- Use subsections liberally to organize complex arguments
-- Add figures/tables if they clarify concepts (wrap in Typst figure blocks)
-- Develop arguments fully with proper evidence and citations
-
-**Quality > Brevity:**
-- The document should be PUBLICATION-READY, not a summary
-- Each claim needs proper support and citations
-- Complex topics deserve complex treatment
-- Don't stop writing because you've reached some arbitrary length
-
-## Cover Page Formatting Rules
-1. **Title**: MUST be very short (max 7 words).
-2. **Subtitle**: EVERYTHING after the colon (:) in the topic MUST go here. If no colon, write a descriptive subtitle.
-3. **Date**: Use today's date: "{current_date}".
-4. **Abstract**: Must be included in the `#show: project.with(...)` call.
-
-## Output Format
-
-```typst
-#import "lib.typ": project
-
-#show: project.with(
-  title: "Short Main Title",
-  subtitle: "Everything after the colon goes here",
-  authors: ("Research Agent",),
-  date: "{current_date}", 
-  abstract: [
-    Concise abstract summarizing topic and findings.
-  ]
-)
-
-#outline(indent: auto)
-#pagebreak()
-
-= Introduction
-Content with @citation_key references...
-
-= Background
-More content with citations @key1 @key2...
-
-= Analysis
-Detailed synthesis...
-
-= Conclusion
-Summary and future directions.
-
-#bibliography("refs.bib")
-```
-
-## Bibliographies
-ALWAYS use `#bibliography("refs.bib")`. The system automatically generates this file for you from the library.
-NEVER use `master.bib` or other filenames in your Typst code.
-```
-
-## Typst Formatting Rules (NOT Markdown!)
-
-CRITICAL: Typst is NOT Markdown. Use these formats:
-
-| Element | Typst Syntax | WRONG (Markdown) |
-|---------|--------------|------------------|
-| Bold | *text* | **text** |
-| Italic | _text_ | *text* |
-| Heading 1 | = Title | # Title |
-| Heading 2 | == Section | ## Section |
-| Bullet list | - item | - item (same) |
-| Numbered list | + item | 1. item |
-| Citation | @citation_key | [@key] |
-| Code | `code` | `code` (same) |
-| Block quote | #quote[text] | > text |
-
-NEVER use ** for bold - this causes compilation errors!
-
-## ACADEMIC RIGOR RULES (STRICT)
-
-### Citation Density (Academic Standard)
-**Every paragraph MUST have 3-5 citations minimum.**
-- Introductory/background paragraphs: 3-4 citations
-- Claims/arguments: 4-5 citations (synthesize multiple sources)
-- Single-source paragraphs are STRICTLY FORBIDDEN unless direct quotation
-- Aim for 25-40 total citations in a comprehensive document
-- **Under-cited documents will be REJECTED by reviewers**
-
-### Critical Analysis & Counter-Arguments
-- You MUST address counter-arguments and conflicting views.
-- Do NOT present a "clean" narrative if the literature is divided.
-- Explicitly cite papers that disagree with each other.
-- If a claim is debated, state: "While Author A argues X, Author B suggests Y..."
-
-### Citation Discipline
-- NEVER make factual claims without a citation
-- ONLY use @citation_keys that were returned by fuzzy_cite()
-- Multiple citations for same claim: @key1 @key2 @key3
-- BEFORE finalizing, run validate_citations() and fix any invalid keys
-
-### Punctuation Rules (Critical for Copy-Paste Compatibility)
-**Use ASCII punctuation ONLY - no Unicode characters:**
-- NEVER use em-dashes (—) - rewrite sentences or use commas/periods instead
-- Use regular quotes `"text"` instead of curly quotes
-- Use three dots `...` instead of ellipsis (…)
-- Use `'` (straight apostrophe) instead of curly apostrophe
-
-**Why**: Unicode punctuation renders as escape codes (u2014, u201C) when copied from PDFs.
-
-### Research Integrity
-- Base ALL claims on query_library() responses
-- Do NOT invent facts, statistics, or paper claims
-- If the library lacks information, explicitly state: "Further research is needed"
-- Distinguish between what papers claim vs. what is established fact
-
-### Critical Analysis
-- Compare and contrast findings across papers
-- Identify limitations and gaps in the literature
-- Note methodological differences between studies
-- Present multiple perspectives when they exist
-
-### Writing Standards
-- Use formal academic tone (no colloquialisms)
-- Avoid hedging language unless uncertainty is warranted
-- Be precise with terminology
-- Define technical terms on first use
-
-### Quality Checklist (verify before outputting)
-1. Every factual claim has a citation
-2. All @keys were verified via fuzzy_cite()
-3. Abstract reflects actual findings from RAG
-4. No speculative claims without caveats
-5. Limitations are acknowledged"""
-
 
 # ============================================================================
 # AGENT LOOP
@@ -551,10 +363,7 @@ ARGUMENT MAP (Evidence Requirements):
             if claim.get('counter_arguments'):
                 argument_section += f"    Counter-args: {', '.join(claim['counter_arguments'])}\n"
     
-    contents = [
-        types.Content(
-            role="user",
-            parts=[types.Part(text=f"""Research this topic and produce a Typst document:
+    user_prompt = f"""Research this topic and produce a Typst document:
 
 TOPIC: {topic}
 {plan_section}{argument_section}
@@ -567,8 +376,12 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
 6. Follow multi-pass drafting (outline → sections → integration)
 7. Self-critique before finalizing
 8. fuzzy_cite() to get @citation_keys
-9. Output complete Typst document (use date: "{current_date}")""")]
-        )
+9. Output complete Typst document (use date: "{current_date}")"""
+
+    # OpenAI-style messages (system prompt is updated dynamically each step)
+    messages: List[Dict[str, Any]] = [
+        {"role": "system", "content": system_prompt_with_date},
+        {"role": "user", "content": user_prompt},
     ]
     
     console.print("\n[bold]Starting autonomous research...[/bold]\n")
@@ -584,452 +397,157 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         citation_section = ""
         if current_papers:
             citation_list = []
-            for key, data in current_papers.items():
-                citation_list.append(f"- @{key}: \"{data.get('title', 'Unknown')}\" ({data.get('year', '')})")
+            for _, data in current_papers.items():
+                ck = (data.get("citation_key") or "").strip()
+                if not ck:
+                    continue
+                citation_list.append(f"- @{ck}")
             
-            citation_section = "\n\n## AVAILABLE CITATIONS (Use ONLY these exact keys):\n" + "\n".join(citation_list[:50]) # Limit to 50 to save context
+            citation_section = "\n\n## AVAILABLE CITATION KEYS (Use ONLY these exact keys):\n" + "\n".join(citation_list[:30]) # Keep short to save tokens
             
         current_system_prompt = system_prompt_with_date + citation_section
         
+        # Update system prompt (first message) with latest citations
+        messages[0]["content"] = current_system_prompt
+        
         with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
             try:
-                response = client.models.generate_content(
+                assistant_msg = llm_chat(
                     model=AGENT_MODEL,
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=current_system_prompt,
-                        response_modalities=["TEXT"],  # Add this
-                        tools=TOOLS
-                    )
+                    messages=messages,
+                    tools=TOOLS,
+                    temperature=None,
+                    timeout_seconds=API_TIMEOUT_SECONDS,
                 )
             except Exception as e:
                 console.print(f"[red]API error: {e}[/red]")
                 break
         
-        if response.candidates and response.candidates[0].content.parts:
-            parts = response.candidates[0].content.parts
-            function_calls = [p for p in parts if p.function_call]
-            
-            if function_calls:
-                contents.append(types.Content(role="model", parts=parts))
+        tool_calls = assistant_msg.get("tool_calls") or []
+        if tool_calls:
+            # Preserve the tool_calls on the assistant message (OpenAI tool-calling protocol)
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_msg.get("content") or "",
+                    "tool_calls": tool_calls,
+                }
+            )
+
+            for tc in tool_calls:
+                fn = (tc.get("function") or {}).get("name")
+                args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
+                tc_id = tc.get("id")
                 
-                function_response_parts = []
-                for part in function_calls:
-                    fc = part.function_call
-                    func_name = fc.name
-                    func_args = dict(fc.args) if fc.args else {}
-                    
-                    console.print(f"[yellow]→ {func_name}({json.dumps(func_args, default=str)[:80]})[/yellow]")
-                    
-                    if func_name in TOOL_FUNCTIONS:
-                        try:
-                            result = TOOL_FUNCTIONS[func_name](**func_args)
-                        except Exception as e:
-                            result = {"error": str(e)}
-                    else:
-                        result = {"error": f"Unknown function: {func_name}"}
-                    
-                    function_response_parts.append(
-                        types.Part(function_response=types.FunctionResponse(
-                            name=func_name,
-                            response={"result": json.dumps(result, default=str)}
-                        ))
-                    )
+                console.print(f"[yellow]→ {fn}({json.dumps(args, default=str)[:80]})[/yellow]")
                 
-                contents.append(types.Content(role="user", parts=function_response_parts))
-            else:
-                text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
-                
-                if "#import" in text and "project.with" in text and "#bibliography" in text:
-                    console.print("[green]✓ Document generated[/green]")
-                    if "```typst" in text:
-                        match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
-                        if match:
-                            return match.group(1).strip()
-                    return text
-                
-                console.print(f"[dim]{text[:150]}...[/dim]")
-                
-                contents.append(types.Content(role="model", parts=parts))
-                contents.append(types.Content(
-                    role="user",
-                    parts=[types.Part(text="Continue. Output the complete Typst document when ready.")]
-                ))
-        else:
+                if fn in TOOL_FUNCTIONS:
+                    try:
+                        result = TOOL_FUNCTIONS[fn](**args)
+                    except Exception as e:
+                        result = {"error": str(e)}
+                else:
+                    result = {"error": f"Unknown function: {fn}"}
+
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc_id,
+                        "content": json.dumps(result, default=str),
+                    }
+                )
+            continue
+
+        text = (assistant_msg.get("content") or "").strip()
+        if not text:
             console.print("[yellow]Empty response, retrying...[/yellow]")
+            continue
+        
+        if "#import" in text and "project.with" in text and "#bibliography" in text:
+            console.print("[green]✓ Document generated[/green]")
+            if "```typst" in text:
+                match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
+                if match:
+                    return match.group(1).strip()
+            return text
+        
+        console.print(f"[dim]{text[:150]}...[/dim]")
+                
+        messages.append({"role": "assistant", "content": text})
+        messages.append(
+            {
+                "role": "user",
+                "content": "Continue. Output the complete Typst document when ready.",
+            }
+        )
     
     return "// Agent did not produce a document within iteration limit"
 
 
-def filter_bibtex_to_cited(master_bib_path: Path, cited_keys: Set[str]) -> str:
-    """Filter master.bib to only include entries that were cited."""
-    if not master_bib_path.exists():
-        return "% No references\n"
-    
-    content = master_bib_path.read_text()
-    
-    # Parse bibtex entries
-    pattern = r'(@\w+\{([^,]+),.*?\n\})'
-    matches = re.findall(pattern, content, re.DOTALL)
-    
-    filtered_entries = []
-    for full_entry, key in matches:
-        key = key.strip()
-        if key in cited_keys or not cited_keys:
-            filtered_entries.append(full_entry)
-    
-    if not filtered_entries:
-        # Fallback: return all entries if no matches
-        return content
-    
-    return "\n\n".join(filtered_entries) + "\n"
-
-
-def extract_citations_from_typst(typst_content: str) -> Set[str]:
-    """Extract all @citation_key references from Typst content."""
-    # Match @key patterns (not in code blocks)
-    pattern = r'@([a-zA-Z][a-zA-Z0-9_-]*)'
-    matches = re.findall(pattern, typst_content)
-    return set(matches)
-
-
-def fix_typst_error(typst_path: Path, error_msg: str):
-    """Attempt to fix common Typst errors."""
-    content = typst_path.read_text()
-    original_content = content
-    
-    # Fix 1: Double asterisks (Markdown bold) -> Single asterisk (Typst bold)
-    if "**" in content:
-        content = content.replace("**", "*")
-        
-    # Fix 2: Unclosed delimiters (often due to mismatched *)
-    # Simple heuristic: if odd number of *, remove the last one? 
-    # Or just remove all * if it's failing hard? 
-    # For now, let's try to close it if it's "unclosed delimiter"
-    if "unclosed delimiter" in error_msg:
-        # Check for odd number of *
-        if content.count("*") % 2 != 0:
-            # Try to find a paragraph with odd * and close it? 
-            # Too complex. Let's just strip formatting from the likely problematic line?
-            # Or just append a * to the end?
-            pass
-            
-    # Fix 3: Missing citation labels - remove hallucinated @keys
-    if 'label' in error_msg and 'does not exist' in error_msg:
-        import re
-        # Extract the missing key from error like: label `<keyname>` does not exist
-        match = re.search(r'label `<([^>]+)>` does not exist', error_msg)
-        if match:
-            missing_key = match.group(1)
-            console.print(f"[yellow]Auto-removing hallucinated citation: @{missing_key}[/yellow]")
-            # Remove the @key from the content (with optional surrounding space)
-            content = re.sub(rf'\s*@{re.escape(missing_key)}', '', content)
-    
-    # Fix 4: Wrong bibliography filename
-    if 'file not found' in error_msg and 'master.bib' in error_msg:
-        if 'bibliography("master.bib")' in content:
-            content = content.replace('bibliography("master.bib")', 'bibliography("refs.bib")')
-    
-    if content != original_content:
-        typst_path.write_text(content)
-        return True
-    return False
-
-
-def compile_and_fix(typ_path: Path, max_attempts: int = 3) -> bool:
-    """Compile Typst file and attempt to auto-fix errors."""
-    pdf_path = typ_path.with_suffix(".pdf")
-    
-    for attempt in range(max_attempts):
-        result = subprocess.run(
-            ["typst", "compile", str(typ_path.name), str(pdf_path.name)],
-            cwd=str(typ_path.parent),
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        
-        if result.returncode == 0:
-            console.print(f"[green]✓ Compiled {typ_path.name}[/green]")
-            return True
-            
-        console.print(f"[yellow]⚠ Compile validation failed (attempt {attempt+1}): {result.stderr.strip()[:100]}[/yellow]")
-        
-        # Try to fix
-        if attempt < max_attempts - 1:
-            if fix_typst_error(typ_path, result.stderr):
-                console.print("[cyan]  Applying auto-fix...[/cyan]")
-                continue
-    
-    console.print(f"[red]❌ Failed to compile {typ_path.name} after {max_attempts} attempts[/red]")
-    return False
-
-
 # ============================================================================
-# RESEARCH PLANNER
-# ============================================================================
-
-PLANNER_PROMPT = """You are a research planning assistant. Given a topic, create a structured research plan.
-
-Output a JSON research plan with:
-1. "main_question": The central research question
-2. "sub_questions": 3-5 specific questions to investigate
-3. "key_concepts": Important terms/concepts to search for
-4. "expected_sections": Proposed document structure
-5. "search_queries": 3-4 specific search queries for academic databases
-
-Be specific and academic. Output ONLY valid JSON, no markdown."""
-
-def create_research_plan(topic: str) -> Dict[str, Any]:
-    """Create a structured research plan before starting research."""
-    console.print(Panel(
-        f"[bold blue]📋 Research Planner[/bold blue]\n\n"
-        f"Creating research plan for:\n[white]{topic}[/white]",
-        border_style="blue"
-    ))
-    
-    default_plan = {
-        "main_question": topic,
-        "sub_questions": [topic],
-        "key_concepts": [],
-        "expected_sections": ["Introduction", "Analysis", "Discussion", "Conclusion"],
-        "search_queries": [topic]
-    }
-    
-    # Retry up to 3 times for API issues
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model=AGENT_MODEL,
-                contents=[
-                    types.Content(role="user", parts=[types.Part(text=PLANNER_PROMPT + f"\n\nTopic: {topic}")])
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                )
-            )
-            
-            # Check for valid response
-            if response.candidates and response.candidates[0].content.parts:
-                text = response.candidates[0].content.parts[0].text
-                if text and text.strip():
-                    break  # Got valid response, exit retry loop
-            
-            # Empty response - retry
-            if attempt < max_retries - 1:
-                console.print(f"[yellow]Empty response from planner, retrying ({attempt + 2}/{max_retries})...[/yellow]")
-                time.sleep(2)  # Brief delay before retry
-            else:
-                console.print("[yellow]Planner returned empty response after retries, using defaults[/yellow]")
-                return default_plan
-                
-        except Exception as e:
-            if attempt < max_retries - 1:
-                console.print(f"[yellow]Planner error: {e}, retrying ({attempt + 2}/{max_retries})...[/yellow]")
-                time.sleep(2)
-            else:
-                console.print(f"[yellow]Planner failed after retries: {e}, using defaults[/yellow]")
-                return default_plan
-    
-    # Extract JSON
-    try:
-        # Try to find JSON in the response
-        if "```json" in text:
-            json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
-            if json_match:
-                text = json_match.group(1)
-        elif "```" in text:
-            json_match = re.search(r'```\s*(.*?)\s*```', text, re.DOTALL)
-            if json_match:
-                text = json_match.group(1)
-        
-        plan = json.loads(text)
-        console.print("[green]✓ Research plan created[/green]")
-        
-        # Display plan
-        console.print(f"\n[bold]Main Question:[/bold] {plan.get('main_question', 'N/A')}")
-        if plan.get('sub_questions'):
-            console.print("[bold]Sub-questions:[/bold]")
-            for i, q in enumerate(plan['sub_questions'][:5], 1):
-                console.print(f"  {i}. {q}")
-        
-        return plan
-    except json.JSONDecodeError:
-        console.print("[yellow]Could not parse plan, using defaults[/yellow]")
-        return {
-            "main_question": topic,
-            "sub_questions": [topic],
-            "key_concepts": [],
-            "expected_sections": ["Introduction", "Background", "Analysis", "Conclusion"],
-            "search_queries": [topic]
-        }
-
-
-# ============================================================================
-# ARGUMENT DISSECTION (Phase 0)
-# ============================================================================
-
-ARGUMENT_DISSECTION_PROMPT = """You are analyzing a research topic to create a rigorous argument map.
-
-Your task is to dissect the logical structure of the argument BEFORE searching for papers.
-This ensures targeted, evidence-driven research rather than exploratory browsing.
-
-Output a JSON structure with:
-1. "thesis": The central claim or main argument
-2. "claims": Array of 3-7 supporting sub-claims, each with:
-   - "id": Unique identifier (C1, C2, etc.)
-   - "claim": The specific sub-claim statement
-   - "evidence_needed": Array of evidence types (e.g., "theoretical analysis", "empirical benchmarks")
-   - "counter_arguments": Array of potential opposing views to address
-   - "dependencies": Array of claim IDs this depends on (e.g., ["C1"])
-
-Be explicit about evidence requirements. Output ONLY valid JSON, no markdown."""
-
-def create_argument_map(topic: str, research_plan: Dict[str, Any]) -> Dict[str, Any]:
-    """Create argument map before research (Phase 0: Argument Dissection)."""
-    console.print(Panel(
-        f"[bold magenta]🎯 Argument Dissection[/bold magenta]\\n\\n"
-        f"Mapping logical structure for:\\n[white]{topic}[/white]",
-        border_style="magenta"
-    ))
-    
-    default_map = {
-        "thesis": research_plan.get('main_question', topic),
-        "claims": [
-            {
-                "id": "C1",
-                "claim": research_plan.get('main_question', topic),
-                "evidence_needed": ["literature review"],
-                "counter_arguments": [],
-                "dependencies": []
-            }
-        ]
-    }
-    
-    # Build context from research plan
-    context = f"""
-TOPIC: {topic}
-
-RESEARCH PLAN:
-- Main Question: {research_plan.get('main_question', topic)}
-- Sub-questions: {', '.join(research_plan.get('sub_questions', [])[:5])}
-- Key Concepts: {', '.join(research_plan.get('key_concepts', [])[:5])}
-"""
-    
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model=AGENT_MODEL,
-                contents=[
-                    types.Content(role="user", parts=[types.Part(text=ARGUMENT_DISSECTION_PROMPT + context)])
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                )
-            )
-            
-            if response.candidates and response.candidates[0].content.parts:
-                text = response.candidates[0].content.parts[0].text
-                if text and text.strip():
-                    break
-            
-            if attempt < max_retries - 1:
-                console.print(f"[yellow]Empty response, retrying ({attempt + 2}/{max_retries})...[/yellow]")
-                time.sleep(2)
-            else:
-                console.print("[yellow]Using default argument map[/yellow]")
-                return default_map
-                
-        except Exception as e:
-            if attempt < max_retries - 1:
-                console.print(f"[yellow]Error: {e}, retrying ({attempt + 2}/{max_retries})...[/yellow]")
-                time.sleep(2)
-            else:
-                console.print(f"[yellow]Failed: {e}, using defaults[/yellow]")
-                return default_map
-    
-    # Extract JSON
-    try:
-        if "```json" in text:
-            json_match = re.search(r'```json\\s*(.*?)\\s*```', text, re.DOTALL)
-            if json_match:
-                text = json_match.group(1)
-        elif "```" in text:
-            json_match = re.search(r'```\\s*(.*?)\\s*```', text, re.DOTALL)
-            if json_match:
-                text = json_match.group(1)
-        
-        argument_map = json.loads(text)
-        console.print("[green]✓ Argument map created[/green]")
-        
-        # Display map
-        console.print(f"\\n[bold]Thesis:[/bold] {argument_map.get('thesis', 'N/A')}")
-        if argument_map.get('claims'):
-            console.print(f"[bold]Claims ({len(argument_map['claims'])}):[/bold]")
-            for claim in argument_map['claims'][:5]:
-                console.print(f"  {claim['id']}: {claim['claim'][:80]}...")
-                if claim.get('dependencies'):
-                    console.print(f"      [dim]Depends on: {', '.join(claim['dependencies'])}[/dim]")
-        
-        return argument_map
-    except json.JSONDecodeError:
-        console.print("[yellow]Could not parse argument map, using defaults[/yellow]")
-        return default_map
-
-
-# ============================================================================
-# PEER REVIEWER
+# PEER REVIEWER (note: prompts now imported from utils/prompts.py)
 # ============================================================================
 
 REVIEWER_PROMPT = """You are a rigorous academic peer reviewer.
 You are reviewing a Typst document on: "{topic}"
 
-Your goal is to ensure the paper meets high academic standards.
-You have access to tools to VERIFY claims and citations.
+Standard: MAXIMUM RIGOR. Reject/require revisions rather than letting unsupported claims pass.
+You have tools to verify claims, check citations, and identify missing literature.
 
-## Review Process
-1.  **Citation Density**: FLAGGING is required for any paragraph with < 3 citations.
-2.  **Counter-points**: REJECT if the paper presents a one-sided argument without counter-points.
-3.  **Validate Citations**: Use `validate_citations` to check if all @keys exist in the library.
-4.  **Verify Claims**: Use `query_library` to check if specific claims are supported by the cited papers.
-5.  **Check Literature Coverage**: Use `discover_papers` to find missing key references.
-6.  **Recommend Improvements**: Identify weak arguments, missing citations, or hallucinations.
+## Mandatory checks (use tools)
+1) Citation validity:
+   - Extract all @citation_keys you see and run validate_citations([..all keys..]).
+   - Any invalid key is a critical flaw unless removed/fixed.
+
+2) Claim verification:
+   - Select at least 5 concrete claims across different sections.
+   - For each, run query_library() with the claim phrased as a question.
+   - If the returned evidence does NOT support the claim, flag it as unsupported/overstated.
+
+3) Citation relevance (anti-citation-hallucination):
+   - If a paragraph is cited but the claim seems mismatched, query_library() to check whether the cited literature is actually about that claim.
+   - Flag "irrelevant citation padding" separately from "missing citation".
+
+4) Coverage + counter-arguments:
+   - If the document is one-sided, require major revisions or reject.
+   - If key counter-arguments are missing, recommend specific search queries (or DOIs if known).
+
+5) Typst integrity:
+   - Flag Markdown-style syntax (**bold, # headings, [@key]) or missing #bibliography("refs.bib").
+
+6) Overclaim + scope control:
+   - Flag causal language that is not warranted (e.g., "causes", "proves", "settles").
+   - Flag scope creep beyond the stated topic/research plan (claims not addressed by evidence).
+   - Flag rhetorical overstatement or missing uncertainty qualifiers where evidence is weak.
 
 ## Previous Reviews
-If provided, check if the author has addressed the following feedback from previous rounds:
+If provided, check if the author addressed:
 {previous_reviews}
 
-## Output Format
-
-Write your review as natural text organized in these sections:
-
+## Output Format (keep these exact headings)
 **VERDICT**: [Accept | Minor Revisions | Major Revisions | Reject]
 
 **SUMMARY**: 
-Brief assessment of the paper's quality and main contributions.
+Brief assessment of quality, central contributions, and whether claims are evidence-grounded.
 
 **STRENGTHS**:
-- Strength 1
-- Strength 2
+- ...
 
 **WEAKNESSES**:
-- Weakness 1
-- Weakness 2
+- ...
 
-**RECOMMENDED PAPERS** (if any missing key works):
-For each recommended paper, write ONE line in this exact format:
+**RECOMMENDED PAPERS** (only if needed):
+Write ONE line per recommendation in EXACTLY one of these formats:
 RECOMMEND DOI: 10.xxxx/yyyy | Reason: Why this paper is needed
-OR
 RECOMMEND SEARCH: "search query terms" | Reason: Why these papers are needed
 
-**SPECIFIC EDITS** (if needed):
-Section: Introduction
-Issue: Claim lacks citation
-Suggestion: Add citation from Smith 2020
+**SPECIFIC EDITS**:
+For each critical issue, use:
+Section: ...
+Issue: ...
+Suggestion: ...
 
-Be constructive but rigorous. Academic excellence is the standard.
+Be constructive but uncompromising on evidence and citation correctness.
 """
 
 
@@ -1070,12 +588,10 @@ def peer_review(
     if previous_reviews:
         user_msg += f"\n\nHere is the feedback from the previous round waiting to be addressed:\n{previous_reviews}"
 
-    # Initialize tool-enabled chat with proper conversation history
-    contents = [
-        types.Content(
-             role="user",
-             parts=[types.Part(text=context + "\n\n" + user_msg)]
-        )
+    system_msg = REVIEWER_PROMPT.format(topic=topic, previous_reviews=previous_reviews)
+    messages: List[Dict[str, Any]] = [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": context + "\n\n" + user_msg},
     ]
     
     # Reviewer loop (configurable iteration limit to prevent infinite loops)
@@ -1086,111 +602,114 @@ def peer_review(
     while step < max_steps:
         step += 1
         try:
-            response = client.models.generate_content(
+            assistant_msg = llm_chat(
                 model=AGENT_MODEL,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=REVIEWER_PROMPT.format(topic=topic, previous_reviews=previous_reviews),
-                    tools=REVIEWER_TOOLS,  # Restricted toolset
-                    temperature=0.3  # Low temperature for rigorous checking
-                )
+                messages=messages,
+                tools=REVIEWER_TOOLS,
+                temperature=None,
+                timeout_seconds=REVIEWER_TIMEOUT_SECONDS,
             )
         except Exception as e:
             log_debug(f"Reviewer API error: {e}")
             break
             
-        if response.candidates and response.candidates[0].content.parts:
-            parts = response.candidates[0].content.parts
-            function_calls = [p for p in parts if p.function_call]
-            
-            if function_calls:
-                # Execute tools (verification steps)
-                contents.append(types.Content(role="model", parts=parts))
-                function_response_parts = []
+        tool_calls = assistant_msg.get("tool_calls") or []
+        if tool_calls:
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_msg.get("content") or "",
+                    "tool_calls": tool_calls,
+                }
+            )
+
+            for tc in tool_calls:
+                fn = (tc.get("function") or {}).get("name")
+                args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
+                tc_id = tc.get("id")
                 
-                for part in function_calls:
-                    fc = part.function_call
-                    func_name = fc.name
-                    func_args = dict(fc.args) if fc.args else {}
-                    
-                    console.print(f"[magenta]  Reviewer: {func_name}(...)[/magenta]")
-                    
-                    if func_name in TOOL_FUNCTIONS:
-                        try:
-                            # Limited toolset for reviewer? For now give all.
-                            result = TOOL_FUNCTIONS[func_name](**func_args)
-                        except Exception as e:
-                            result = {"error": str(e)}
-                    else:
-                        result = {"error": "Unknown function"}
-                        
-                    function_response_parts.append(
-                        types.Part(function_response=types.FunctionResponse(
-                            name=func_name,
-                            response={"result": json.dumps(result, default=str)}
-                        ))
-                    )
-                contents.append(types.Content(role="user", parts=function_response_parts))
-            else:
-                # Text response - the review in plain text format
-                text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
+                console.print(f"[magenta]  Reviewer: {fn}(...)[/magenta]")
                 
-                # Parse plain text review
-                if "**VERDICT**" in text or "VERDICT:" in text:
-                    # Extract verdict
-                    verdict_match = re.search(r'\*\*VERDICT\*\*:\s*\[?([^\]\n]+)', text) or re.search(r'VERDICT:\s*\[?([^\]\n]+)', text)
-                    verdict = verdict_match.group(1).strip().lower() if verdict_match else "minor_revisions"
-                    if "accept" in verdict:
-                        verdict = "accept"
-                    elif "major" in verdict:
-                        verdict = "major_revisions"
-                    else:
-                        verdict = "minor_revisions"
-                    
-                    # Extract summary
-                    summary_match = re.search(r'\*\*SUMMARY\*\*:?\s*\n(.*?)(?=\n\*\*|$)', text, re.DOTALL)
-                    summary = summary_match.group(1).strip() if summary_match else text[:200]
-                    
-                    # Extract weaknesses (for context)
-                    weaknesses_match = re.search(r'\*\*WEAKNESSES\*\*:?\s*\n(.*?)(?=\n\*\*|$)', text, re.DOTALL)
-                    weaknesses = weaknesses_match.group(1).strip() if weaknesses_match else ""
-                    
-                    # Extract recommended papers
-                    recommendations = []
-                    for line in text.split('\n'):
-                        if "RECOMMEND DOI:" in line:
-                            # Format: RECOMMEND DOI: 10.xxxx/yyyy | Reason: ...
-                            doi_match = re.search(r'RECOMMEND DOI:\s*(10\.\S+)', line)
-                            reason_match = re.search(r'Reason:\s*(.+)', line)
-                            if doi_match:
-                                recommendations.append({
-                                    "doi": doi_match.group(1).strip(),
-                                    "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer"
-                                })
-                        elif "RECOMMEND SEARCH:" in line:
-                            # Format: RECOMMEND SEARCH: "query" | Reason: ...
-                            query_match = re.search(r'RECOMMEND SEARCH:\s*["\']([^"\']+)["\']', line)
-                            reason_match = re.search(r'Reason:\s*(.+)', line)
-                            if query_match:
-                                recommendations.append({
-                                    "query": query_match.group(1).strip(),
-                                    "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer"
-                                })
-                    
-                    final_review = {
-                        "verdict": verdict,
-                        "summary": summary,
-                        "weaknesses": weaknesses,
-                        "recommended_papers": recommendations,
-                        "full_text": text
+                if fn in TOOL_FUNCTIONS:
+                    try:
+                        result = TOOL_FUNCTIONS[fn](**args)
+                    except Exception as e:
+                        result = {"error": str(e)}
+                else:
+                    result = {"error": f"Unknown function: {fn}"}
+
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc_id,
+                        "content": json.dumps(result, default=str),
                     }
-                    console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
-                    break  # Done!
-                
-                # If not done, append and continue
-                contents.append(types.Content(role="model", parts=parts))
-                if step == max_steps - 1:
-                    contents.append(types.Content(role="user", parts=[types.Part(text="Please provide your final review now.")]))
+                )
+            continue
+
+        # Text response - the review in plain text format
+        text = (assistant_msg.get("content") or "").strip()
+        
+        # Parse plain text review
+        if "**VERDICT**" in text or "VERDICT:" in text:
+            # Extract verdict
+            verdict_match = re.search(r"\*\*VERDICT\*\*:\s*\[?([^\]\n]+)", text) or re.search(
+                r"VERDICT:\s*\[?([^\]\n]+)", text
+            )
+            verdict = verdict_match.group(1).strip().lower() if verdict_match else "minor_revisions"
+            if "accept" in verdict:
+                verdict = "accept"
+            elif "major" in verdict:
+                verdict = "major_revisions"
+            else:
+                verdict = "minor_revisions"
+            
+            # Extract summary
+            summary_match = re.search(r"\*\*SUMMARY\*\*:?\s*\n(.*?)(?=\n\*\*|$)", text, re.DOTALL)
+            summary = summary_match.group(1).strip() if summary_match else text[:200]
+            
+            # Extract weaknesses (for context)
+            weaknesses_match = re.search(r"\*\*WEAKNESSES\*\*:?\s*\n(.*?)(?=\n\*\*|$)", text, re.DOTALL)
+            weaknesses = weaknesses_match.group(1).strip() if weaknesses_match else ""
+            
+            # Extract recommended papers
+            recommendations = []
+            for line in text.split("\n"):
+                if "RECOMMEND DOI:" in line:
+                    doi_match = re.search(r"RECOMMEND DOI:\s*(10\.\S+)", line)
+                    reason_match = re.search(r"Reason:\s*(.+)", line)
+                    if doi_match:
+                        recommendations.append(
+                            {
+                                "doi": doi_match.group(1).strip(),
+                                "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer",
+                            }
+                        )
+                elif "RECOMMEND SEARCH:" in line:
+                    query_match = re.search(r"RECOMMEND SEARCH:\s*[\"']([^\"']+)[\"']", line)
+                    reason_match = re.search(r"Reason:\s*(.+)", line)
+                    if query_match:
+                        recommendations.append(
+                            {
+                                "query": query_match.group(1).strip(),
+                                "reason": reason_match.group(1).strip() if reason_match else "Recommended by reviewer",
+                            }
+                        )
+            
+            final_review = {
+                "verdict": verdict,
+                "summary": summary,
+                "weaknesses": weaknesses,
+                "recommended_papers": recommendations,
+                "full_text": text,
+            }
+            console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
+            break  # Done!
+        
+        # If not done, append and continue
+        messages.append({"role": "assistant", "content": text})
+        if step == max_steps - 1:
+            messages.append({"role": "user", "content": "Please provide your final review now."})
 
     if not final_review:
         # Fallback
@@ -1213,17 +732,23 @@ def peer_review(
 # REVISION AGENT
 # ============================================================================
 
-REVISION_PROMPT = """You are revising an academic document based on peer review feedback.
+REVISION_PROMPT = """You are revising an academic Typst document based on peer review feedback.
 
-Your task:
-1. Read the ORIGINAL document carefully
-2. Study the PEER REVIEW feedback
-3. Create an IMPLEMENTATION PLAN addressing each issue
-4. Output the REVISED document
+Standard: MAXIMUM RIGOR. It is better to delete/soften an unsupported claim than to keep it.
 
-Address ALL critical issues raised. Maintain academic rigor.
-Keep all existing citations but add more where needed.
-Output the complete revised Typst document."""
+Your tasks:
+1) Read the ORIGINAL document carefully
+2) Study the PEER REVIEW feedback
+3) Create an IMPLEMENTATION PLAN (3-8 bullets) mapping each major issue -> concrete fix
+4) Produce the REVISED Typst document
+
+Hard rules:
+- You MAY remove claims, paragraphs, sections, or citations if they are unsupported or misleading.
+- Do NOT preserve a citation just to keep density; every citation must be relevant to the local claim.
+- Any newly introduced factual claim must be evidence-grounded (query_library).
+- Before final output, ensure all @citation_keys are valid (validate_citations) and fix/remove any invalid ones.
+
+Output: the complete revised Typst document (no commentary besides the implementation plan requested by the user prompt)."""
 
 
 def revise_document(original: str, review: str, topic: str, research_plan: Dict) -> str:
@@ -1236,10 +761,7 @@ def revise_document(original: str, review: str, topic: str, research_plan: Dict)
     
     current_date = datetime.now().strftime("%B %Y")
     
-    contents = [
-        types.Content(
-            role="user",
-            parts=[types.Part(text=f"""Revise this document based on peer review.
+    user_prompt = f"""Revise this document based on peer review.
 
 TOPIC: {topic}
 
@@ -1257,74 +779,76 @@ PEER REVIEW:
 First, create a brief IMPLEMENTATION PLAN (3-5 bullet points).
 Then output the complete REVISED Typst document.
 Use date: "{current_date}" in the document.
-""")]
-        )
+"""
+
+    messages: List[Dict[str, Any]] = [
+        {"role": "system", "content": REVISION_PROMPT},
+        {"role": "user", "content": user_prompt},
     ]
     
     # Run revision loop
     for iteration in range(15):
         with console.status(f"[cyan]Revising (step {iteration + 1})..."):
             try:
-                response = client.models.generate_content(
+                assistant_msg = llm_chat(
                     model=AGENT_MODEL,
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=REVISION_PROMPT,
+                    messages=messages,
                         tools=TOOLS,
-                        timeout=API_TIMEOUT_SECONDS  # Safety timeout
-                    )
+                    temperature=None,
+                    timeout_seconds=API_TIMEOUT_SECONDS,
                 )
             except Exception as e:
                 console.print(f"[red]API error: {e}[/red]")
                 return original
         
-        if response.candidates and response.candidates[0].content.parts:
-            parts = response.candidates[0].content.parts
-            function_calls = [p for p in parts if p.function_call]
-            
-            if function_calls:
-                contents.append(types.Content(role="model", parts=parts))
+        tool_calls = assistant_msg.get("tool_calls") or []
+        if tool_calls:
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_msg.get("content") or "",
+                    "tool_calls": tool_calls,
+                }
+            )
+
+            for tc in tool_calls:
+                fn = (tc.get("function") or {}).get("name")
+                args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
+                tc_id = tc.get("id")
                 
-                function_response_parts = []
-                for part in function_calls:
-                    fc = part.function_call
-                    func_name = fc.name
-                    func_args = dict(fc.args) if fc.args else {}
-                    
-                    console.print(f"[yellow]→ {func_name}({json.dumps(func_args, default=str)[:60]})[/yellow]")
-                    
-                    if func_name in TOOL_FUNCTIONS:
-                        try:
-                            result = TOOL_FUNCTIONS[func_name](**func_args)
-                        except Exception as e:
-                            result = {"error": str(e)}
-                    else:
-                        result = {"error": f"Unknown function: {func_name}"}
-                    
-                    function_response_parts.append(
-                        types.Part(function_response=types.FunctionResponse(
-                            name=func_name,
-                            response={"result": json.dumps(result, default=str)}
-                        ))
-                    )
+                console.print(f"[yellow]→ {fn}({json.dumps(args, default=str)[:60]})[/yellow]")
                 
-                contents.append(types.Content(role="user", parts=function_response_parts))
-            else:
-                text = "".join(p.text for p in parts if hasattr(p, 'text') and p.text)
-                
-                if "#import" in text and "project.with" in text:
-                    console.print("[green]✓ Revision complete[/green]")
-                    if "```typst" in text:
-                        match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
-                        if match:
-                            return match.group(1).strip()
-                    return text
-                
-                contents.append(types.Content(role="model", parts=parts))
-                contents.append(types.Content(
-                    role="user",
-                    parts=[types.Part(text="Continue. Output the complete revised Typst document.")]
-                ))
+                if fn in TOOL_FUNCTIONS:
+                    try:
+                        result = TOOL_FUNCTIONS[fn](**args)
+                    except Exception as e:
+                        result = {"error": str(e)}
+                else:
+                    result = {"error": f"Unknown function: {fn}"}
+
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc_id,
+                        "content": json.dumps(result, default=str),
+                    }
+                )
+            continue
+
+        text = (assistant_msg.get("content") or "").strip()
+        
+        if "#import" in text and "project.with" in text:
+            console.print("[green]✓ Revision complete[/green]")
+            if "```typst" in text:
+                match = re.search(r"```typst\s*(.*?)\s*```", text, re.DOTALL)
+                if match:
+                    return match.group(1).strip()
+            return text
+        
+        messages.append({"role": "assistant", "content": text})
+        messages.append(
+            {"role": "user", "content": "Continue. Output the complete revised Typst document."}
+        )
     
     return original  # Fallback
 
@@ -1438,7 +962,15 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
         border_style="cyan", width=60
     ))
     
-    typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
+    try:
+        typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
+    except RuntimeError as e:
+        # Fail fast on model access issues; don't continue generating empty drafts/reviews.
+        console.print(f"[red]Fatal LLM error: {e}[/red]")
+        raise
+
+    if not typst_content or typst_content.strip().startswith("// Agent did not produce"):
+        raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
     
     # Save drafts and generate refs.bib
     save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
@@ -1747,24 +1279,26 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1) 
     # Export literature review sheet
     literature_sheet = export_literature_sheet()
     (report_dir / "literature_sheet.csv").write_text(literature_sheet)
+    # Markdown sheet removed as requested
     log_debug(f"Literature sheet exported with {len(get_reviewed_papers())} papers")
     
     # Summary
     reviewed_count = len(get_reviewed_papers())
-    cited_count = sum(1 for p in get_reviewed_papers().values() if p.get('cited'))
+    # Robust citation count from used keys directly
+    cited_count = len(get_used_citation_keys())
     
     console.print("\n" + "="*60)
     console.print(Panel(
         f"[bold green]✓ Research Complete[/bold green]\n\n"
         f"[white]Topic:[/white] {topic[:50]}...\n"
-        f"[white]Reviews:[/white] {len(reviews)} rounds\n"
+        f"[white]Reviews:[/white] {len(reviews)} round{'s' if len(reviews) != 1 else ''}\n"
         f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n"
         f"[white]Papers:[/white] {cited_count} cited / {reviewed_count} reviewed\n\n"
         f"[dim]Output:[/dim]\n"
         f"  📝 main.typ\n"
         f"  📄 main.pdf\n"
         f"  📚 refs.bib\n"
-        f"  📊 literature_sheet.md\n"
+        f"  📊 literature_sheet.csv\n"
         f"  📁 artifacts/ (plans, drafts, reviews)\n\n"
         f"[dim]{report_dir}[/dim]",
         border_style="green"
@@ -1789,6 +1323,7 @@ Examples:
   research agent "Impact of attention mechanisms on NLP"
   research agent -r 5 "Vision Transformers vs CNNs"
   research agent --revisions 1 "Quick research topic"
+  research agent --reasoning-model openai/gpt-5.2-high --rag-model openai/gpt-5.2-fast "Topic"
         """
     )
     parser.add_argument('topic', nargs='+', help='Research topic')
@@ -1796,6 +1331,21 @@ Examples:
                        help='Max peer review rounds (default: 3)')
     parser.add_argument('--reviewers', type=int, default=1,
                        help='Number of parallel reviewers (default: 1)')
+    parser.add_argument(
+        "--reasoning-model",
+        default=None,
+        help="Model for reasoning/planning/writing/reviewing (default: GPT-5.2 High)",
+    )
+    parser.add_argument(
+        "--rag-model",
+        default=None,
+        help="Model for PaperQA RAG over your library (default: GPT-5.2 Fast)",
+    )
+    parser.add_argument(
+        "--embedding-model",
+        default=None,
+        help="Embedding model for PaperQA indexing (default: text-embedding-3-large)",
+    )
     
     args = parser.parse_args()
     topic = " ".join(args.topic)
@@ -1804,8 +1354,27 @@ Examples:
         parser.print_help()
         sys.exit(1)
     
-    if not os.getenv('GEMINI_API_KEY'):
-        console.print("[red]Error: GEMINI_API_KEY not set[/red]")
+    routing = ModelRouting.from_env(
+        reasoning_model=args.reasoning_model,
+        rag_model=args.rag_model,
+        embedding_model=args.embedding_model,
+    )
+    set_model_routing(routing)
+
+    try:
+        ensure_model_env(routing.reasoning_model)
+        ensure_model_env(routing.rag_model)
+        ensure_model_env(routing.embedding_model)
+    except RuntimeError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        console.print("\n[yellow]Set API keys in .env:[/yellow]")
+        console.print("  OPENAI_API_KEY=...")
+        console.print("  # or for Gemini:")
+        console.print("  GEMINI_API_KEY=...")
         sys.exit(1)
+    
+    console.print(f"[dim]Reasoning model: {routing.reasoning_model}[/dim]")
+    console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
+    console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
     
     generate_report(topic, max_revisions=args.revisions, num_reviewers=args.reviewers)
