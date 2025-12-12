@@ -1,0 +1,63 @@
+{
+  "thesis": "The European Union's upcoming Framework Programme 10 (FP10) requires specific, distinct funding mechanisms for Applied Research and Technology Organisations (RTOs) to effectively address territorial fragility, as current Smart Specialisation and excellence-based models are insufficient for 'left-behind' regions.",
+  "claims": [
+    {
+      "id": "C1",
+      "claim": "Territorial fragility in the EU context is characterized by structural deficits that specifically inhibit the absorption of standard R&D funding.",
+      "evidence_needed": "Economic geography literature defining 'territorial fragility' or 'left-behind places'; EU Cohesion Policy reports on absorption capacity in lagging regions; data on regional participation rates in Horizon Europe.",
+      "what_would_change_mind": "Evidence showing that 'fragile' territories have similar R&D absorption capacities to metropolitan hubs but simply choose not to apply.",
+      "counter_arguments": "Fragility is primarily a governance or political issue, not an R&D structural deficit.",
+      "dependencies": []
+    },
+    {
+      "id": "C2",
+      "claim": "RTOs act as critical intermediaries in innovation ecosystems, offering unique capabilities for place-based development that universities and private firms do not.",
+      "evidence_needed": "Comparative studies on the roles of RTOs vs. Universities in regional development; case studies of RTOs (e.g., Fraunhofer, TNO, Tecnalia) specifically intervening in peripheral regions.",
+      "what_would_change_mind": "Research indicating that RTOs operate indistinguishably from universities or private consultancies in regional contexts, or that local SMEs prefer direct university collaboration.",
+      "counter_arguments": "RTOs are too focused on global value chains to care about local place-based needs.",
+      "dependencies": []
+    },
+    {
+      "id": "C3",
+      "claim": "The current 'excellence-based' funding criteria of Horizon Europe structurally disadvantages RTOs attempting to work in fragile territories compared to those in innovation hubs.",
+      "evidence_needed": "Analysis of Horizon 2020/Horizon Europe funding distribution by region; evaluation reports linking funding success rates to regional institutional density; qualitative data on barriers faced by RTOs in widening countries.",
+      "what_would_change_mind": "Data showing that RTOs in fragile regions have equal or higher success rates in excellence-based pillars when controlling for application volume.",
+      "counter_arguments": "Meritocracy (excellence) is the only valid metric for EU funding, and regional quotas dilute quality.",
+      "dependencies": [
+        "C1"
+      ]
+    },
+    {
+      "id": "C4",
+      "claim": "Smart Specialisation Strategies (S3/S4) have failed to sufficiently incentivize top-tier RTOs to engage deeply with fragile territories due to a lack of dedicated funding streams.",
+      "evidence_needed": "Impact assessments of S3 strategies regarding RTO participation; surveys or policy papers analyzing the gap between S3 design and implementation; financial data on cross-regional RTO collaboration.",
+      "what_would_change_mind": "Evidence that S3 has led to a significant, measurable redistribution of RTO activity toward lagging regions without additional dedicated funding.",
+      "counter_arguments": "S3 has succeeded, but the timeline for impact in fragile regions is simply longer (lag effect).",
+      "dependencies": [
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "id": "C5",
+      "claim": "Mission-Oriented Innovation Policies (MOIP) risk exacerbating the innovation divide unless they explicitly mandate a territorial dimension for RTO involvement.",
+      "evidence_needed": "Critiques or evaluations of early EU Missions (e.g., Climate Cities, Cancer) analyzing the geographical concentration of funding; theoretical papers on the spatial blindness of mission-oriented policy.",
+      "what_would_change_mind": "Data showing that mission-oriented projects naturally distribute RTO resources equitably across territories without specific mandates.",
+      "counter_arguments": "Missions must solve global problems regardless of where the solution comes from; territorial equity is a secondary concern for MOIP.",
+      "dependencies": [
+        "C3"
+      ]
+    },
+    {
+      "id": "C6",
+      "claim": "Integrating specific 'place-based' incentives for RTOs in FP10 will improve the overall societal impact of EU research investments.",
+      "evidence_needed": "Macro-economic modeling of innovation diffusion in the EU; case studies where place-based R&D interventions yielded higher societal return on investment (SROI) than hub-based ones.",
+      "what_would_change_mind": "Economic analysis showing that concentrating R&D in hubs yields such high spillover effects that place-based distribution is inefficient.",
+      "counter_arguments": "Forcing RTOs into fragile regions misallocates resources and lowers global competitiveness.",
+      "dependencies": [
+        "C4",
+        "C5"
+      ]
+    }
+  ]
+}

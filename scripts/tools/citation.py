@@ -439,6 +439,41 @@ def fuzzy_cite(query: str) -> List[Dict[str, str]]:
     return results[:10]
 
 
+def citation_key_to_pdf_filter(citation_key: str) -> str:
+    """
+    Map a citation key to a PDF filter pattern for query_library.
+    
+    Because citation keys don't match PDF filenames, this function finds
+    the PDF associated with a citation key by looking up the info.yaml.
+    
+    Args:
+        citation_key: The citation key (e.g., "vaswani2017attention")
+    
+    Returns:
+        A filter pattern that will match the PDF (folder name or filename fragment),
+        or empty string if not found
+    """
+    import yaml
+    
+    key_lower = citation_key.lower().strip()
+    
+    for info_file in LIBRARY_PATH.rglob("info.yaml"):
+        try:
+            with open(info_file) as f:
+                data = yaml.safe_load(f)
+            
+            ref = data.get('ref', '').lower()
+            if ref == key_lower:
+                # Found it - return the folder name as the filter
+                folder_name = info_file.parent.name
+                return folder_name
+        except:
+            pass
+    
+    # Fallback: return empty string (will query full library)
+    return ""
+
+
 
 def validate_citations(citation_keys: List[str]) -> Dict[str, Any]:
     """

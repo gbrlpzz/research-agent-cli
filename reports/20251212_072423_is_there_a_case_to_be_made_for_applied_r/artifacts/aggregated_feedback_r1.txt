@@ -1,0 +1,26 @@
+Processing 1 reviews.
+
+## 📚 PRE-REVISION LITERATURE UPDATE
+The following papers suggested by reviewers have been AUTOMATICALLY ADDED to the library. YOU MUST REVIEW AND INTEGRATE THEM:
+- Discovered: Economic Footprint of a Large French Research and Technology Organisation in Europe: Deciphering a Simplified Model and Appraising the Results (10.1007/s13132-020-00709-2)
+- DOI: 10.1080/00343404.2018.1502422 (Reason: Provides stronger evidence on Smart Specialisation and R&D funds than the current general citations.)
+
+### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS
+**Paper**: Discovered: Economic Footprint of a Large French Research and Technology Organisation in Europe: Deciphering a Simplified Model and Appraising the Results (10.1007/s13132-020-00709-2)
+**Summary**: {'answer': "Question: What are the key findings of the paper 'Economic Footprint of a Large French Research and Technology Organisation in Europe: Deciphering a Simplified Model and Appraising the Results'?\n\nI cannot answer.", 'sources': ['khelfaoui2023researchandtechnology pages 21-21', 'khelfaoui2023researchandtechnology pages 20-20', 'khelfaoui2023researchandtechnology pages 20-21', 'khelfaoui2023researchandtechnology pages 1-2', 'augusto2017researchandtechnology pages 1-2']}
+
+**Paper**: DOI: 10.1080/00343404.2018.1502422 (Reason: Provides stronger evidence on Smart Specialisation and R&D funds than the current general citations.)
+**Summary**: {'answer': "Question: What are the key findings of the paper with DOI 10.1080/00343404.2018.1502422?\n\nThe paper with DOI 10.1080/00343404.2018.1502422 evaluates an Italian program of subsidies for collaborative industrial research, which served as a precursor to Smart Specialisation Strategy (S3) programs (crescenzi2018cohesionpolicyincentives pages 1-2). S3 refers to a place-based economic transformation agenda that identifies strategic areas for intervention based on the region's strengths and potential. The key findings indicate that the program was largely unsuccessful in boosting investments, value added, or employment among beneficiary firms (crescenzi2018cohesionpolicyincentives pages 1-2). Furthermore, the collaborative aspect of the projects offered limited additional value, and increased funding levels would not have enhanced its overall effectiveness (crescenzi2018cohesionpolicyincentives pages 1-2). However, the study did observe positive impacts specifically within low-tech sectors (crescenzi2018cohesionpolicyincentives pages 1-2).\n\nReferences\n\n1. (crescenzi2018cohesionpolicyincentives pages 1-2): Riccardo Crescenzi, Guido de Blasio, and Mara Giua. Cohesion policy incentives for collaborative industrial research: evaluation of a smart specialisation forerunner programme. Regional Studies, 54:1341-1353, Aug 2018. URL: https://doi.org/10.1080/00343404.2018.1502422, doi:10.1080/00343404.2018.1502422. This article has 41 citations and is from a highest quality peer-reviewed journal.\n", 'sources': ['nilsen2018theroleof pages 1-2', 'muscio2015anempiricaltest pages 1-3', 'attaowusu2019oasisinthe pages 1-3', 'hansen2021bridgingthe‘valley pages 19-20', 'oughton2002theregionalinnovation pages 1-2']}
+
+[End of New Literature]
+
+--- REVIEWER 1 (major_revisions) ---
+Summary: This manuscript presents a timely and logically structured argument for repositioning Applied Research Organisations (RTOs) within the EU's FP10 programming to address territorial fragility. The central thesis—that "excellence-based" funding exacerbates regional divergence and that RTOs require specific place-based mandates—is compelling and well-aligned with current debates on the "innovation divide." However, the document suffers from **significant citation context errors** and **missing key references**. Several claims rest on literature that is either geographically irrelevant (Tanzania) or sector-specific (Health) but presented as general evidence. These methodological flaws undermine the rigor of the policy recommendations.
+Weaknesses: - **Citation Relevance (Critical)**: 
+    - @Research_and_Te_Sheikh_2021 is used to define RTOs as "super-intermediaries" in the *European* context, but the paper is a case study on **Tanzania**. This is methodologically weak when substantial literature on European RTOs exists (e.g., EARTO reports, Arnold et al., Hales et al.).
+    - @Shaping_the_fut_Ellmei_2025 is cited to support "Mandated Regional Partnerships" for RTOs generally. This paper is a manifesto from the **Biomedical Alliance** regarding *health* research. Using it to propose a general FP10 mechanism for all RTOs is a scope error unless qualified (e.g., "as proposed in the health sector...").
+- **Missing Citations**: The "Heitor Group" is referenced as a key authority for FP10 strategic shifts but is **not included in the bibliography**. This is a critical omission as it forms the basis of the "Strategic Implications" section.
+- **Attribution Precision**: The "Cathedral in the Desert" metaphor is attributed to @Left_behind_pl_Pike_2024. While Pike discusses "left-behind places," this specific metaphor regarding industrial plants/RTOs in backward regions is a classic concept (often linked to Mezzogiorno development in the 70s/80s). Ensure Pike actually uses this metaphor in the cited text, or cite the original source.
+Hallucinations: None
+Specific Edits: None
+

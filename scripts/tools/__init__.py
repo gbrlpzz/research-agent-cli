@@ -13,6 +13,7 @@ from .library import add_paper, batch_add_papers, list_library, query_library
 from .citation import (
     fuzzy_cite,
     validate_citations,
+    citation_key_to_pdf_filter,
     get_used_citation_keys,
     clear_used_citation_keys,
     track_reviewed_paper,
@@ -34,6 +35,7 @@ __all__ = [
     # Citations
     'fuzzy_cite',
     'validate_citations',
+    'citation_key_to_pdf_filter',
     # Citation tracking
     'get_used_citation_keys',
     'clear_used_citation_keys',

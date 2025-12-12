@@ -126,11 +126,30 @@ def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, re
                         })
             
             console.print(f"[green]✓ Found {len(papers)} papers via citation network[/green]")
-            # Track discovery results in literature sheet (even if not added)
+            
+            # AUTO-ADD: Automatically add all papers with DOI or arXiv ID to library
+            added_count = 0
+            from .library import add_paper
+            
+            for p in papers[:limit]:
+                identifier = p.get('doi') or p.get('arxiv_id')
+                if identifier:
+                    try:
+                        source = "doi" if p.get('doi') else "arxiv"
+                        result = add_paper(identifier, source)
+                        if result.get("status") in ("success", "already_exists"):
+                            added_count += 1
+                    except Exception as e:
+                        console.print(f"[dim]Could not add {identifier}: {e}[/dim]")
+            
+            if added_count > 0:
+                console.print(f"[green]✓ Added/verified {added_count} papers in library[/green]")
+            
+            # Track discovery results in literature sheet
             for p in papers[:limit]:
                 try:
                     track_reviewed_paper(
-                        citation_key="",  # not in library yet
+                        citation_key="",
                         title=p.get("title", "") or "",
                         authors=", ".join(p.get("authors") or []) if isinstance(p.get("authors"), list) else str(p.get("authors") or ""),
                         year=str(p.get("year") or ""),
@@ -245,7 +264,26 @@ def discover_papers(query: str = None, limit: int = 15, cited_by: str = None, re
         console.print(f"[dim]paper-scraper: {e}[/dim]")
     
     console.print(f"[green]✓ Found {len(papers)} unique papers[/green]")
-    # Track discovery results in literature sheet (even if not added)
+    
+    # AUTO-ADD: Automatically add all papers with DOI or arXiv ID to library
+    added_count = 0
+    from .library import add_paper
+    
+    for p in papers[:limit]:
+        identifier = p.get('doi') or p.get('arxiv_id')
+        if identifier:
+            try:
+                source = "doi" if p.get('doi') else "arxiv"
+                result = add_paper(identifier, source)
+                if result.get("status") in ("success", "already_exists"):
+                    added_count += 1
+            except Exception as e:
+                console.print(f"[dim]Could not add {identifier}: {e}[/dim]")
+    
+    if added_count > 0:
+        console.print(f"[green]✓ Added/verified {added_count} papers in library[/green]")
+    
+    # Track discovery results in literature sheet
     for p in papers[:limit]:
         try:
             track_reviewed_paper(

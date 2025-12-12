@@ -239,11 +239,11 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
                 pdf_files.append(pdf)
         
         if not pdf_files:
-            console.print(f"[yellow]No PDFs matching '{filter_pattern}' found[/yellow]")
-            console.print(f"[dim]Found {len(all_pdf_files)} total PDFs in library[/dim]")
-            raise ValueError(f"No PDFs matching '{filter_pattern}' found")
-        
-        console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
+            # Graceful fallback: use all PDFs instead of erroring
+            console.print(f"[dim]Filter '{filter_pattern}' matched no PDFs, querying full library[/dim]")
+            pdf_files = all_pdf_files
+        else:
+            console.print(f"[cyan]Filtered to {len(pdf_files)} PDFs matching '{filter_pattern}'[/cyan]")
     else:
         pdf_files = all_pdf_files
     
@@ -288,10 +288,6 @@ async def _async_answer_question(question, library_path, filter_pattern=None):
                     # If file is in manifest AND hash matches, it's already indexed consistently
                     if pdf.name in manifest and manifest[pdf.name] == file_hash:
                         continue
-                    
-                    # Otherwise index it
-                    files_to_index.append(pdf)
-                    files_hashes[pdf] = file_hash
                     
                     # Otherwise index it
                     files_to_index.append(pdf)

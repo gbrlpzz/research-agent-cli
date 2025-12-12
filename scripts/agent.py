@@ -381,9 +381,8 @@ Your priority is MAXIMUM RIGOR:
 ## Tools (authoritative)
 - list_library(): see what papers exist
 - query_library(question, paper_filter): evidence-grounded answers with citations from indexed papers
-- discover_papers(query|cited_by|references): find candidate papers (free sources)
+- discover_papers(query|cited_by|references): find papers AND auto-add them to library (no separate add needed!)
 - exa_search(query): last resort (costs credits)
-- add_paper(identifier, source): add DOI/arXiv to the library
 - fuzzy_cite(query): get valid @citation_keys for Typst
 - validate_citations([keys...]): validate every @key before final output
 
@@ -405,22 +404,24 @@ Your priority is MAXIMUM RIGOR:
    - Do not invent statistics, dates, mechanisms, or "common knowledge" background.
 
 2) Citation discipline:
-   - Only use @citation_keys that you obtained via fuzzy_cite() or that appear in AVAILABLE CITATIONS.
+   - ***PRE-VALIDATE***: ALWAYS call fuzzy_cite("author/topic/year") BEFORE using any @citation_key.
+   - NEVER invent citation keys like "author2024sometitle" - they will fail compilation.
+   - Only use @citation_keys that fuzzy_cite() returned or that appear in AVAILABLE CITATIONS.
    - Cite at the point of the claim (not as a dump at the end).
    - Each paragraph should have 2-4 relevant citations unless it is purely connective prose.
-   - Do not add citations for "density"; every citation must be relevant to the sentence/paragraph.
 
 3) Tool triggers (MANDATORY SEQUENCE):
    ***STEP 1: list_library()*** - ALWAYS start here. See what papers already exist.
    ***STEP 2: query_library()*** - Query existing papers FIRST to understand what is already known.
-   ***STEP 3: discover_papers() + add_paper()*** - Identify gaps from Step 2, then discover and add papers.
-   ***STEP 4: query_library()*** - Query again AFTER adding papers to synthesize new knowledge.
+   ***STEP 3: discover_papers()*** - Find AND auto-add new papers for gaps (papers are indexed automatically).
+   ***STEP 4: query_library()*** - Query again to synthesize newly added papers.
    
+   - discover_papers() now auto-adds papers - no need to call add_paper separately!
    - Write targeted query_library() questions (one claim at a time).
    - Use paper_filter to focus when validating a claim against a specific cited paper.
    - Repeat Steps 3-4 as needed until you have enough evidence for all claims.
    - Before writing the final document: extract ALL @keys and run validate_citations() on the full set.
-     If any key is invalid, you MUST fix it (discover/add/fuzzy_cite + replace) or delete the claim/citation.
+     If any key is invalid, you MUST fix it (discover/fuzzy_cite + replace) or delete the claim/citation.
 
 4) Counter-arguments + limitations:
    - Include at least one dedicated section that discusses counter-arguments / alternative interpretations.
@@ -430,6 +431,7 @@ Your priority is MAXIMUM RIGOR:
 5) Typst only (not Markdown):
    - Headings: =, ==, ===
    - Bold: *text*  (NEVER use **)
+   - Lists: use "-" for bullet points (NOT "*" which is bold)
    - Citations: @citation_key
    - Bibliography MUST be: #bibliography(\"refs.bib\") (never master.bib)
 
@@ -667,25 +669,30 @@ def fix_typst_error(typst_path: Path, error_msg: str):
     if "**" in content:
         content = content.replace("**", "*")
         
-    # Fix 2: Unclosed delimiters (often due to mismatched *)
-    # Simple heuristic: if odd number of *, remove the last one? 
-    # Or just remove all * if it's failing hard? 
-    # For now, let's try to close it if it's "unclosed delimiter"
+    # Fix 2: Bullet point syntax collision: "* *text*" confuses Typst
+    # Typst uses "-" for lists, not "*". Fix pattern "* *" at line start to "- *"
+    import re as re_fix
+    content = re_fix.sub(r'^(\s*)\* \*', r'\1- *', content, flags=re_fix.MULTILINE)
+    
+    # Fix 3: Unclosed delimiters (often due to mismatched *)
     if "unclosed delimiter" in error_msg:
-        # Check for odd number of *
-        if content.count("*") % 2 != 0:
-            # Try to find a paragraph with odd * and close it? 
-            # Too complex. Let's just strip formatting from the likely problematic line?
-            # Or just append a * to the end?
-            pass
+        # Find lines with odd number of * and try to close them
+        lines = content.split('\n')
+        fixed_lines = []
+        for line in lines:
+            asterisk_count = line.count('*')
+            if asterisk_count % 2 != 0:
+                # Odd number - append a closing *
+                line = line.rstrip() + '*'
+            fixed_lines.append(line)
+        content = '\n'.join(fixed_lines)
             
-    # Fix 3: Missing citation labels - remove hallucinated @keys
+    # Fix 3: Missing citation labels - remove ALL hallucinated @keys
     if 'label' in error_msg and 'does not exist' in error_msg:
         import re
-        # Extract the missing key from error like: label `<keyname>` does not exist
-        match = re.search(r'label `<([^>]+)>` does not exist', error_msg)
-        if match:
-            missing_key = match.group(1)
+        # Extract ALL missing keys from errors like: label `<keyname>` does not exist
+        missing_keys = re.findall(r'label `<([^>]+)>` does not exist', error_msg)
+        for missing_key in missing_keys:
             console.print(f"[yellow]Auto-removing hallucinated citation: @{missing_key}[/yellow]")
             # Remove the @key from the content (with optional surrounding space)
             content = re.sub(rf'\s*@{re.escape(missing_key)}', '', content)
@@ -701,7 +708,7 @@ def fix_typst_error(typst_path: Path, error_msg: str):
     return False
 
 
-def compile_and_fix(typ_path: Path, max_attempts: int = 3) -> bool:
+def compile_and_fix(typ_path: Path, max_attempts: int = 5) -> bool:
     """Compile Typst file and attempt to auto-fix errors."""
     pdf_path = typ_path.with_suffix(".pdf")
     
