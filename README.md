@@ -133,6 +133,7 @@ Prompts for model selection (Gemini 3 Pro / 2.5 Flash / 2.5 Pro), max iterations
 | `research agent <topic>` | Run full research pipeline |
 | `research agent -i <topic>` | Interactive mode (select model, iterations) |
 | `research agent -r N <topic>` | Set max revision rounds (default: 3) |
+| `research agent --resume <path>` | Resume interrupted research from checkpoint |
 | `research qa <question>` | Query your library with RAG |
 | `research qa -i` | Interactive QA chat |
 | `research <query>` | Search for papers (Semantic Scholar + paper-scraper) |
@@ -148,11 +149,26 @@ research agent [OPTIONS] <topic>
 
 Options:
   -i, --interactive          Config menu before starting
+  --resume PATH              Resume from existing report directory
   -r, --revisions N          Max peer review rounds (default: 3)
   --reviewers N              Parallel reviewers (default: 1)
   --reasoning-model MODEL    LLM for planning/writing/reviewing
   --rag-model MODEL          LLM for PaperQA RAG queries
   --embedding-model MODEL    Embedding model for indexing
+```
+
+### Resume Examples
+
+```bash
+# Resume from interrupted session
+research agent --resume reports/20251212_150513_topic_name
+
+# Resume with different model
+research agent --resume reports/20251212_150513_topic_name \
+  --reasoning-model gemini/gemini-3-pro-preview
+
+# Resume and continue for more revision rounds
+research agent --resume reports/20251212_150513_topic_name -r 5
 ```
 
 ---
