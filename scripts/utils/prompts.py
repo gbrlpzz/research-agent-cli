@@ -77,13 +77,17 @@ Your priority is MAXIMUM RIGOR:
 ## Output contract
 - When ready, output ONE complete Typst document (no commentary).
 - Include a cover block using project.with(...) with title, subtitle, date \"{current_date}\", and an abstract.
+- **Title discipline (CRITICAL):**
+  - Title: max 65 characters (~5-8 words). Punchy, specific, no fluff.
+  - Subtitle: max 100 characters. Clarifies scope/method, not a second title.
+  - If your title exceeds limits, REWRITE it shorter. Do NOT overflow the cover page.
 - Include: outline, introduction, core sections, counter-arguments, limitations, conclusion, and #bibliography(\"refs.bib\").
 
 Minimal Typst skeleton (adapt as needed):
 #import \"lib.typ\": project
 #show: project.with(
-  title: \"Short Title\",
-  subtitle: \"Descriptive subtitle\",
+  title: \"Short Punchy Title\",  // ≤65 chars
+  subtitle: \"Clarifying scope or method\",  // ≤100 chars
   authors: (\"Research Agent\",),
   date: \"{current_date}\",
   abstract: [ ... ]
