@@ -28,9 +28,16 @@ const MODELS = {
 };
 let currentModel = 'fast'; // Default to fast
 
+// Stuck detection (10 minutes)
+const STUCK_TIMEOUT_MS = 10 * 60 * 1000;
+
 // State
 let activeProcess = null;
 let lastPhase = '';
+let lastActivityTime = null;
+let stuckCheckInterval = null;
+let lastReportDir = null;
+let activeChatId = null;
 
 // Create bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
@@ -61,11 +68,11 @@ bot.onText(/\/start/, (msg) => {
         `Send me a research topic and I'll generate a PDF report.\n\n` +
         `*Commands:*\n` +
         `/research <topic> - Start research\n` +
+        `/resume - Resume last interrupted session\n` +
         `/qa <question> - Query your library\n` +
         `/model - Toggle fast/powerful model\n` +
         `/status - Check if running\n` +
-        `/cancel - Stop current task\n` +
-        `/help - Show this message\n\n` +
+        `/cancel - Stop current task\n\n` +
         `_Current model: ${modelLabel}_`,
         { parse_mode: 'Markdown' }
     );
@@ -79,6 +86,7 @@ bot.onText(/\/help/, (msg) => {
     bot.sendMessage(msg.chat.id,
         `🤖 *Research Agent Commands*\n\n` +
         `/research <topic>\nStart a research task (15-45 min)\n\n` +
+        `/resume\nResume last interrupted session\n\n` +
         `/qa <question>\nAsk about your indexed papers\n\n` +
         `/model\nToggle between fast/powerful model\n\n` +
         `/status\nCheck if research is running\n\n` +
@@ -111,7 +119,8 @@ bot.onText(/\/status/, (msg) => {
     if (!isAuthorized(msg)) return;
 
     if (activeProcess) {
-        bot.sendMessage(msg.chat.id, `⏳ Research in progress (${lastPhase || 'starting'})\n\nUse /cancel to stop.`);
+        const elapsed = lastActivityTime ? Math.round((Date.now() - lastActivityTime) / 60000) : 0;
+        bot.sendMessage(msg.chat.id, `⏳ Research in progress (${lastPhase || 'starting'})\n\nLast activity: ${elapsed} min ago\nUse /cancel to stop.`);
     } else {
         bot.sendMessage(msg.chat.id, '✅ No active research. Send /research <topic> to start.');
     }
@@ -125,10 +134,51 @@ bot.onText(/\/cancel/, (msg) => {
         activeProcess.kill('SIGTERM');
         activeProcess = null;
         lastPhase = '';
-        bot.sendMessage(msg.chat.id, '🛑 Research cancelled.');
+        if (stuckCheckInterval) {
+            clearInterval(stuckCheckInterval);
+            stuckCheckInterval = null;
+        }
+        bot.sendMessage(msg.chat.id, `🛑 Research cancelled.${lastReportDir ? '\n\nUse /resume to continue later.' : ''}`);
     } else {
         bot.sendMessage(msg.chat.id, 'ℹ️ No active research to cancel.');
     }
+});
+
+// /resume command
+bot.onText(/\/resume/, (msg) => {
+    if (!isAuthorized(msg)) return;
+
+    if (activeProcess) {
+        bot.sendMessage(msg.chat.id, '⏳ Research already in progress. Use /cancel first.');
+        return;
+    }
+
+    // Find latest interrupted session
+    const reportsDir = path.join(CLI_PATH, 'reports');
+    if (!fs.existsSync(reportsDir)) {
+        bot.sendMessage(msg.chat.id, '❌ No reports directory found.');
+        return;
+    }
+
+    // Find directories with checkpoint but no main.pdf
+    const dirs = fs.readdirSync(reportsDir)
+        .filter(d => d.match(/^20\\d{6}_/))
+        .map(d => path.join(reportsDir, d))
+        .filter(d => fs.statSync(d).isDirectory())
+        .filter(d => fs.existsSync(path.join(d, 'artifacts', 'checkpoint.json')) && !fs.existsSync(path.join(d, 'main.pdf')))
+        .sort()
+        .reverse();
+
+    if (dirs.length === 0) {
+        bot.sendMessage(msg.chat.id, '✅ No interrupted sessions found. All research completed!');
+        return;
+    }
+
+    const latestDir = dirs[0];
+    const dirName = path.basename(latestDir);
+    bot.sendMessage(msg.chat.id, `🔄 Resuming: _${dirName}_`, { parse_mode: 'Markdown' });
+
+    runResearchResume(msg.chat.id, latestDir);
 });
 
 // /research command
@@ -200,7 +250,7 @@ function runResearch(chatId, topic) {
     const modelName = MODELS[currentModel];
 
     bot.sendMessage(chatId,
-        `🔬 *Starting research*\\n\\n_"${topic}"_\\n\\nModel: ${modelLabel}\\nThis will take 15-45 minutes.`,
+        `🔬 *Starting research*\n\n_"${topic}"_\n\nModel: ${modelLabel}\nI'll notify you when it's done or if something goes wrong.`,
         { parse_mode: 'Markdown' }
     );
 
@@ -211,13 +261,45 @@ function runResearch(chatId, topic) {
         ? `source ${venvActivate} && ${baseCmd}`
         : baseCmd;
 
+    startResearchProcess(chatId, cmd, topic);
+}
+
+// Resume research function
+function runResearchResume(chatId, reportDir) {
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
+    const modelName = MODELS[currentModel];
+
+    const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
+    const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" --resume "${reportDir}"`;
+    const cmd = fs.existsSync(venvActivate)
+        ? `source ${venvActivate} && ${baseCmd}`
+        : baseCmd;
+
+    startResearchProcess(chatId, cmd, path.basename(reportDir));
+}
+
+// Shared research process handler
+function startResearchProcess(chatId, cmd, label) {
     const proc = spawn('bash', ['-c', cmd], { cwd: CLI_PATH });
     activeProcess = proc;
+    activeChatId = chatId;
     lastPhase = '';
+    lastActivityTime = Date.now();
+    lastReportDir = null;
 
     let pdfPath = null;
+    let stuckWarned = false;
+
+    // Stuck detection interval
+    stuckCheckInterval = setInterval(() => {
+        if (lastActivityTime && (Date.now() - lastActivityTime) > STUCK_TIMEOUT_MS && !stuckWarned) {
+            stuckWarned = true;
+            bot.sendMessage(chatId, `⚠️ *No activity for 10+ minutes*\n\nPhase: ${lastPhase || 'unknown'}\n\nUse /cancel to stop, then /resume later.`, { parse_mode: 'Markdown' });
+        }
+    }, 60000); // Check every minute
 
     proc.stdout.on('data', (data) => {
+        lastActivityTime = Date.now(); // Reset stuck timer on any output
         const lines = data.toString().split('\n');
         for (const line of lines) {
             if (!line.trim()) continue;
@@ -225,19 +307,14 @@ function runResearch(chatId, topic) {
             try {
                 const update = JSON.parse(line);
 
-                // Phase update
+                // Track phase quietly (no message spam)
                 if (update.phase && update.phase !== lastPhase) {
                     lastPhase = update.phase;
-                    const emoji = {
-                        'Starting': '🚀',
-                        'Planning': '📋',
-                        'ArgumentMap': '🗺️',
-                        'Drafting': '✍️',
-                        'Review': '🔎',
-                        'Revision': '📝',
-                        'Complete': '✅'
-                    };
-                    bot.sendMessage(chatId, `${emoji[update.phase] || '➤'} ${update.phase}`);
+                }
+
+                // Track report directory
+                if (update.report_dir) {
+                    lastReportDir = update.report_dir;
                 }
 
                 // PDF path
@@ -250,19 +327,34 @@ function runResearch(chatId, topic) {
                 if (match) {
                     pdfPath = path.join(CLI_PATH, match[0]);
                 }
+                // Also try to extract report dir
+                const dirMatch = line.match(/reports\/(20\d{6}_[^\s\/]+)/);
+                if (dirMatch) {
+                    lastReportDir = path.join(CLI_PATH, 'reports', dirMatch[1]);
+                }
             }
         }
     });
 
+    proc.stderr.on('data', (data) => {
+        lastActivityTime = Date.now(); // Reset stuck timer
+        // Log errors but don't spam user
+        console.error('Agent stderr:', data.toString());
+    });
+
     proc.on('close', async (code) => {
         activeProcess = null;
+        if (stuckCheckInterval) {
+            clearInterval(stuckCheckInterval);
+            stuckCheckInterval = null;
+        }
 
         if (code === 0 && pdfPath && fs.existsSync(pdfPath)) {
             bot.sendMessage(chatId, '✅ Research complete! Sending PDF...');
 
             try {
                 await bot.sendDocument(chatId, pdfPath, {
-                    caption: `📄 ${topic.substring(0, 50)}...`
+                    caption: `📄 ${label.substring(0, 50)}${label.length > 50 ? '...' : ''}`
                 });
             } catch (err) {
                 bot.sendMessage(chatId, `⚠️ PDF ready but couldn't send: ${err.message}\n\nPath: ${pdfPath}`);
@@ -270,7 +362,9 @@ function runResearch(chatId, topic) {
         } else if (code === 0) {
             bot.sendMessage(chatId, '✅ Research complete but PDF not found.');
         } else {
-            bot.sendMessage(chatId, `❌ Research failed (exit code ${code})`);
+            // Failure - provide helpful message
+            const resumeHint = lastReportDir ? `\n\nUse /resume to continue from checkpoint.` : '';
+            bot.sendMessage(chatId, `❌ Research failed (exit code ${code})\n\nPhase: ${lastPhase || 'unknown'}${resumeHint}`);
         }
 
         lastPhase = '';
@@ -278,6 +372,10 @@ function runResearch(chatId, topic) {
 
     proc.on('error', (err) => {
         activeProcess = null;
+        if (stuckCheckInterval) {
+            clearInterval(stuckCheckInterval);
+            stuckCheckInterval = null;
+        }
         bot.sendMessage(chatId, `❌ Error: ${err.message}`);
     });
 }
@@ -285,6 +383,7 @@ function runResearch(chatId, topic) {
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\nShutting down...');
+    if (stuckCheckInterval) clearInterval(stuckCheckInterval);
     if (activeProcess) activeProcess.kill('SIGTERM');
     bot.stopPolling();
     process.exit(0);
