@@ -21,6 +21,7 @@ if [ -z "$1" ]; then
     echo "  research cite [query]         Search library and copy citation keys"
     echo "  research open [query]         Search library and open paper in browser"
     echo "  research qa <question>        Ask questions about your library (PaperQA RAG)"
+    echo "  research bot                   Start the Telegram bot"
     echo "  research help                 Show interactive tutorial with examples"
     echo ""
     echo "Examples:"
@@ -129,6 +130,19 @@ case "$1" in
         ;;
     help|--help|-h)
         "$PYTHON" "$REPO_ROOT/scripts/help.py"
+        ;;
+    bot)
+        BOT_DIR="$REPO_ROOT/research-agent-telegram-bot"
+        if [ ! -f "$BOT_DIR/bot.js" ]; then
+            echo "Error: Telegram bot not found at $BOT_DIR"
+            exit 1
+        fi
+        if [ ! -f "$BOT_DIR/.env" ]; then
+            echo "Error: Bot .env file not found. Copy .env.example to .env and add your TELEGRAM_BOT_TOKEN"
+            exit 1
+        fi
+        echo "Starting Telegram bot..."
+        cd "$BOT_DIR" && npm start
         ;;
     *)
         # Default: search papers
