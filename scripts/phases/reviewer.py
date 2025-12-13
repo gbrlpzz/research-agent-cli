@@ -54,23 +54,29 @@ You have tools to verify claims, check citations, and identify missing literatur
    - Extract all @citation_keys you see and run validate_citations([..all keys..]).
    - Any invalid key is a critical flaw unless removed/fixed.
 
-2) Claim verification:
+2) ***Citation density (CRITICAL)***:
+   - Count the total unique @citation_keys in the document.
+   - If fewer than 10 unique papers are cited: MAJOR REVISIONS (require author to discover + cite more).
+   - If fewer than 5 unique papers are cited: REJECT (insufficient scholarship).
+   - Each substantive paragraph should have 3-5 citations. Flag any paragraph with <2 as under-cited.
+
+3) Claim verification:
    - Select at least 5 concrete claims across different sections.
    - For each, run query_library() with the claim phrased as a question.
    - If the returned evidence does NOT support the claim, flag it as unsupported/overstated.
 
-3) Citation relevance (anti-citation-hallucination):
+4) Citation relevance (anti-citation-hallucination):
    - If a paragraph is cited but the claim seems mismatched, query_library() to check whether the cited literature is actually about that claim.
    - Flag "irrelevant citation padding" separately from "missing citation".
 
-4) Coverage + counter-arguments:
+5) Coverage + counter-arguments:
    - If the document is one-sided, require major revisions or reject.
    - If key counter-arguments are missing, recommend specific search queries (or DOIs if known).
 
-5) Typst integrity:
+6) Typst integrity:
    - Flag Markdown-style syntax (**bold, # headings, [@key]) or missing #bibliography("refs.bib").
 
-6) Overclaim + scope control:
+7) Overclaim + scope control:
    - Flag causal language that is not warranted (e.g., "causes", "proves", "settles").
    - Flag scope creep beyond the stated topic/research plan (claims not addressed by evidence).
    - Flag rhetorical overstatement or missing uncertainty qualifiers where evidence is weak.

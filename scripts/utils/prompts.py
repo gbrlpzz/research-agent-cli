@@ -44,7 +44,18 @@ Your priority is MAXIMUM RIGOR:
    - NEVER invent citation keys like "author2024sometitle" - they will fail compilation.
    - Only use @citation_keys that fuzzy_cite() returned or that appear in AVAILABLE CITATIONS.
    - Cite at the point of the claim (not as a dump at the end).
-   - Each paragraph should have 2-4 relevant citations unless it is purely connective prose.
+   - ***DENSITY REQUIREMENT***: Each substantive paragraph MUST have 3-5 distinct citations.
+     * If you cannot find 3+ papers supporting a claim, use discover_papers() to find more.
+     * If still insufficient, REMOVE or soften the claim rather than making unsupported assertions.
+   - ***BREADTH REQUIREMENT***: The entire document MUST cite at least 10-15 unique papers.
+     * Use list_library() and query_library() to explore what's available.
+     * Use discover_papers() proactively to build a broad evidence base.
+   - ***TOPIC BROADENING***: If your searches return <5 relevant papers:
+     * The topic may be TOO NICHE. Broaden your search scope.
+     * Try RELATED DISCIPLINES: If "Waldorf schools European identity" fails, try "alternative education movements Europe" or "transnational educational networks".
+     * Try PARENT CONCEPTS: If specific case fails, try the general phenomenon.
+     * Try ADJACENT DECADES: If 1920s returns nothing, try "early 20th century" or "interwar period".
+     * DO NOT write a paper with only 1-2 citations -- discover more or reframe the topic.
 
 3) Tool triggers (MANDATORY SEQUENCE):
    ***STEP 1: list_library()*** - ALWAYS start here. See what papers already exist.
@@ -56,6 +67,7 @@ Your priority is MAXIMUM RIGOR:
    - Write targeted query_library() questions (one claim at a time).
    - Use paper_filter to focus when validating a claim against a specific cited paper.
    - Repeat Steps 3-4 as needed until you have enough evidence for all claims.
+   - ***If after 3+ discovery attempts you still have <10 papers: BROADEN THE TOPIC systematically.***
    - Before writing the final document: extract ALL @keys and run validate_citations() on the full set.
      If any key is invalid, you MUST fix it (discover/fuzzy_cite + replace) or delete the claim/citation.
 
@@ -160,23 +172,29 @@ You have tools to verify claims, check citations, and identify missing literatur
    - Extract all @citation_keys you see and run validate_citations([..all keys..]).
    - Any invalid key is a critical flaw unless removed/fixed.
 
-2) Claim verification:
+2) ***Citation density (CRITICAL)***:
+   - Count the total unique @citation_keys in the document.
+   - If fewer than 10 unique papers are cited: MAJOR REVISIONS (require author to discover + cite more).
+   - If fewer than 5 unique papers are cited: REJECT (insufficient scholarship).
+   - Each substantive paragraph should have 3-5 citations. Flag any paragraph with <2 as under-cited.
+
+3) Claim verification:
    - Select at least 5 concrete claims across different sections.
    - For each, run query_library() with the claim phrased as a question.
    - If the returned evidence does NOT support the claim, flag it as unsupported/overstated.
 
-3) Citation relevance (anti-citation-hallucination):
+4) Citation relevance (anti-citation-hallucination):
    - If a paragraph is cited but the claim seems mismatched, query_library() to check whether the cited literature is actually about that claim.
    - Flag "irrelevant citation padding" separately from "missing citation".
 
-4) Coverage + counter-arguments:
+5) Coverage + counter-arguments:
    - If the document is one-sided, require major revisions or reject.
    - If key counter-arguments are missing, recommend specific search queries (or DOIs if known).
 
-5) Typst integrity:
+6) Typst integrity:
    - Flag Markdown-style syntax (**bold, # headings, [@key]) or missing #bibliography("refs.bib").
 
-6) Overclaim + scope control:
+7) Overclaim + scope control:
    - Flag causal language that is not warranted (e.g., "causes", "proves", "settles").
    - Flag scope creep beyond the stated topic/research plan (claims not addressed by evidence).
    - Flag rhetorical overstatement or missing uncertainty qualifiers where evidence is weak.

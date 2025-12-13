@@ -10,6 +10,7 @@ if [ -z "$1" ]; then
     echo "Usage:"
     echo "  research <query>              Unified multi-source search (S2 + paper-scraper)"
     echo "  research agent <topic>        Autonomous research agent (produces Typst docs)"
+    echo "  research agent resume [path]  Resume interrupted session (auto-detects latest)"
     echo "  research exa <query>          Semantic search with Exa.ai (costs credits)"
     echo "  research edison <query>       AI literature synthesis (costs 1 credit)"
     echo "  research edison list          Browse past Edison reports"
@@ -25,6 +26,7 @@ if [ -z "$1" ]; then
     echo "Examples:"
     echo "  research \"attention mechanism\"         # Find papers about attention"
     echo "  research agent \"impact of transformers\" # Full research report"
+    echo "  research agent resume                   # Resume last interrupted session"
     echo "  research exa \"reasoning in LLMs\"       # Semantic search with Exa.ai"
     echo "  research edison \"few-shot learning\"   # AI synthesis (1 credit)"
     echo "  research add 10.1234/example           # Add paper by DOI"
@@ -72,7 +74,42 @@ case "$1" in
         ;;
     agent)
         shift
-        "$PYTHON" "$REPO_ROOT/scripts/agent.py" "$@"
+        # Check for 'resume' subcommand (research agent resume)
+        if [ "$1" = "resume" ]; then
+            shift
+            # If a specific path is provided, use it
+            if [ -n "$1" ]; then
+                "$PYTHON" "$REPO_ROOT/scripts/agent.py" --resume "$1"
+            else
+                # Auto-detect: find the most recent interrupted session
+                # An interrupted session has checkpoint.json but no main.pdf
+                LATEST_INTERRUPTED=""
+                for dir in $(ls -dt "$REPO_ROOT/reports"/20* 2>/dev/null); do
+                    if [ -f "$dir/artifacts/checkpoint.json" ] && [ ! -f "$dir/main.pdf" ]; then
+                        LATEST_INTERRUPTED="$dir"
+                        break
+                    fi
+                done
+                
+                if [ -z "$LATEST_INTERRUPTED" ]; then
+                    echo "No interrupted sessions found."
+                    echo ""
+                    echo "An interrupted session is a report directory with:"
+                    echo "  - artifacts/checkpoint.json (progress saved)"
+                    echo "  - No main.pdf (not completed)"
+                    echo ""
+                    echo "To resume a specific session:"
+                    echo "  research agent resume reports/20251212_150513_..."
+                    exit 1
+                fi
+                
+                echo "Found interrupted session: $(basename "$LATEST_INTERRUPTED")"
+                echo ""
+                "$PYTHON" "$REPO_ROOT/scripts/agent.py" --resume "$LATEST_INTERRUPTED"
+            fi
+        else
+            "$PYTHON" "$REPO_ROOT/scripts/agent.py" "$@"
+        fi
         ;;
     add)
         shift
