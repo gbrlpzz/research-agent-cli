@@ -38,6 +38,7 @@ let lastActivityTime = null;
 let stuckCheckInterval = null;
 let lastReportDir = null;
 let activeChatId = null;
+let statusMessageId = null;
 
 // Create bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
@@ -175,9 +176,6 @@ bot.onText(/\/resume/, (msg) => {
     }
 
     const latestDir = dirs[0];
-    const dirName = path.basename(latestDir);
-    bot.sendMessage(msg.chat.id, `🔄 Resuming: _${dirName}_`, { parse_mode: 'Markdown' });
-
     runResearchResume(msg.chat.id, latestDir);
 });
 
@@ -240,7 +238,8 @@ bot.on('message', (msg) => {
 });
 
 // Main research function
-function runResearch(chatId, topic) {
+// Main research function
+async function runResearch(chatId, topic) {
     if (activeProcess) {
         bot.sendMessage(chatId, '⏳ Research already in progress. Use /cancel first.');
         return;
@@ -249,10 +248,11 @@ function runResearch(chatId, topic) {
     const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
     const modelName = MODELS[currentModel];
 
-    bot.sendMessage(chatId,
+    const sentMsg = await bot.sendMessage(chatId,
         `🔬 *Starting research*\n\n_"${topic}"_\n\nModel: ${modelLabel}\nI'll notify you when it's done or if something goes wrong.`,
         { parse_mode: 'Markdown' }
     );
+    statusMessageId = sentMsg.message_id;
 
     const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
     const escapedTopic = topic.replace(/"/g, '\\"');
@@ -265,9 +265,17 @@ function runResearch(chatId, topic) {
 }
 
 // Resume research function
-function runResearchResume(chatId, reportDir) {
+// Resume research function
+async function runResearchResume(chatId, reportDir) {
     const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
     const modelName = MODELS[currentModel];
+
+    const dirName = path.basename(reportDir);
+    const sentMsg = await bot.sendMessage(chatId,
+        `🔄 *Resuming research*\n\n_${dirName}_\n\nModel: ${modelLabel}`,
+        { parse_mode: 'Markdown' }
+    );
+    statusMessageId = sentMsg.message_id;
 
     const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
     const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" --resume "${reportDir}"`;
@@ -275,7 +283,7 @@ function runResearchResume(chatId, reportDir) {
         ? `source ${venvActivate} && ${baseCmd}`
         : baseCmd;
 
-    startResearchProcess(chatId, cmd, path.basename(reportDir));
+    startResearchProcess(chatId, cmd, dirName);
 }
 
 // Shared research process handler
@@ -289,6 +297,7 @@ function startResearchProcess(chatId, cmd, label) {
 
     let pdfPath = null;
     let stuckWarned = false;
+    const startTime = Date.now();
 
     // Stuck detection interval
     stuckCheckInterval = setInterval(() => {
@@ -307,9 +316,32 @@ function startResearchProcess(chatId, cmd, label) {
             try {
                 const update = JSON.parse(line);
 
-                // Track phase quietly (no message spam)
+                // Phase update with live message editing
                 if (update.phase && update.phase !== lastPhase) {
                     lastPhase = update.phase;
+                    const emoji = {
+                        'Starting': '🚀',
+                        'Planning': '📋',
+                        'ArgumentMap': '🗺️',
+                        'Drafting': '✍️',
+                        'Review': '🔎',
+                        'Revision': '📝',
+                        'Complete': '✅'
+                    };
+
+                    const timeElapsed = Math.round((Date.now() - startTime) / 60000);
+                    const statusText = `🔬 *Research in Progress*\n\n` +
+                        `_"${label}"_\n\n` +
+                        `${emoji[update.phase] || '➤'} *Phase:* ${update.phase}\n` +
+                        `⏱️ *Time:* ${timeElapsed}m`;
+
+                    if (statusMessageId) {
+                        bot.editMessageText(statusText, {
+                            chat_id: chatId,
+                            message_id: statusMessageId,
+                            parse_mode: 'Markdown'
+                        }).catch(() => { }); // Ignore edit errors (e.g. same content)
+                    }
                 }
 
                 // Track report directory
