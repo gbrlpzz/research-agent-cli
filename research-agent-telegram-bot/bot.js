@@ -21,6 +21,13 @@ if (!BOT_TOKEN) {
     process.exit(1);
 }
 
+// Model configuration
+const MODELS = {
+    fast: 'gemini/gemini-2.5-flash',
+    powerful: 'gemini/gemini-2.5-pro-preview'
+};
+let currentModel = 'fast'; // Default to fast
+
 // State
 let activeProcess = null;
 let lastPhase = '';
@@ -48,15 +55,18 @@ function isAuthorized(msg) {
 bot.onText(/\/start/, (msg) => {
     if (!isAuthorized(msg)) return;
 
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
     bot.sendMessage(msg.chat.id,
         `🤖 *Research Agent Bot*\n\n` +
         `Send me a research topic and I'll generate a PDF report.\n\n` +
         `*Commands:*\n` +
         `/research <topic> - Start research\n` +
         `/qa <question> - Query your library\n` +
+        `/model - Toggle fast/powerful model\n` +
         `/status - Check if running\n` +
         `/cancel - Stop current task\n` +
-        `/help - Show this message`,
+        `/help - Show this message\n\n` +
+        `_Current model: ${modelLabel}_`,
         { parse_mode: 'Markdown' }
     );
 });
@@ -65,13 +75,33 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/help/, (msg) => {
     if (!isAuthorized(msg)) return;
 
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast (Flash)' : '🧠 Powerful (Pro)';
     bot.sendMessage(msg.chat.id,
         `🤖 *Research Agent Commands*\n\n` +
         `/research <topic>\nStart a research task (15-45 min)\n\n` +
         `/qa <question>\nAsk about your indexed papers\n\n` +
+        `/model\nToggle between fast/powerful model\n\n` +
         `/status\nCheck if research is running\n\n` +
         `/cancel\nStop current research\n\n` +
-        `---\nJust send a topic without /research to start quickly.`,
+        `---\n_Current model: ${modelLabel}_\n\n` +
+        `Just send a topic without /research to start quickly.`,
+        { parse_mode: 'Markdown' }
+    );
+});
+
+// /model command - toggle between fast and powerful
+bot.onText(/\/model/, (msg) => {
+    if (!isAuthorized(msg)) return;
+
+    // Toggle model
+    currentModel = currentModel === 'fast' ? 'powerful' : 'fast';
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast (Flash)' : '🧠 Powerful (Pro)';
+    const modelName = MODELS[currentModel];
+
+    bot.sendMessage(msg.chat.id,
+        `🔄 *Model switched*\n\n` +
+        `Now using: ${modelLabel}\n` +
+        `_${modelName}_`,
         { parse_mode: 'Markdown' }
     );
 });
@@ -166,15 +196,20 @@ function runResearch(chatId, topic) {
         return;
     }
 
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
+    const modelName = MODELS[currentModel];
+
     bot.sendMessage(chatId,
-        `🔬 *Starting research*\n\n_"${topic}"_\n\nThis will take 15-45 minutes.`,
+        `🔬 *Starting research*\\n\\n_"${topic}"_\\n\\nModel: ${modelLabel}\\nThis will take 15-45 minutes.`,
         { parse_mode: 'Markdown' }
     );
 
     const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
+    const escapedTopic = topic.replace(/"/g, '\\"');
+    const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" "${escapedTopic}"`;
     const cmd = fs.existsSync(venvActivate)
-        ? `source ${venvActivate} && ${binPath} agent --json-output "${topic.replace(/"/g, '\\"')}"`
-        : `${binPath} agent --json-output "${topic.replace(/"/g, '\\"')}"`;
+        ? `source ${venvActivate} && ${baseCmd}`
+        : baseCmd;
 
     const proc = spawn('bash', ['-c', cmd], { cwd: CLI_PATH });
     activeProcess = proc;
