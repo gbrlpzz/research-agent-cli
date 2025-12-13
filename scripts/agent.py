@@ -125,6 +125,26 @@ _used_citation_keys: Set[str] = set()
 # Debug logger (set per session)
 _debug_logger: Optional[logging.Logger] = None
 
+# JSON output mode (for external tool integration like WhatsApp bot)
+_json_output_mode = False
+
+
+def emit_progress(phase: str, status: str = "in_progress", **kwargs):
+    """Emit JSON progress update for external tools (e.g., WhatsApp bot).
+    
+    Only outputs when --json-output flag is set.
+    """
+    if not _json_output_mode:
+        return
+    
+    update = {
+        "phase": phase,
+        "status": status,
+        **kwargs
+    }
+    # Print as JSON line (NDJSON format)
+    print(json.dumps(update), flush=True)
+
 
 def setup_debug_log(report_dir: Path) -> logging.Logger:
     """Setup debug logging to a file in the report directory."""
@@ -379,6 +399,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     # ========== PHASE 1: PLANNING ==========
     if not resumed_state or resumed_state['phase'] in ['research_plan']:
         # Only run if not resuming or if we need to redo planning
+        emit_progress("Planning", "in_progress")
         console.print(Panel(
             f"[bold blue]Phase 1: Research Planning[/bold blue]",
             border_style="blue", width=60
@@ -388,6 +409,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
         # Save plan to artifacts
         (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
+        emit_progress("Planning", "complete", questions=len(research_plan.get("research_questions", [])))
         log_debug(f"Research plan created: {json.dumps(research_plan)}")
     else:
         # Skip and restore from checkpoint
@@ -397,6 +419,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     
     # ========== PHASE 1b: ARGUMENT DISSECTION ==========
     if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map']:
+        emit_progress("ArgumentMap", "in_progress")
         console.print(Panel(
             f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]",
             border_style="magenta", width=60
@@ -405,6 +428,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         argument_map = create_argument_map(topic, research_plan)
         save_checkpoint("argument_map", {"map": argument_map})
         (artifacts_dir / "argument_map.json").write_text(json.dumps(argument_map, indent=2))
+        emit_progress("ArgumentMap", "complete")
         log_debug(f"Argument map created: {json.dumps(argument_map)}")
     else:
         console.print("[dim cyan]⏭ Skipping Phase 1b (Argument Dissection) - already completed[/dim cyan]")
@@ -413,6 +437,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     
     # ========== PHASE 2: RESEARCH & WRITE ==========
     if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft']:
+        emit_progress("Drafting", "in_progress")
         console.print(Panel(
             f"[bold cyan]Phase 2: Research & Writing[/bold cyan]",
             border_style="cyan", width=60
@@ -457,6 +482,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     except Exception:
         pass  # Don't fail if typst not available
     
+    emit_progress("Drafting", "complete", citations=len(all_cited))
     log_debug(f"Initial draft complete with {len(all_cited)} citations")
     
     # ========== PHASE 3: PEER REVIEW LOOP ==========
@@ -476,6 +502,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             console.print("[yellow]⚠ Skipping further revisions due to session timeout[/yellow]")
             break
             
+        emit_progress("Review", "in_progress", round=revision_round)
         console.print(Panel(
             f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]",
             border_style="magenta", width=60
@@ -667,6 +694,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             break # Exit loop if accepted
             
         # ========== PHASE 4: REVISION ==========
+        emit_progress("Revision", "in_progress", round=revision_round)
         console.print(Panel(
             f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]",
             border_style="yellow", width=60
@@ -678,6 +706,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             topic,
             research_plan
         )
+        emit_progress("Revision", "complete", round=revision_round)
         
         # Save draft with its refs.bib to artifacts (complete, reviewable document)
         draft_file = artifacts_dir / f"draft_r{revision_round}.typ"
@@ -803,6 +832,11 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     ))
     
     log_debug(f"Session complete: {report_dir}")
+    
+    # Emit final completion with PDF path for external tools
+    pdf_path = report_dir / "main.pdf"
+    emit_progress("Complete", "complete", pdf_path=str(pdf_path), report_dir=str(report_dir))
+    
     return report_dir
 
 
@@ -885,6 +919,11 @@ Examples:
         default=None,
         help="Embedding model for PaperQA indexing (default: text-embedding-3-large)",
     )
+    parser.add_argument(
+        "--json-output",
+        action="store_true",
+        help="Output JSON progress updates for external tool integration (e.g., WhatsApp bot)",
+    )
     
     args = parser.parse_args()
     
@@ -960,6 +999,11 @@ Examples:
     console.print(f"[dim]Reasoning model: {routing.reasoning_model}[/dim]")
     console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
+    
+    # Enable JSON output mode for external tool integration (e.g., WhatsApp bot)
+    if args.json_output:
+        globals()['_json_output_mode'] = True
+        emit_progress("Starting", "in_progress", topic=topic)
     
     generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers, resume_from=resume_path)
 
