@@ -4,19 +4,95 @@ A multi-phase pipeline for automated academic research. The system discovers pap
 
 Supports configurable private PDF sources for institutions with licensed access.
 
-## Overview
+## Architecture
 
-The agent executes seven sequential phases:
-
-1. **Planning** — Decomposes the research topic into sub-questions, key concepts, and an argument map with evidence requirements
-2. **Discovery** — Queries Semantic Scholar API, Exa.ai neural search, and citation networks (forward/backward) to identify relevant literature
-3. **Acquisition** — Downloads PDFs via ArXiv, Unpaywall, or configured private sources; stores in Papis-managed library
-4. **Indexing** — Chunks documents and stores embeddings in a persistent Qdrant vector database using PaperQA2
-5. **Drafting** — Tool-calling agent loop generates a Typst document, querying the indexed library to ground claims
-6. **Review** — Separate reviewer agent validates citation accuracy, claim grounding, and literature coverage
-7. **Revision** — Incorporates reviewer feedback; loop repeats until acceptance or maximum rounds
-
-Output: compiled PDF with filtered bibliography containing only cited works.
+```
+                              ┌─────────────────────────────────────┐
+                              │           RESEARCH TOPIC            │
+                              └──────────────────┬──────────────────┘
+                                                 │
+                              ┌──────────────────▼──────────────────┐
+                              │            PLANNING                 │
+                              │  ┌────────────────────────────────┐ │
+                              │  │ • Research questions           │ │
+                              │  │ • Key concepts                 │ │
+                              │  │ • Argument map + evidence reqs │ │
+                              │  │ • Search queries               │ │
+                              │  └────────────────────────────────┘ │
+                              └──────────────────┬──────────────────┘
+                                                 │
+          ┌──────────────────────────────────────┼──────────────────────────────────────┐
+          │                                      │                                      │
+          ▼                                      ▼                                      ▼
+┌─────────────────────┐              ┌─────────────────────┐              ┌─────────────────────┐
+│  Semantic Scholar   │              │      Exa.ai         │              │  Citation Networks  │
+│  API + paper-scraper│              │   (neural search)   │              │  (forward/backward) │
+└─────────┬───────────┘              └──────────┬──────────┘              └──────────┬──────────┘
+          │                                      │                                      │
+          └──────────────────────────────────────┼──────────────────────────────────────┘
+                                                 │
+                              ┌──────────────────▼──────────────────┐
+                              │           ACQUISITION               │
+                              │  ArXiv │ Unpaywall │ Private Sources│
+                              └──────────────────┬──────────────────┘
+                                                 │
+                              ┌──────────────────▼──────────────────┐
+                              │            INDEXING                 │
+                              │  PaperQA2 + Qdrant Vector DB        │
+                              │  (persistent, incremental)          │
+                              └──────────────────┬──────────────────┘
+                                                 │
+          ┌──────────────────────────────────────┴──────────────────────────────────────┐
+          │                              DRAFTING LOOP                                   │
+          │  ┌─────────────────────────────────────────────────────────────────────────┐ │
+          │  │                         Tool-Calling Agent                              │ │
+          │  │  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌─────────────┐  │ │
+          │  │  │ query_library │ │discover_papers│ │  fuzzy_cite   │ │  validate_  │  │ │
+          │  │  │   (RAG)       │ │ (add to lib)  │ │ (get @keys)   │ │  citations  │  │ │
+          │  │  └───────────────┘ └───────────────┘ └───────────────┘ └─────────────┘  │ │
+          │  │                              │                                          │ │
+          │  │                              ▼                                          │ │
+          │  │                    Typst Document Draft                                 │ │
+          │  └─────────────────────────────────────────────────────────────────────────┘ │
+          └──────────────────────────────────────┬──────────────────────────────────────┘
+                                                 │
+          ┌──────────────────────────────────────┴──────────────────────────────────────┐
+          │                             REVIEW LOOP                                      │
+          │  ┌─────────────────────────────────────────────────────────────────────────┐ │
+          │  │                      Peer Reviewer Agent                                │ │
+          │  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────────┐│ │
+          │  │  │ Citation check  │ │  Claim ground   │ │  Coverage / counter-args   ││ │
+          │  │  │ (validate keys) │ │  (verify RAG)   │ │  (breadth assessment)      ││ │
+          │  │  └─────────────────┘ └─────────────────┘ └─────────────────────────────┘│ │
+          │  │                              │                                          │ │
+          │  │              ┌───────────────┴───────────────┐                          │ │
+          │  │              ▼                               ▼                          │ │
+          │  │         ACCEPTED                    REVISIONS NEEDED                    │ │
+          │  │              │                               │                          │ │
+          │  └──────────────┼───────────────────────────────┼──────────────────────────┘ │
+          └─────────────────┼───────────────────────────────┼────────────────────────────┘
+                            │                               │
+                            │                ┌──────────────▼──────────────┐
+                            │                │         REVISION            │
+                            │                │  Incorporates feedback      │
+                            │                │  Re-validates citations     │
+                            │                └──────────────┬──────────────┘
+                            │                               │
+                            │                               └─────────┐
+                            ▼                                         │
+          ┌─────────────────────────────────┐                         │
+          │          FINALIZATION           │◄────────────────────────┘
+          │  • Filter bibliography          │    (max N rounds)
+          │  • Generate star hash           │
+          │  • Compile PDF via Typst        │
+          └─────────────────────────────────┘
+                            │
+                            ▼
+          ┌─────────────────────────────────┐
+          │           OUTPUT                │
+          │  main.pdf + refs.bib + artifacts│
+          └─────────────────────────────────┘
+```
 
 ## Installation
 
@@ -110,7 +186,7 @@ MAX_REVIEWER_ITERATIONS=15
 API_TIMEOUT_SECONDS=120
 ```
 
-## Architecture
+## Project Structure
 
 ```
 research-agent-cli/
