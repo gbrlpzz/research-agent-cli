@@ -152,10 +152,19 @@ Options:
   --resume PATH              Resume from existing report directory
   -r, --revisions N          Max peer review rounds (default: 3)
   --reviewers N              Parallel reviewers (default: 1)
+  --budget {low,balanced,high}  Model and prompt tuning (default: low)
   --reasoning-model MODEL    LLM for planning/writing/reviewing
   --rag-model MODEL          LLM for PaperQA RAG queries
   --embedding-model MODEL    Embedding model for indexing
 ```
+
+### Budget Modes
+
+| Mode | Model | Citation Target | Behavior |
+|------|-------|-----------------|----------|
+| `low` (default) | Flash | 10+ | Library-first, discover only for gaps |
+| `balanced` | Mixed | 12+ | Library-first, discover when gaps found |
+| `high` | Pro | 15+ | Proactive discovery, citation networks |
 
 ### Resume Examples
 
@@ -220,6 +229,7 @@ research-agent-cli/
 ├── scripts/
 │   ├── agent.py              # Main orchestrator
 │   ├── phases/               # Modular pipeline phases
+│   │   ├── orchestrator.py   # Model/budget selection
 │   │   ├── planner.py        # Research planning
 │   │   ├── drafter.py        # Document drafting
 │   │   ├── reviewer.py       # Peer review

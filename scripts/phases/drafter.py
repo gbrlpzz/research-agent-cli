@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.llm import llm_chat, _safe_json_loads
-from utils.prompts import SYSTEM_PROMPT
+from utils.prompts import SYSTEM_PROMPT, get_system_prompt
 from .tool_registry import TOOLS, TOOL_FUNCTIONS, get_reviewed_papers
 
 
@@ -26,6 +26,7 @@ console = Console()
 
 # Model will be set by agent.py
 AGENT_MODEL = "gemini/gemini-3-pro-preview"
+BUDGET_MODE = "balanced"  # Will be set by agent.py
 
 # Configurable limits (can be overridden)
 MAX_AGENT_ITERATIONS = int(os.getenv('AGENT_MAX_ITERATIONS', '50'))
@@ -44,13 +45,23 @@ def set_max_iterations(n: int) -> None:
     MAX_AGENT_ITERATIONS = n
 
 
+def set_budget(mode: str) -> None:
+    """Set budget mode for prompt adaptation."""
+    global BUDGET_MODE
+    BUDGET_MODE = mode
+
+
 def run_agent(
     topic: str,
     research_plan: Optional[Dict[str, Any]] = None,
     argument_map: Optional[Dict[str, Any]] = None,
+    state_file: Optional[Path] = None,
 ) -> str:
     """
     Run the research agent on a topic with optional research plan and argument map.
+    
+    If state_file is provided and exists, resumes from saved state.
+    Saves state after each iteration for granular resume capability.
     
     Returns the generated Typst document content.
     """
@@ -60,12 +71,13 @@ def run_agent(
     console.print(Panel(
         f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
         f"[white]{topic}[/white]\n\n"
-        f"[dim]Model: {AGENT_MODEL}[/dim]",
+        f"[dim]Model: {AGENT_MODEL} | Budget: {BUDGET_MODE}[/dim]",
         border_style="cyan"
     ))
     
-    # Inject current date into system prompt
-    system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date).replace("{current_date}", current_date)
+    # Get budget-aware system prompt and inject current date
+    base_system_prompt = get_system_prompt(BUDGET_MODE)
+    system_prompt_with_date = base_system_prompt.replace("CURRENT_DATE", current_date).replace("{current_date}", current_date)
     
     # Build user prompt with optional research plan and argument map
     plan_section = ""
@@ -118,6 +130,16 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
     max_iterations = MAX_AGENT_ITERATIONS
     iteration = 0
     
+    # Restore from state file if exists (granular resume)
+    if state_file and state_file.exists():
+        try:
+            state = json.loads(state_file.read_text())
+            messages = state.get("messages", messages)
+            iteration = state.get("iteration", 0)
+            console.print(f"[dim cyan]⏭ Resuming from step {iteration}[/dim cyan]")
+        except Exception as e:
+            console.print(f"[yellow]Could not restore state: {e}, starting fresh[/yellow]")
+    
     while iteration < max_iterations:
         iteration += 1
         
@@ -140,17 +162,40 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         messages[0]["content"] = current_system_prompt
         
         with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
-            try:
-                assistant_msg = llm_chat(
-                    model=AGENT_MODEL,
-                    messages=messages,
-                    tools=TOOLS,
-                    temperature=None,
-                    timeout_seconds=API_TIMEOUT_SECONDS,
-                )
-            except Exception as e:
-                console.print(f"[red]API error: {e}[/red]")
-                break
+            # Retry loop for connection errors
+            max_retries = 5
+            retry_delay = 5  # seconds
+            for attempt in range(max_retries):
+                try:
+                    assistant_msg = llm_chat(
+                        model=AGENT_MODEL,
+                        messages=messages,
+                        tools=TOOLS,
+                        temperature=None,
+                        timeout_seconds=API_TIMEOUT_SECONDS,
+                    )
+                    break  # Success
+                except Exception as e:
+                    error_str = str(e).lower()
+                    is_connection_error = any(x in error_str for x in [
+                        "connection", "timeout", "network", "enotfound", "etimedout"
+                    ])
+                    
+                    if is_connection_error and attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                        console.print(f"[yellow]Connection error, retrying in {wait_time}s... ({attempt + 1}/{max_retries})[/yellow]")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        console.print(f"[red]API error: {e}[/red]")
+                        # Save state before breaking so we can resume
+                        if state_file:
+                            state_file.write_text(json.dumps({
+                                "messages": messages,
+                                "iteration": iteration - 1,  # Resume from before failure
+                                "topic": topic
+                            }, default=str))
+                        return "// Agent failed - state saved for resume"
         
         tool_calls = assistant_msg.get("tool_calls") or []
         if tool_calls:
@@ -185,6 +230,14 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
                         "content": json.dumps(result, default=str),
                     }
                 )
+            
+            # Save state after tool calls (granular resume)
+            if state_file:
+                state_file.write_text(json.dumps({
+                    "messages": messages,
+                    "iteration": iteration,
+                    "topic": topic
+                }, default=str))
             continue
 
         text = (assistant_msg.get("content") or "").strip()
@@ -194,6 +247,9 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         
         if "#import" in text and "project.with" in text and "#bibliography" in text:
             console.print("[green]✓ Document generated[/green]")
+            # Cleanup state file on successful completion
+            if state_file and state_file.exists():
+                state_file.unlink()
             if "```typst" in text:
                 match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
                 if match:
@@ -213,4 +269,4 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
     return "// Agent did not produce a document within iteration limit"
 
 
-__all__ = ["run_agent", "set_model", "set_max_iterations"]
+__all__ = ["run_agent", "set_model", "set_max_iterations", "set_budget"]

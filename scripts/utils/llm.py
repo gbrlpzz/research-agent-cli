@@ -95,5 +95,17 @@ def llm_chat(
             ) from e
         raise
 
+    # Track token usage if orchestrator is active
+    try:
+        from phases.orchestrator import get_orchestrator
+        orch = get_orchestrator()
+        if orch and orch._current_phase and hasattr(resp, 'usage') and resp.usage:
+            usage = resp.usage
+            input_tokens = getattr(usage, 'prompt_tokens', 0) or 0
+            output_tokens = getattr(usage, 'completion_tokens', 0) or 0
+            orch.record_tokens(orch._current_phase, input_tokens, output_tokens)
+    except Exception:
+        pass  # Orchestrator may not be initialized
+
     # LiteLLM returns OpenAI-like payloads
     return resp["choices"][0]["message"]

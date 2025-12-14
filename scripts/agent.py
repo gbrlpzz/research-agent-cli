@@ -64,6 +64,7 @@ from phases.planner import (
 from phases.drafter import (
     run_agent,
     set_model as set_drafter_model,
+    set_budget as set_drafter_budget,
 )
 from phases.reviewer import (
     peer_review,
@@ -82,6 +83,13 @@ from phases.tool_registry import (
     get_used_citation_keys,
     get_reviewed_papers,
     export_literature_sheet,
+)
+from phases.orchestrator import (
+    Orchestrator,
+    BudgetMode,
+    TaskPhase,
+    set_orchestrator,
+    get_orchestrator,
 )
 from utils.telegram_notifier import TelegramNotifier
 
@@ -427,9 +435,13 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     # ========== PHASE 1: PLANNING ==========
     if not resumed_state or resumed_state['phase'] in ['research_plan']:
         # Only run if not resuming or if we need to redo planning
+        orch = get_orchestrator()
+        model = orch.start_phase(TaskPhase.PLANNING)
+        set_planner_model(model)
+        
         emit_progress("Planning", "in_progress")
         console.print(Panel(
-            f"[bold blue]Phase 1: Research Planning[/bold blue]",
+            f"[bold blue]Phase 1: Research Planning[/bold blue]\n[dim]Model: {model}[/dim]",
             border_style="blue", width=60
         ))
         
@@ -447,9 +459,13 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     
     # ========== PHASE 1b: ARGUMENT DISSECTION ==========
     if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map']:
+        orch = get_orchestrator()
+        model = orch.start_phase(TaskPhase.ARGUMENT_MAP)
+        set_planner_model(model)
+        
         emit_progress("ArgumentMap", "in_progress")
         console.print(Panel(
-            f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]",
+            f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]\n[dim]Model: {model}[/dim]",
             border_style="magenta", width=60
         ))
         
@@ -464,21 +480,35 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         log_debug("Argument map restored from checkpoint")
     
     # ========== PHASE 2: RESEARCH & WRITE ==========
-    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft']:
+    # Check for incomplete draft (drafter_state.json exists = draft in progress)
+    drafter_state_file = artifacts_dir / "drafter_state.json"
+    draft_incomplete = drafter_state_file.exists()
+    
+    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft'] or draft_incomplete:
+        orch = get_orchestrator()
+        model = orch.start_phase(TaskPhase.DRAFTING)
+        set_drafter_model(model)
+        set_drafter_budget(orch.budget_mode.value)
+        
         emit_progress("Drafting", "in_progress")
         console.print(Panel(
-            f"[bold cyan]Phase 2: Research & Writing[/bold cyan]",
+            f"[bold cyan]Phase 2: Research & Writing[/bold cyan]\n[dim]Model: {model}[/dim]",
             border_style="cyan", width=60
         ))
         
+        # State file for granular step-by-step resume
+        
         try:
-            typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
+            typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map, state_file=drafter_state_file)
         except RuntimeError as e:
+            # Track error for potential escalation
+            orch.record_error(TaskPhase.DRAFTING)
             # Fail fast on model access issues; don't continue generating empty drafts/reviews.
             console.print(f"[red]Fatal LLM error: {e}[/red]")
             raise
 
-        if not typst_content or typst_content.strip().startswith("// Agent did not produce"):
+        if not typst_content or typst_content.strip().startswith("// Agent"):
+            # Catches both "// Agent did not produce" and "// Agent failed - state saved"
             raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
     else:
         console.print("[dim cyan]⏭ Skipping Phase 2 (Research & Writing) - already completed[/dim cyan]")
@@ -530,9 +560,14 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             console.print("[yellow]⚠ Skipping further revisions due to session timeout[/yellow]")
             break
             
+        # Set up orchestrator for review phase
+        orch = get_orchestrator()
+        model = orch.start_phase(TaskPhase.REVIEW)
+        set_reviewer_model(model)
+        
         emit_progress("Review", "in_progress", round=revision_round)
         console.print(Panel(
-            f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]",
+            f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]\n[dim]Model: {model}[/dim]",
             border_style="magenta", width=60
         ))
         
@@ -722,9 +757,13 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             break # Exit loop if accepted
             
         # ========== PHASE 4: REVISION ==========
+        orch = get_orchestrator()
+        model = orch.start_phase(TaskPhase.REVISION)
+        set_reviser_model(model)
+        
         emit_progress("Revision", "in_progress", round=revision_round)
         console.print(Panel(
-            f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]",
+            f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]\n[dim]Model: {model}[/dim]",
             border_style="yellow", width=60
         ))
         
@@ -977,6 +1016,12 @@ Examples:
         default=None,
         help="Telegram chat ID for sending progress updates (used by Telegram bot)",
     )
+    parser.add_argument(
+        "--budget",
+        default="low",
+        choices=["low", "balanced", "high"],
+        help="Budget mode: low (cost-saving), balanced, or high (quality). Default: low",
+    )
     
     args = parser.parse_args()
     
@@ -1053,10 +1098,18 @@ Examples:
     console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
     
+    # Initialize orchestrator with budget mode
+    orchestrator = Orchestrator.from_cli(args.budget)
+    set_orchestrator(orchestrator)
+    console.print(f"[dim]Budget mode: {orchestrator.budget_mode.value}[/dim]")
+    
     # Enable JSON output mode for external tool integration (e.g., WhatsApp bot)
     if args.json_output:
         globals()['_json_output_mode'] = True
         emit_progress("Starting", "in_progress", topic=topic)
     
     generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers, resume_from=resume_path)
+    
+    # Print cost summary at end
+    orchestrator.print_summary()
 
