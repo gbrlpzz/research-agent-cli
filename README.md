@@ -21,35 +21,41 @@ flowchart TB
     end
 
     subgraph DISCOVERY["Phase 2: Discovery"]
-        direction LR
+        direction TB
         SS[Semantic Scholar API]
         Exa[Exa.ai Neural Search]
         Cite[Citation Networks]
-        SS --> Papers
+        Queries --> SS
+        Queries --> Exa
+        Queries --> Cite
+        SS --> Papers[Paper Candidates]
         Exa --> Papers
         Cite --> Papers
-        Papers[Paper Candidates]
     end
 
     subgraph ACQUISITION["Phase 3: Acquisition"]
-        direction LR
+        direction TB
         ArXiv[ArXiv]
         Unpay[Unpaywall]
         Private[Private Sources]
-        ArXiv --> PDFs
+        Papers --> ArXiv
+        Papers --> Unpay
+        Papers --> Private
+        ArXiv --> PDFs[PDF Collection]
         Unpay --> PDFs
         Private --> PDFs
-        PDFs[PDF Collection]
     end
 
     subgraph INDEXING["Phase 4: Indexing"]
         PaperQA[PaperQA2 Chunking]
         Qdrant[(Qdrant Vector DB)]
+        PDFs --> PaperQA
         PaperQA --> Qdrant
     end
 
     subgraph DRAFTING["Phase 5: Drafting Loop"]
         Agent[Tool-Calling Agent]
+        Qdrant -.-> Agent
         
         subgraph Tools
             T1[query_library]
@@ -58,12 +64,16 @@ flowchart TB
             T4[validate_citations]
         end
         
-        Agent <--> Tools
+        Agent --> T1
+        Agent --> T2
+        Agent --> T3
+        Agent --> T4
         Agent --> Draft[Typst Draft]
     end
 
     subgraph REVIEW["Phase 6: Review Loop"]
         Reviewer[Peer Reviewer Agent]
+        Draft --> Reviewer
         
         subgraph Checks
             C1[Citation Validity]
@@ -72,46 +82,47 @@ flowchart TB
             C4[Counter-Arguments]
         end
         
-        Reviewer --> Checks
-        Checks --> Verdict{Verdict}
-        Verdict -->|ACCEPTED| Final
-        Verdict -->|REVISIONS| Revise
+        Reviewer --> C1
+        Reviewer --> C2
+        Reviewer --> C3
+        Reviewer --> C4
+        C1 --> Verdict{Verdict}
+        C2 --> Verdict
+        C3 --> Verdict
+        C4 --> Verdict
+        Verdict -->|ACCEPTED| Final[Finalize]
+        Verdict -->|REVISIONS| Revise[Revision Agent]
     end
 
     subgraph REVISION["Phase 7: Revision"]
-        Revise[Revision Agent]
-        Revise --> |Feedback Loop| Draft
+        Revise --> |Feedback Loop| Agent
     end
 
     subgraph FINALIZATION
-        Final[Finalize]
         Final --> BibFilter[Filter Bibliography]
         Final --> StarHash[Generate Star Hash]
         Final --> Compile[Typst Compile]
     end
 
     subgraph OUTPUT
-        PDF[main.pdf]
-        Bib[refs.bib]
-        Artifacts[artifacts/]
+        Compile --> PDF[main.pdf]
+        BibFilter --> Bib[refs.bib]
+        Compile --> Artifacts[artifacts/]
     end
 
     Topic --> Plan
-    ArgMap --> DISCOVERY
-    Papers --> ACQUISITION
-    PDFs --> INDEXING
-    Qdrant --> DRAFTING
-    Draft --> REVIEW
-    Compile --> OUTPUT
 
-    style PLANNING fill:#1a1a2e
-    style DISCOVERY fill:#16213e
-    style ACQUISITION fill:#1a1a2e
-    style INDEXING fill:#16213e
-    style DRAFTING fill:#1a1a2e
-    style REVIEW fill:#16213e
-    style REVISION fill:#1a1a2e
-    style FINALIZATION fill:#16213e
+    style INPUT fill:#222,stroke:#333,stroke-width:2px
+    style PLANNING fill:#1a1a2e,stroke:#4a4e69
+    style DISCOVERY fill:#16213e,stroke:#4a4e69
+    style ACQUISITION fill:#1a1a2e,stroke:#4a4e69
+    style INDEXING fill:#16213e,stroke:#4a4e69
+    style DRAFTING fill:#1a1a2e,stroke:#4a4e69
+    style REVIEW fill:#16213e,stroke:#4a4e69
+    style REVISION fill:#1a1a2e,stroke:#4a4e69
+    style FINALIZATION fill:#16213e,stroke:#4a4e69
+    style OUTPUT fill:#222,stroke:#333,stroke-width:2px
+```
 ```
 
 ## Installation
