@@ -6,92 +6,112 @@ Supports configurable private PDF sources for institutions with licensed access.
 
 ## Architecture
 
-```
-                              ┌─────────────────────────────────────┐
-                              │           RESEARCH TOPIC            │
-                              └──────────────────┬──────────────────┘
-                                                 │
-                              ┌──────────────────▼──────────────────┐
-                              │            PLANNING                 │
-                              │  ┌────────────────────────────────┐ │
-                              │  │ • Research questions           │ │
-                              │  │ • Key concepts                 │ │
-                              │  │ • Argument map + evidence reqs │ │
-                              │  │ • Search queries               │ │
-                              │  └────────────────────────────────┘ │
-                              └──────────────────┬──────────────────┘
-                                                 │
-          ┌──────────────────────────────────────┼──────────────────────────────────────┐
-          │                                      │                                      │
-          ▼                                      ▼                                      ▼
-┌─────────────────────┐              ┌─────────────────────┐              ┌─────────────────────┐
-│  Semantic Scholar   │              │      Exa.ai         │              │  Citation Networks  │
-│  API + paper-scraper│              │   (neural search)   │              │  (forward/backward) │
-└─────────┬───────────┘              └──────────┬──────────┘              └──────────┬──────────┘
-          │                                      │                                      │
-          └──────────────────────────────────────┼──────────────────────────────────────┘
-                                                 │
-                              ┌──────────────────▼──────────────────┐
-                              │           ACQUISITION               │
-                              │  ArXiv │ Unpaywall │ Private Sources│
-                              └──────────────────┬──────────────────┘
-                                                 │
-                              ┌──────────────────▼──────────────────┐
-                              │            INDEXING                 │
-                              │  PaperQA2 + Qdrant Vector DB        │
-                              │  (persistent, incremental)          │
-                              └──────────────────┬──────────────────┘
-                                                 │
-          ┌──────────────────────────────────────┴──────────────────────────────────────┐
-          │                              DRAFTING LOOP                                   │
-          │  ┌─────────────────────────────────────────────────────────────────────────┐ │
-          │  │                         Tool-Calling Agent                              │ │
-          │  │  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌─────────────┐  │ │
-          │  │  │ query_library │ │discover_papers│ │  fuzzy_cite   │ │  validate_  │  │ │
-          │  │  │   (RAG)       │ │ (add to lib)  │ │ (get @keys)   │ │  citations  │  │ │
-          │  │  └───────────────┘ └───────────────┘ └───────────────┘ └─────────────┘  │ │
-          │  │                              │                                          │ │
-          │  │                              ▼                                          │ │
-          │  │                    Typst Document Draft                                 │ │
-          │  └─────────────────────────────────────────────────────────────────────────┘ │
-          └──────────────────────────────────────┬──────────────────────────────────────┘
-                                                 │
-          ┌──────────────────────────────────────┴──────────────────────────────────────┐
-          │                             REVIEW LOOP                                      │
-          │  ┌─────────────────────────────────────────────────────────────────────────┐ │
-          │  │                      Peer Reviewer Agent                                │ │
-          │  │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────────────┐│ │
-          │  │  │ Citation check  │ │  Claim ground   │ │  Coverage / counter-args   ││ │
-          │  │  │ (validate keys) │ │  (verify RAG)   │ │  (breadth assessment)      ││ │
-          │  │  └─────────────────┘ └─────────────────┘ └─────────────────────────────┘│ │
-          │  │                              │                                          │ │
-          │  │              ┌───────────────┴───────────────┐                          │ │
-          │  │              ▼                               ▼                          │ │
-          │  │         ACCEPTED                    REVISIONS NEEDED                    │ │
-          │  │              │                               │                          │ │
-          │  └──────────────┼───────────────────────────────┼──────────────────────────┘ │
-          └─────────────────┼───────────────────────────────┼────────────────────────────┘
-                            │                               │
-                            │                ┌──────────────▼──────────────┐
-                            │                │         REVISION            │
-                            │                │  Incorporates feedback      │
-                            │                │  Re-validates citations     │
-                            │                └──────────────┬──────────────┘
-                            │                               │
-                            │                               └─────────┐
-                            ▼                                         │
-          ┌─────────────────────────────────┐                         │
-          │          FINALIZATION           │◄────────────────────────┘
-          │  • Filter bibliography          │    (max N rounds)
-          │  • Generate star hash           │
-          │  • Compile PDF via Typst        │
-          └─────────────────────────────────┘
-                            │
-                            ▼
-          ┌─────────────────────────────────┐
-          │           OUTPUT                │
-          │  main.pdf + refs.bib + artifacts│
-          └─────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph INPUT
+        Topic[Research Topic]
+    end
+
+    subgraph PLANNING["Phase 1: Planning"]
+        Plan[LLM Decomposition]
+        Plan --> Questions[Research Questions]
+        Plan --> Concepts[Key Concepts]
+        Plan --> ArgMap[Argument Map]
+        Plan --> Queries[Search Queries]
+    end
+
+    subgraph DISCOVERY["Phase 2: Discovery"]
+        direction LR
+        SS[Semantic Scholar API]
+        Exa[Exa.ai Neural Search]
+        Cite[Citation Networks]
+        SS --> Papers
+        Exa --> Papers
+        Cite --> Papers
+        Papers[Paper Candidates]
+    end
+
+    subgraph ACQUISITION["Phase 3: Acquisition"]
+        direction LR
+        ArXiv[ArXiv]
+        Unpay[Unpaywall]
+        Private[Private Sources]
+        ArXiv --> PDFs
+        Unpay --> PDFs
+        Private --> PDFs
+        PDFs[PDF Collection]
+    end
+
+    subgraph INDEXING["Phase 4: Indexing"]
+        PaperQA[PaperQA2 Chunking]
+        Qdrant[(Qdrant Vector DB)]
+        PaperQA --> Qdrant
+    end
+
+    subgraph DRAFTING["Phase 5: Drafting Loop"]
+        Agent[Tool-Calling Agent]
+        
+        subgraph Tools
+            T1[query_library]
+            T2[discover_papers]
+            T3[fuzzy_cite]
+            T4[validate_citations]
+        end
+        
+        Agent <--> Tools
+        Agent --> Draft[Typst Draft]
+    end
+
+    subgraph REVIEW["Phase 6: Review Loop"]
+        Reviewer[Peer Reviewer Agent]
+        
+        subgraph Checks
+            C1[Citation Validity]
+            C2[Claim Grounding]
+            C3[Coverage Analysis]
+            C4[Counter-Arguments]
+        end
+        
+        Reviewer --> Checks
+        Checks --> Verdict{Verdict}
+        Verdict -->|ACCEPTED| Final
+        Verdict -->|REVISIONS| Revise
+    end
+
+    subgraph REVISION["Phase 7: Revision"]
+        Revise[Revision Agent]
+        Revise --> |Feedback Loop| Draft
+    end
+
+    subgraph FINALIZATION
+        Final[Finalize]
+        Final --> BibFilter[Filter Bibliography]
+        Final --> StarHash[Generate Star Hash]
+        Final --> Compile[Typst Compile]
+    end
+
+    subgraph OUTPUT
+        PDF[main.pdf]
+        Bib[refs.bib]
+        Artifacts[artifacts/]
+    end
+
+    Topic --> Plan
+    ArgMap --> DISCOVERY
+    Papers --> ACQUISITION
+    PDFs --> INDEXING
+    Qdrant --> DRAFTING
+    Draft --> REVIEW
+    Compile --> OUTPUT
+
+    style PLANNING fill:#1a1a2e
+    style DISCOVERY fill:#16213e
+    style ACQUISITION fill:#1a1a2e
+    style INDEXING fill:#16213e
+    style DRAFTING fill:#1a1a2e
+    style REVIEW fill:#16213e
+    style REVISION fill:#1a1a2e
+    style FINALIZATION fill:#16213e
 ```
 
 ## Installation
