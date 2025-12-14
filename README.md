@@ -91,10 +91,11 @@ flowchart TB
         C3 --> Verdict
         C4 --> Verdict
         Verdict -->|ACCEPTED| Final[Finalize]
-        Verdict -->|REVISIONS| Revise[Revision Agent]
+        Verdict -->|REVISIONS| Revise
     end
 
     subgraph REVISION["Phase 7: Revision"]
+        Revise[Revision Agent]
         Revise --> |Feedback Loop| Agent
     end
 
