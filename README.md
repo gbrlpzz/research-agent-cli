@@ -54,9 +54,17 @@ flowchart TB
     end
 
     subgraph DRAFTING["Phase 5: Drafting Loop"]
-        Agent[Tool-Calling Agent]
-        Qdrant -.-> Agent
+        direction TB
         
+        subgraph ReAct["ReAct Agent Cycle"]
+            Think[Chain of Thought]
+            Act[Tool Execution]
+            Obs[Observation]
+            Think --> Act
+            Act --> Obs
+            Obs --> Think
+        end
+
         subgraph Tools
             T1[query_library]
             T2[discover_papers]
@@ -64,11 +72,8 @@ flowchart TB
             T4[validate_citations]
         end
         
-        Agent --> T1
-        Agent --> T2
-        Agent --> T3
-        Agent --> T4
-        Agent --> Draft[Typst Draft]
+        Act <--> Tools
+        Think --> Draft[Typst Draft]
     end
 
     subgraph REVIEW["Phase 6: Review Loop"]
@@ -82,24 +87,15 @@ flowchart TB
             C4[Counter-Arguments]
         end
         
-        Reviewer --> C1
-        Reviewer --> C2
-        Reviewer --> C3
-        Reviewer --> C4
-        C1 --> Verdict{Verdict}
-        C2 --> Verdict
-        C3 --> Verdict
-        C4 --> Verdict
+        Reviewer --> Checks
+        Checks --> Verdict{Verdict}
         Verdict -->|ACCEPTED| Final[Finalize]
         Verdict -->|REVISIONS| Limit{Count < Max?}
-        Limit -->|Yes| Revise
+        Limit -->|Yes| Revise[Phase 7: Revision Agent]
         Limit -->|No / Default 3| Final
     end
 
-    subgraph REVISION["Phase 7: Revision"]
-        Revise[Revision Agent]
-        Revise --> |Feedback Loop| Agent
-    end
+    Revise --> |Feedback Loop| Think
 
     subgraph FINALIZATION
         Final --> BibFilter[Filter Bibliography]
@@ -114,18 +110,25 @@ flowchart TB
     end
 
     Topic --> Plan
+    ArgMap --> DISCOVERY
+    Papers --> ACQUISITION
+    PDFs --> INDEXING
+    Qdrant --> ReAct
+    Draft --> REVIEW
+    Compile --> OUTPUT
 
     style INPUT fill:#222,stroke:#333,stroke-width:2px
-    style PLANNING fill:#1a1a2e,stroke:#4a4e69
-    style DISCOVERY fill:#16213e,stroke:#4a4e69
-    style ACQUISITION fill:#1a1a2e,stroke:#4a4e69
-    style INDEXING fill:#16213e,stroke:#4a4e69
-    style DRAFTING fill:#1a1a2e,stroke:#4a4e69
-    style REVIEW fill:#16213e,stroke:#4a4e69
-    style REVISION fill:#1a1a2e,stroke:#4a4e69
-    style FINALIZATION fill:#16213e,stroke:#4a4e69
+    style PLANNING fill:#1a1a2e
+    style DISCOVERY fill:#16213e
+    style ACQUISITION fill:#1a1a2e
+    style INDEXING fill:#16213e
+    style DRAFTING fill:#1a1a2e
+    style REVIEW fill:#16213e
+    style FINALIZATION fill:#16213e
     style OUTPUT fill:#222,stroke:#333,stroke-width:2px
-```
+    style ReAct fill:#303446,stroke:#8aadf4
+    style Tools fill:#232634,stroke:#8aadf4
+    style Checks fill:#232634,stroke:#f5a97f,stroke:#4a4e69
 ```
 
 ## Installation
