@@ -55,9 +55,13 @@ def run_agent(
     topic: str,
     research_plan: Optional[Dict[str, Any]] = None,
     argument_map: Optional[Dict[str, Any]] = None,
+    state_file: Optional[Path] = None,
 ) -> str:
     """
     Run the research agent on a topic with optional research plan and argument map.
+    
+    If state_file is provided and exists, resumes from saved state.
+    Saves state after each iteration for granular resume capability.
     
     Returns the generated Typst document content.
     """
@@ -126,6 +130,16 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
     max_iterations = MAX_AGENT_ITERATIONS
     iteration = 0
     
+    # Restore from state file if exists (granular resume)
+    if state_file and state_file.exists():
+        try:
+            state = json.loads(state_file.read_text())
+            messages = state.get("messages", messages)
+            iteration = state.get("iteration", 0)
+            console.print(f"[dim cyan]⏭ Resuming from step {iteration}[/dim cyan]")
+        except Exception as e:
+            console.print(f"[yellow]Could not restore state: {e}, starting fresh[/yellow]")
+    
     while iteration < max_iterations:
         iteration += 1
         
@@ -148,17 +162,40 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         messages[0]["content"] = current_system_prompt
         
         with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
-            try:
-                assistant_msg = llm_chat(
-                    model=AGENT_MODEL,
-                    messages=messages,
-                    tools=TOOLS,
-                    temperature=None,
-                    timeout_seconds=API_TIMEOUT_SECONDS,
-                )
-            except Exception as e:
-                console.print(f"[red]API error: {e}[/red]")
-                break
+            # Retry loop for connection errors
+            max_retries = 5
+            retry_delay = 5  # seconds
+            for attempt in range(max_retries):
+                try:
+                    assistant_msg = llm_chat(
+                        model=AGENT_MODEL,
+                        messages=messages,
+                        tools=TOOLS,
+                        temperature=None,
+                        timeout_seconds=API_TIMEOUT_SECONDS,
+                    )
+                    break  # Success
+                except Exception as e:
+                    error_str = str(e).lower()
+                    is_connection_error = any(x in error_str for x in [
+                        "connection", "timeout", "network", "enotfound", "etimedout"
+                    ])
+                    
+                    if is_connection_error and attempt < max_retries - 1:
+                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                        console.print(f"[yellow]Connection error, retrying in {wait_time}s... ({attempt + 1}/{max_retries})[/yellow]")
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        console.print(f"[red]API error: {e}[/red]")
+                        # Save state before breaking so we can resume
+                        if state_file:
+                            state_file.write_text(json.dumps({
+                                "messages": messages,
+                                "iteration": iteration - 1,  # Resume from before failure
+                                "topic": topic
+                            }, default=str))
+                        return "// Agent failed - state saved for resume"
         
         tool_calls = assistant_msg.get("tool_calls") or []
         if tool_calls:
@@ -193,6 +230,14 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
                         "content": json.dumps(result, default=str),
                     }
                 )
+            
+            # Save state after tool calls (granular resume)
+            if state_file:
+                state_file.write_text(json.dumps({
+                    "messages": messages,
+                    "iteration": iteration,
+                    "topic": topic
+                }, default=str))
             continue
 
         text = (assistant_msg.get("content") or "").strip()
@@ -202,6 +247,9 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         
         if "#import" in text and "project.with" in text and "#bibliography" in text:
             console.print("[green]✓ Document generated[/green]")
+            # Cleanup state file on successful completion
+            if state_file and state_file.exists():
+                state_file.unlink()
             if "```typst" in text:
                 match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)
                 if match:

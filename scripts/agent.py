@@ -492,8 +492,11 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             border_style="cyan", width=60
         ))
         
+        # State file for granular step-by-step resume
+        drafter_state_file = artifacts_dir / "drafter_state.json"
+        
         try:
-            typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map)
+            typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map, state_file=drafter_state_file)
         except RuntimeError as e:
             # Track error for potential escalation
             orch.record_error(TaskPhase.DRAFTING)
