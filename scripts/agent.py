@@ -480,7 +480,11 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         log_debug("Argument map restored from checkpoint")
     
     # ========== PHASE 2: RESEARCH & WRITE ==========
-    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft']:
+    # Check for incomplete draft (drafter_state.json exists = draft in progress)
+    drafter_state_file = artifacts_dir / "drafter_state.json"
+    draft_incomplete = drafter_state_file.exists()
+    
+    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft'] or draft_incomplete:
         orch = get_orchestrator()
         model = orch.start_phase(TaskPhase.DRAFTING)
         set_drafter_model(model)
@@ -493,7 +497,6 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         ))
         
         # State file for granular step-by-step resume
-        drafter_state_file = artifacts_dir / "drafter_state.json"
         
         try:
             typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map, state_file=drafter_state_file)
