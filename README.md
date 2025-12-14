@@ -2,6 +2,8 @@
 
 A multi-phase pipeline for automated academic research. The system discovers papers, constructs a vector-indexed library, generates structured documents with inline citations, and iterates through peer review until acceptance criteria are met.
 
+Supports configurable private PDF sources for institutions with licensed access.
+
 ## Overview
 
 The agent executes seven sequential phases:
