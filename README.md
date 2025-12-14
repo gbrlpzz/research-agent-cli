@@ -91,7 +91,9 @@ flowchart TB
         C3 --> Verdict
         C4 --> Verdict
         Verdict -->|ACCEPTED| Final[Finalize]
-        Verdict -->|REVISIONS| Revise
+        Verdict -->|REVISIONS| Limit{Count < Max?}
+        Limit -->|Yes| Revise
+        Limit -->|No / Default 3| Final
     end
 
     subgraph REVISION["Phase 7: Revision"]
