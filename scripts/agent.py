@@ -504,7 +504,8 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             console.print(f"[red]Fatal LLM error: {e}[/red]")
             raise
 
-        if not typst_content or typst_content.strip().startswith("// Agent did not produce"):
+        if not typst_content or typst_content.strip().startswith("// Agent"):
+            # Catches both "// Agent did not produce" and "// Agent failed - state saved"
             raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
     else:
         console.print("[dim cyan]⏭ Skipping Phase 2 (Research & Writing) - already completed[/dim cyan]")
