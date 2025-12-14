@@ -249,7 +249,7 @@ research-agent-cli/
 | [Papis](https://github.com/papis/papis) | Bibliography management |
 | [Typst](https://typst.app/) | Document compilation |
 | [Semantic Scholar API](https://www.semanticscholar.org/product/api) | Paper discovery |
-| [Star Hash](https://github.com/gbrlpzz/star-hash) | Celestial document fingerprint |
+| [Star Hash](https://github.com/gbrlpzz/star-hash) | Astronomic document fingerprint |
 
 ## Limitations
 
