@@ -110,25 +110,18 @@ flowchart TB
     end
 
     Topic --> Plan
-    ArgMap --> DISCOVERY
-    Papers --> ACQUISITION
-    PDFs --> INDEXING
     Qdrant --> ReAct
-    Draft --> REVIEW
-    Compile --> OUTPUT
 
-    style INPUT fill:#222,stroke:#333,stroke-width:2px
     style PLANNING fill:#1a1a2e
     style DISCOVERY fill:#16213e
     style ACQUISITION fill:#1a1a2e
     style INDEXING fill:#16213e
     style DRAFTING fill:#1a1a2e
     style REVIEW fill:#16213e
-    style FINALIZATION fill:#16213e
-    style OUTPUT fill:#222,stroke:#333,stroke-width:2px
+    style FINALIZATION fill:#1a1a2e
     style ReAct fill:#303446,stroke:#8aadf4
     style Tools fill:#232634,stroke:#8aadf4
-    style Checks fill:#232634,stroke:#f5a97f,stroke:#4a4e69
+    style Checks fill:#232634,stroke:#f5a97f
 ```
 
 ## Installation
