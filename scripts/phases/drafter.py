@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.llm import llm_chat, _safe_json_loads
-from utils.prompts import SYSTEM_PROMPT
+from utils.prompts import SYSTEM_PROMPT, get_system_prompt
 from .tool_registry import TOOLS, TOOL_FUNCTIONS, get_reviewed_papers
 
 
@@ -26,6 +26,7 @@ console = Console()
 
 # Model will be set by agent.py
 AGENT_MODEL = "gemini/gemini-3-pro-preview"
+BUDGET_MODE = "balanced"  # Will be set by agent.py
 
 # Configurable limits (can be overridden)
 MAX_AGENT_ITERATIONS = int(os.getenv('AGENT_MAX_ITERATIONS', '50'))
@@ -44,6 +45,12 @@ def set_max_iterations(n: int) -> None:
     MAX_AGENT_ITERATIONS = n
 
 
+def set_budget(mode: str) -> None:
+    """Set budget mode for prompt adaptation."""
+    global BUDGET_MODE
+    BUDGET_MODE = mode
+
+
 def run_agent(
     topic: str,
     research_plan: Optional[Dict[str, Any]] = None,
@@ -60,12 +67,13 @@ def run_agent(
     console.print(Panel(
         f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
         f"[white]{topic}[/white]\n\n"
-        f"[dim]Model: {AGENT_MODEL}[/dim]",
+        f"[dim]Model: {AGENT_MODEL} | Budget: {BUDGET_MODE}[/dim]",
         border_style="cyan"
     ))
     
-    # Inject current date into system prompt
-    system_prompt_with_date = SYSTEM_PROMPT.replace("CURRENT_DATE", current_date).replace("{current_date}", current_date)
+    # Get budget-aware system prompt and inject current date
+    base_system_prompt = get_system_prompt(BUDGET_MODE)
+    system_prompt_with_date = base_system_prompt.replace("CURRENT_DATE", current_date).replace("{current_date}", current_date)
     
     # Build user prompt with optional research plan and argument map
     plan_section = ""
@@ -213,4 +221,4 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
     return "// Agent did not produce a document within iteration limit"
 
 
-__all__ = ["run_agent", "set_model", "set_max_iterations"]
+__all__ = ["run_agent", "set_model", "set_max_iterations", "set_budget"]

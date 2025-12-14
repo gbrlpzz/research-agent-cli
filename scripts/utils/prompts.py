@@ -5,6 +5,58 @@ All prompts are defined here to keep agent.py focused on logic.
 """
 
 # ============================================================================
+# BUDGET-AWARE PROMPT HINTS
+# ============================================================================
+
+BUDGET_HINTS = {
+    "low": """
+## Budget Mode: Cost-Saving
+- LIBRARY FIRST: Always query_library() before discover_papers()
+- Exhaust existing papers before adding new ones
+- Use discover_papers() only for genuine gaps (not found in library)
+- Prefer discover_papers() over exa_search() (exa costs credits)
+- CITATION TARGETS: Minimum 10 unique citations, aim for 15+
+""",
+    "balanced": """
+## Budget Mode: Balanced  
+- LIBRARY FIRST: Prioritize query_library() over discovery
+- Use discover_papers() when library gaps are identified
+- Use exa_search() when needed for hard-to-find papers
+- CITATION TARGETS: Minimum 12 unique citations, aim for 15-18
+""",
+    "high": """
+## Budget Mode: Quality Priority
+- LIBRARY FIRST: Start with query_library() to establish baseline
+- Use discover_papers() proactively to fill gaps and find counter-arguments
+- Explore citation networks thoroughly (cited_by, references)
+- Use exa_search() for hard-to-find or niche papers
+- CITATION TARGETS: Minimum 15 unique citations, aim for 20+
+""",
+}
+
+
+def get_system_prompt(budget_mode: str = "balanced") -> str:
+    """Get system prompt with budget-specific hints appended."""
+    hint = BUDGET_HINTS.get(budget_mode, BUDGET_HINTS["balanced"])
+    return SYSTEM_PROMPT + hint
+
+
+def get_reviewer_prompt(budget_mode: str = "balanced") -> str:
+    """Get reviewer prompt with budget-aware citation thresholds."""
+    base = REVIEWER_PROMPT
+    if budget_mode == "low":
+        return base.replace(
+            "If fewer than 10 unique papers are cited: MAJOR REVISIONS",
+            "If fewer than 10 unique papers are cited: MAJOR REVISIONS (aim for 15+)"
+        )
+    elif budget_mode == "high":
+        return base.replace(
+            "If fewer than 10 unique papers are cited: MAJOR REVISIONS",
+            "If fewer than 15 unique papers are cited: MAJOR REVISIONS (aim for 20+)"
+        )
+    return base
+
+# ============================================================================
 # SYSTEM PROMPT - Main agent behavior
 # ============================================================================
 
