@@ -83,6 +83,7 @@ from phases.tool_registry import (
     get_reviewed_papers,
     export_literature_sheet,
 )
+from utils.telegram_notifier import TelegramNotifier
 
 try:
     import litellm  # type: ignore
@@ -127,6 +128,7 @@ _debug_logger: Optional[logging.Logger] = None
 
 # JSON output mode (for external tool integration like WhatsApp bot)
 _json_output_mode = False
+_telegram_notifier: Optional[TelegramNotifier] = None
 
 
 def emit_progress(phase: str, status: str = "in_progress", **kwargs):
@@ -143,7 +145,12 @@ def emit_progress(phase: str, status: str = "in_progress", **kwargs):
         **kwargs
     }
     # Print as JSON line (NDJSON format)
+    # Print as JSON line (NDJSON format)
     print(json.dumps(update), flush=True)
+
+    # Update Telegram if enabled
+    if _telegram_notifier:
+        _telegram_notifier.update_status(phase, kwargs)
 
 
 def setup_debug_log(report_dir: Path) -> logging.Logger:
@@ -297,9 +304,30 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         num_reviewers: Number of parallel reviewers
         resume_from: Optional path to existing report directory to resume from
     """
-    global _used_citation_keys, _debug_logger, _session_start_time
+    global _used_citation_keys, _debug_logger, _session_start_time, _telegram_notifier
     _used_citation_keys = set()
     _session_start_time = time.time()  # Track session start for timeout
+
+    # Initialize Telegram Notifier
+    # Check for CLI args override first (conceptually - though we access global args via sys.argv or env)
+    # Ideally passed via function args, but for now we trust env + args parsing wrapper
+    chat_id = os.getenv("TELEGRAM_CHAT_ID") or os.getenv("AUTHORIZED_USER_ID")
+    
+    # Simple CLI arg parsing for chat-id override (since we don't want to change main() signature too much yet)
+    if "--telegram-chat-id" in sys.argv:
+        try:
+            idx = sys.argv.index("--telegram-chat-id")
+            if idx + 1 < len(sys.argv):
+                chat_id = sys.argv[idx + 1]
+        except:
+            pass
+
+    if chat_id:
+        _telegram_notifier = TelegramNotifier(chat_id=chat_id)
+        # Send start message if it's a new run
+        if not resume_from:
+             _telegram_notifier.start_research(topic, AGENT_MODEL)
+    
     
     def check_session_timeout():
         """Check if session has exceeded max duration."""
@@ -409,7 +437,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
         # Save plan to artifacts
         (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
-        emit_progress("Planning", "complete", questions=len(research_plan.get("research_questions", [])))
+        emit_progress("Planning", "complete", questions=len(research_plan.get("sub_questions", [])))
         log_debug(f"Research plan created: {json.dumps(research_plan)}")
     else:
         # Skip and restore from checkpoint
@@ -802,6 +830,26 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             log_debug("compile.sh or typst not found")
         except Exception as e:
             log_debug(f"Compile error: {e}")
+
+    final_pdf = report_dir / "main.pdf"
+    if final_pdf.exists():
+        console.print(f"\n[bold green]Report generated successfully:[/bold green] {final_pdf}")
+        if _telegram_notifier:
+            try:
+                # Extract title for caption
+                caption = f"📄 {topic[:50]}"
+                with open(main_typ, 'r') as f:
+                    for line in f:
+                        if line.strip().startswith('title:'):
+                            caption = line.split(':', 1)[1].strip().strip('"').strip(',')
+                            break
+                _telegram_notifier.send_document(final_pdf, caption=caption)
+            except Exception as e:
+                console.print(f"[yellow]Failed to send PDF to Telegram: {e}[/yellow]")
+    else:
+        console.print(f"\n[bold red]Failed to generate PDF[/bold red]")
+        if _telegram_notifier:
+            _telegram_notifier.send_message(f"❌ Research complete but PDF generation failed. Check logs.")
     
     # Export literature review sheet
     literature_sheet = export_literature_sheet()
@@ -923,6 +971,11 @@ Examples:
         "--json-output",
         action="store_true",
         help="Output JSON progress updates for external tool integration (e.g., WhatsApp bot)",
+    )
+    parser.add_argument(
+        "--telegram-chat-id",
+        default=None,
+        help="Telegram chat ID for sending progress updates (used by Telegram bot)",
     )
     
     args = parser.parse_args()

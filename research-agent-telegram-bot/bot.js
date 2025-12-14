@@ -200,8 +200,14 @@ bot.onText(/\/qa (.+)/, async (msg, match) => {
     const proc = spawn('bash', ['-c', cmd], { cwd: CLI_PATH, env: { ...process.env, NO_COLOR: '1' } });
     let output = '';
 
-    proc.stdout.on('data', (data) => { output += data.toString(); });
-    proc.stderr.on('data', (data) => { output += data.toString(); });
+    proc.stdout.on('data', (data) => {
+        process.stdout.write(data);
+        output += data.toString();
+    });
+    proc.stderr.on('data', (data) => {
+        process.stderr.write(data);
+        output += data.toString();
+    });
 
     proc.on('close', (code) => {
         if (code === 0 && output.trim()) {
@@ -252,11 +258,12 @@ async function runResearch(chatId, topic) {
         `🔬 *Starting research*\n\n_"${topic}"_\n\nModel: ${modelLabel}\nI'll notify you when it's done or if something goes wrong.`,
         { parse_mode: 'Markdown' }
     );
-    statusMessageId = sentMsg.message_id;
+    // statusMessageId = sentMsg.message_id; // No longer needed, Python handles its own status msg
 
     const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
     const escapedTopic = topic.replace(/"/g, '\\"');
-    const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" "${escapedTopic}"`;
+    // Pass chat ID explicitly to Python agent
+    const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" --telegram-chat-id "${chatId}" "${escapedTopic}"`;
     const cmd = fs.existsSync(venvActivate)
         ? `source ${venvActivate} && ${baseCmd}`
         : baseCmd;
@@ -309,69 +316,29 @@ function startResearchProcess(chatId, cmd, label) {
 
     proc.stdout.on('data', (data) => {
         lastActivityTime = Date.now(); // Reset stuck timer on any output
+        process.stdout.write(data); // Stream to parent terminal
+
+        // Python agent handles its own status updates now
+        // We just track report dir for resume capability
         const lines = data.toString().split('\n');
         for (const line of lines) {
             if (!line.trim()) continue;
-
             try {
                 const update = JSON.parse(line);
-
-                // Phase update with live message editing
-                if (update.phase && update.phase !== lastPhase) {
-                    lastPhase = update.phase;
-                    const emoji = {
-                        'Starting': '🚀',
-                        'Planning': '📋',
-                        'ArgumentMap': '🗺️',
-                        'Drafting': '✍️',
-                        'Review': '🔎',
-                        'Revision': '📝',
-                        'Complete': '✅'
-                    };
-
-                    const timeElapsed = Math.round((Date.now() - startTime) / 60000);
-                    const statusText = `🔬 *Research in Progress*\n\n` +
-                        `_"${label}"_\n\n` +
-                        `${emoji[update.phase] || '➤'} *Phase:* ${update.phase}\n` +
-                        `⏱️ *Time:* ${timeElapsed}m`;
-
-                    if (statusMessageId) {
-                        bot.editMessageText(statusText, {
-                            chat_id: chatId,
-                            message_id: statusMessageId,
-                            parse_mode: 'Markdown'
-                        }).catch(() => { }); // Ignore edit errors (e.g. same content)
-                    }
-                }
-
-                // Track report directory
-                if (update.report_dir) {
-                    lastReportDir = update.report_dir;
-                }
-
-                // PDF path
-                if (update.pdf_path) {
-                    pdfPath = update.pdf_path;
-                }
+                if (update.phase) lastPhase = update.phase;
+                if (update.report_dir) lastReportDir = update.report_dir;
             } catch {
-                // Not JSON, check for PDF path in plain output
-                const match = line.match(/reports\/[^\s]+\/main\.pdf/);
-                if (match) {
-                    pdfPath = path.join(CLI_PATH, match[0]);
-                }
-                // Also try to extract report dir
                 const dirMatch = line.match(/reports\/(20\d{6}_[^\s\/]+)/);
-                if (dirMatch) {
-                    lastReportDir = path.join(CLI_PATH, 'reports', dirMatch[1]);
-                }
+                if (dirMatch) lastReportDir = path.join(CLI_PATH, 'reports', dirMatch[1]);
             }
         }
     });
 
     proc.stderr.on('data', (data) => {
         lastActivityTime = Date.now(); // Reset stuck timer
+        process.stderr.write(data); // Stream to parent terminal
         // Log errors but don't spam user
-        console.error('Agent stderr:', data.toString());
+        // console.error('Agent stderr:', data.toString());
     });
 
     proc.on('close', async (code) => {
@@ -381,22 +348,13 @@ function startResearchProcess(chatId, cmd, label) {
             stuckCheckInterval = null;
         }
 
-        if (code === 0 && pdfPath && fs.existsSync(pdfPath)) {
-            bot.sendMessage(chatId, '✅ Research complete! Sending PDF...');
-
-            try {
-                await bot.sendDocument(chatId, pdfPath, {
-                    caption: `📄 ${label.substring(0, 50)}${label.length > 50 ? '...' : ''}`
-                });
-            } catch (err) {
-                bot.sendMessage(chatId, `⚠️ PDF ready but couldn't send: ${err.message}\n\nPath: ${pdfPath}`);
-            }
-        } else if (code === 0) {
-            bot.sendMessage(chatId, '✅ Research complete but PDF not found.');
-        } else {
-            // Failure - provide helpful message
+        // Python agent sends the final PDF itself now.
+        // We only notify on failure/crash.
+        if (code !== 0) {
             const resumeHint = lastReportDir ? `\n\nUse /resume to continue from checkpoint.` : '';
             bot.sendMessage(chatId, `❌ Research failed (exit code ${code})\n\nPhase: ${lastPhase || 'unknown'}${resumeHint}`);
+        } else {
+            console.log('✅ process finished successfully. (Agent sent PDF directly)');
         }
 
         lastPhase = '';
