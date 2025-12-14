@@ -19,6 +19,18 @@ DEFAULT_REASONING_MODEL = "gemini/gemini-3-pro-preview"
 DEFAULT_RAG_MODEL = "gemini/gemini-2.5-flash"
 DEFAULT_EMBEDDING_MODEL = "gemini/text-embedding-004"
 
+try:
+    import litellm
+    # Silence "model not mapped" warnings for our default embedding model
+    litellm.model_cost["gemini/text-embedding-004"] = {
+        "input_cost_per_token": 0.0,
+        "output_cost_per_token": 0.0,
+        "litellm_provider": "gemini",
+        "mode": "embedding"
+    }
+except ImportError:
+    pass
+
 
 def normalize_model_id(model: str) -> str:
     """

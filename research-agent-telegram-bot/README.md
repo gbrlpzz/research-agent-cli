@@ -17,6 +17,8 @@ npm start
 | Command | Description |
 |---------|-------------|
 | `/research <topic>` | Run full research (15-45 min) |
+| `/resume` | Resume last interrupted session |
+| `/model` | Toggle fast/pro reasoning model |
 | `/qa <question>` | Query your paper library |
 | `/status` | Check if research is running |
 | `/cancel` | Stop current research |

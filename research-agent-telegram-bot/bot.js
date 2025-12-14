@@ -21,9 +21,24 @@ if (!BOT_TOKEN) {
     process.exit(1);
 }
 
+// Model configuration
+const MODELS = {
+    fast: 'gemini/gemini-2.5-flash',
+    powerful: 'gemini/gemini-2.5-pro-preview'
+};
+let currentModel = 'fast'; // Default to fast
+
+// Stuck detection (10 minutes)
+const STUCK_TIMEOUT_MS = 10 * 60 * 1000;
+
 // State
 let activeProcess = null;
 let lastPhase = '';
+let lastActivityTime = null;
+let stuckCheckInterval = null;
+let lastReportDir = null;
+let activeChatId = null;
+let statusMessageId = null;
 
 // Create bot
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
@@ -48,15 +63,18 @@ function isAuthorized(msg) {
 bot.onText(/\/start/, (msg) => {
     if (!isAuthorized(msg)) return;
 
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
     bot.sendMessage(msg.chat.id,
         `🤖 *Research Agent Bot*\n\n` +
         `Send me a research topic and I'll generate a PDF report.\n\n` +
         `*Commands:*\n` +
         `/research <topic> - Start research\n` +
+        `/resume - Resume last interrupted session\n` +
         `/qa <question> - Query your library\n` +
+        `/model - Toggle fast/powerful model\n` +
         `/status - Check if running\n` +
-        `/cancel - Stop current task\n` +
-        `/help - Show this message`,
+        `/cancel - Stop current task\n\n` +
+        `_Current model: ${modelLabel}_`,
         { parse_mode: 'Markdown' }
     );
 });
@@ -65,13 +83,34 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/help/, (msg) => {
     if (!isAuthorized(msg)) return;
 
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast (Flash)' : '🧠 Powerful (Pro)';
     bot.sendMessage(msg.chat.id,
         `🤖 *Research Agent Commands*\n\n` +
         `/research <topic>\nStart a research task (15-45 min)\n\n` +
+        `/resume\nResume last interrupted session\n\n` +
         `/qa <question>\nAsk about your indexed papers\n\n` +
+        `/model\nToggle between fast/powerful model\n\n` +
         `/status\nCheck if research is running\n\n` +
         `/cancel\nStop current research\n\n` +
-        `---\nJust send a topic without /research to start quickly.`,
+        `---\n_Current model: ${modelLabel}_\n\n` +
+        `Just send a topic without /research to start quickly.`,
+        { parse_mode: 'Markdown' }
+    );
+});
+
+// /model command - toggle between fast and powerful
+bot.onText(/\/model/, (msg) => {
+    if (!isAuthorized(msg)) return;
+
+    // Toggle model
+    currentModel = currentModel === 'fast' ? 'powerful' : 'fast';
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast (Flash)' : '🧠 Powerful (Pro)';
+    const modelName = MODELS[currentModel];
+
+    bot.sendMessage(msg.chat.id,
+        `🔄 *Model switched*\n\n` +
+        `Now using: ${modelLabel}\n` +
+        `_${modelName}_`,
         { parse_mode: 'Markdown' }
     );
 });
@@ -81,7 +120,8 @@ bot.onText(/\/status/, (msg) => {
     if (!isAuthorized(msg)) return;
 
     if (activeProcess) {
-        bot.sendMessage(msg.chat.id, `⏳ Research in progress (${lastPhase || 'starting'})\n\nUse /cancel to stop.`);
+        const elapsed = lastActivityTime ? Math.round((Date.now() - lastActivityTime) / 60000) : 0;
+        bot.sendMessage(msg.chat.id, `⏳ Research in progress (${lastPhase || 'starting'})\n\nLast activity: ${elapsed} min ago\nUse /cancel to stop.`);
     } else {
         bot.sendMessage(msg.chat.id, '✅ No active research. Send /research <topic> to start.');
     }
@@ -95,10 +135,48 @@ bot.onText(/\/cancel/, (msg) => {
         activeProcess.kill('SIGTERM');
         activeProcess = null;
         lastPhase = '';
-        bot.sendMessage(msg.chat.id, '🛑 Research cancelled.');
+        if (stuckCheckInterval) {
+            clearInterval(stuckCheckInterval);
+            stuckCheckInterval = null;
+        }
+        bot.sendMessage(msg.chat.id, `🛑 Research cancelled.${lastReportDir ? '\n\nUse /resume to continue later.' : ''}`);
     } else {
         bot.sendMessage(msg.chat.id, 'ℹ️ No active research to cancel.');
     }
+});
+
+// /resume command
+bot.onText(/\/resume/, (msg) => {
+    if (!isAuthorized(msg)) return;
+
+    if (activeProcess) {
+        bot.sendMessage(msg.chat.id, '⏳ Research already in progress. Use /cancel first.');
+        return;
+    }
+
+    // Find latest interrupted session
+    const reportsDir = path.join(CLI_PATH, 'reports');
+    if (!fs.existsSync(reportsDir)) {
+        bot.sendMessage(msg.chat.id, '❌ No reports directory found.');
+        return;
+    }
+
+    // Find directories with checkpoint but no main.pdf
+    const dirs = fs.readdirSync(reportsDir)
+        .filter(d => d.match(/^20\\d{6}_/))
+        .map(d => path.join(reportsDir, d))
+        .filter(d => fs.statSync(d).isDirectory())
+        .filter(d => fs.existsSync(path.join(d, 'artifacts', 'checkpoint.json')) && !fs.existsSync(path.join(d, 'main.pdf')))
+        .sort()
+        .reverse();
+
+    if (dirs.length === 0) {
+        bot.sendMessage(msg.chat.id, '✅ No interrupted sessions found. All research completed!');
+        return;
+    }
+
+    const latestDir = dirs[0];
+    runResearchResume(msg.chat.id, latestDir);
 });
 
 // /research command
@@ -122,8 +200,14 @@ bot.onText(/\/qa (.+)/, async (msg, match) => {
     const proc = spawn('bash', ['-c', cmd], { cwd: CLI_PATH, env: { ...process.env, NO_COLOR: '1' } });
     let output = '';
 
-    proc.stdout.on('data', (data) => { output += data.toString(); });
-    proc.stderr.on('data', (data) => { output += data.toString(); });
+    proc.stdout.on('data', (data) => {
+        process.stdout.write(data);
+        output += data.toString();
+    });
+    proc.stderr.on('data', (data) => {
+        process.stderr.write(data);
+        output += data.toString();
+    });
 
     proc.on('close', (code) => {
         if (code === 0 && output.trim()) {
@@ -160,82 +244,117 @@ bot.on('message', (msg) => {
 });
 
 // Main research function
-function runResearch(chatId, topic) {
+// Main research function
+async function runResearch(chatId, topic) {
     if (activeProcess) {
         bot.sendMessage(chatId, '⏳ Research already in progress. Use /cancel first.');
         return;
     }
 
-    bot.sendMessage(chatId,
-        `🔬 *Starting research*\n\n_"${topic}"_\n\nThis will take 15-45 minutes.`,
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
+    const modelName = MODELS[currentModel];
+
+    const sentMsg = await bot.sendMessage(chatId,
+        `🔬 *Starting research*\n\n_"${topic}"_\n\nModel: ${modelLabel}\nI'll notify you when it's done or if something goes wrong.`,
         { parse_mode: 'Markdown' }
     );
+    // statusMessageId = sentMsg.message_id; // No longer needed, Python handles its own status msg
 
     const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
+    const escapedTopic = topic.replace(/"/g, '\\"');
+    // Pass chat ID explicitly to Python agent
+    const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" --telegram-chat-id "${chatId}" "${escapedTopic}"`;
     const cmd = fs.existsSync(venvActivate)
-        ? `source ${venvActivate} && ${binPath} agent --json-output "${topic.replace(/"/g, '\\"')}"`
-        : `${binPath} agent --json-output "${topic.replace(/"/g, '\\"')}"`;
+        ? `source ${venvActivate} && ${baseCmd}`
+        : baseCmd;
 
+    startResearchProcess(chatId, cmd, topic);
+}
+
+// Resume research function
+// Resume research function
+async function runResearchResume(chatId, reportDir) {
+    const modelLabel = currentModel === 'fast' ? '⚡ Fast' : '🧠 Powerful';
+    const modelName = MODELS[currentModel];
+
+    const dirName = path.basename(reportDir);
+    const sentMsg = await bot.sendMessage(chatId,
+        `🔄 *Resuming research*\n\n_${dirName}_\n\nModel: ${modelLabel}`,
+        { parse_mode: 'Markdown' }
+    );
+    statusMessageId = sentMsg.message_id;
+
+    const venvActivate = path.join(CLI_PATH, '.venv', 'bin', 'activate');
+    const baseCmd = `${binPath} agent --json-output --reasoning-model "${modelName}" --resume "${reportDir}"`;
+    const cmd = fs.existsSync(venvActivate)
+        ? `source ${venvActivate} && ${baseCmd}`
+        : baseCmd;
+
+    startResearchProcess(chatId, cmd, dirName);
+}
+
+// Shared research process handler
+function startResearchProcess(chatId, cmd, label) {
     const proc = spawn('bash', ['-c', cmd], { cwd: CLI_PATH });
     activeProcess = proc;
+    activeChatId = chatId;
     lastPhase = '';
+    lastActivityTime = Date.now();
+    lastReportDir = null;
 
     let pdfPath = null;
+    let stuckWarned = false;
+    const startTime = Date.now();
+
+    // Stuck detection interval
+    stuckCheckInterval = setInterval(() => {
+        if (lastActivityTime && (Date.now() - lastActivityTime) > STUCK_TIMEOUT_MS && !stuckWarned) {
+            stuckWarned = true;
+            bot.sendMessage(chatId, `⚠️ *No activity for 10+ minutes*\n\nPhase: ${lastPhase || 'unknown'}\n\nUse /cancel to stop, then /resume later.`, { parse_mode: 'Markdown' });
+        }
+    }, 60000); // Check every minute
 
     proc.stdout.on('data', (data) => {
+        lastActivityTime = Date.now(); // Reset stuck timer on any output
+        process.stdout.write(data); // Stream to parent terminal
+
+        // Python agent handles its own status updates now
+        // We just track report dir for resume capability
         const lines = data.toString().split('\n');
         for (const line of lines) {
             if (!line.trim()) continue;
-
             try {
                 const update = JSON.parse(line);
-
-                // Phase update
-                if (update.phase && update.phase !== lastPhase) {
-                    lastPhase = update.phase;
-                    const emoji = {
-                        'Starting': '🚀',
-                        'Planning': '📋',
-                        'ArgumentMap': '🗺️',
-                        'Drafting': '✍️',
-                        'Review': '🔎',
-                        'Revision': '📝',
-                        'Complete': '✅'
-                    };
-                    bot.sendMessage(chatId, `${emoji[update.phase] || '➤'} ${update.phase}`);
-                }
-
-                // PDF path
-                if (update.pdf_path) {
-                    pdfPath = update.pdf_path;
-                }
+                if (update.phase) lastPhase = update.phase;
+                if (update.report_dir) lastReportDir = update.report_dir;
             } catch {
-                // Not JSON, check for PDF path in plain output
-                const match = line.match(/reports\/[^\s]+\/main\.pdf/);
-                if (match) {
-                    pdfPath = path.join(CLI_PATH, match[0]);
-                }
+                const dirMatch = line.match(/reports\/(20\d{6}_[^\s\/]+)/);
+                if (dirMatch) lastReportDir = path.join(CLI_PATH, 'reports', dirMatch[1]);
             }
         }
     });
 
+    proc.stderr.on('data', (data) => {
+        lastActivityTime = Date.now(); // Reset stuck timer
+        process.stderr.write(data); // Stream to parent terminal
+        // Log errors but don't spam user
+        // console.error('Agent stderr:', data.toString());
+    });
+
     proc.on('close', async (code) => {
         activeProcess = null;
+        if (stuckCheckInterval) {
+            clearInterval(stuckCheckInterval);
+            stuckCheckInterval = null;
+        }
 
-        if (code === 0 && pdfPath && fs.existsSync(pdfPath)) {
-            bot.sendMessage(chatId, '✅ Research complete! Sending PDF...');
-
-            try {
-                await bot.sendDocument(chatId, pdfPath, {
-                    caption: `📄 ${topic.substring(0, 50)}...`
-                });
-            } catch (err) {
-                bot.sendMessage(chatId, `⚠️ PDF ready but couldn't send: ${err.message}\n\nPath: ${pdfPath}`);
-            }
-        } else if (code === 0) {
-            bot.sendMessage(chatId, '✅ Research complete but PDF not found.');
+        // Python agent sends the final PDF itself now.
+        // We only notify on failure/crash.
+        if (code !== 0) {
+            const resumeHint = lastReportDir ? `\n\nUse /resume to continue from checkpoint.` : '';
+            bot.sendMessage(chatId, `❌ Research failed (exit code ${code})\n\nPhase: ${lastPhase || 'unknown'}${resumeHint}`);
         } else {
-            bot.sendMessage(chatId, `❌ Research failed (exit code ${code})`);
+            console.log('✅ process finished successfully. (Agent sent PDF directly)');
         }
 
         lastPhase = '';
@@ -243,6 +362,10 @@ function runResearch(chatId, topic) {
 
     proc.on('error', (err) => {
         activeProcess = null;
+        if (stuckCheckInterval) {
+            clearInterval(stuckCheckInterval);
+            stuckCheckInterval = null;
+        }
         bot.sendMessage(chatId, `❌ Error: ${err.message}`);
     });
 }
@@ -250,6 +373,7 @@ function runResearch(chatId, topic) {
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\nShutting down...');
+    if (stuckCheckInterval) clearInterval(stuckCheckInterval);
     if (activeProcess) activeProcess.kill('SIGTERM');
     bot.stopPolling();
     process.exit(0);

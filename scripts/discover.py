@@ -50,7 +50,12 @@ def preview_paper(index, temp_file_path):
 def search_and_select(query):
     # Use centralized discovery utility
     sys.path.insert(0, str(Path(__file__).parent))
-    from utils.discovery import search_papers
+    try:
+        from tools.discovery import discover_papers as search_papers
+    except ImportError:
+        # Fallback for direct execution
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from tools.discovery import discover_papers as search_papers
     
     # 20 results by default from search_papers
     all_papers = search_papers(query)
