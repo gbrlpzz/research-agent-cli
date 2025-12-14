@@ -90,16 +90,16 @@ Prompts for model selection (Gemini 3 Pro / 2.5 Flash / 2.5 Pro), max iterations
 │                              RESEARCH AGENT                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐  │
-│  │ Planning │ → │ Discovery│ → │ Indexing │ → │ Drafting │ → │  Review  │  │
-│  └──────────┘   └──────────┘   └──────────┘   └──────────┘   └────┬─────┘  │
-│       │              │              │              │               │        │
-│  Research       Semantic       PaperQA2 +      Tool-calling    Verify      │
-│  questions      Scholar,       Qdrant          agent loop      citations   │
-│  + argument     Exa.ai,        persistent                      + claims    │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   │
+│  │ Planning │ → │ Discovery│ → │ Indexing │ → │ Drafting │ → │  Review  │   │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘   └────┬─────┘   │
+│       │              │              │              │              │         │
+│  Research       Semantic       PaperQA2 +      Tool-calling    Verify       │
+│  questions      Scholar,       Qdrant          agent loop      citations    │
+│  + argument     Exa.ai,        persistent                      + claims     │
 │    map          citation       vector index                                 │
-│                 networks                            ▲               │       │
-│                                                     │               ▼       │
+│                 networks                            ▲              │        │
+│                                                     │              ▼        │
 │                                              ┌──────┴───────────────────┐   │
 │                                              │  Revision (if needed)    │   │
 │                                              └──────────────────────────┘   │
