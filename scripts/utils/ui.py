@@ -118,6 +118,19 @@ class UIManager:
         self.log_buffer.append((timestamp, level, message, style))
         self.update()
 
+    def send_notification(self, message: str, title: str = "Research Agent"):
+        """Send a MacOS notification."""
+        import subprocess
+        import sys
+        if sys.platform != "darwin":
+            return
+            
+        try:
+            script = f'display notification "{message}" with title "{title}"'
+            subprocess.run(["osascript", "-e", script], check=False)
+        except Exception:
+            pass  # Fail silently if notifications don't work
+
     def _generate_header(self) -> Panel:
         """Generate the header panel."""
         elapsed = time.time() - self.start_time

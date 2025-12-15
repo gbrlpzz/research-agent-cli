@@ -923,6 +923,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     final_pdf = report_dir / "main.pdf"
     if final_pdf.exists():
         ui.log("Report generated successfully", "SUCCESS")
+        ui.send_notification(f"Research on '{topic}' is complete!", "Research Agent Success")
         if _telegram_notifier:
             try:
                 # Extract title for caption
