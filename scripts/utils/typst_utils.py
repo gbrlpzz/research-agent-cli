@@ -85,6 +85,31 @@ def fix_typst_error(typst_path: Path, error_msg: str) -> bool:
         if 'bibliography("master.bib")' in content:
             content = content.replace('bibliography("master.bib")', 'bibliography("refs.bib")')
     
+    # Fix 6: Markdown headers ("# Heading") -> Typst headers ("= Heading")
+    # Typst uses "=" for headings. Markdown uses "#".
+    # We look for lines starting with "# " that are NOT inside a code block or string.
+    # Simple heuristic: exact match at start of line
+    content = re.sub(r'^# ', '= ', content, flags=re.MULTILINE)
+    content = re.sub(r'^## ', '== ', content, flags=re.MULTILINE)
+    content = re.sub(r'^### ', '=== ', content, flags=re.MULTILINE)
+
+    # Fix 7: Stray hashes/pounds that are not hashtags or code
+    # Typst treats # as a code starter. If used as "Item #1", it breaks.
+    # We escape them to \# if they look like standalone text usage.
+    # Look for "#" followed by a digit, where it's NOT a heading (already fixed) or color hex
+    # Regex: (space or start)#(digit) -> \1\#\2
+    content = re.sub(r'(^|\s)#(\d)', r'\1\\#\2', content)
+
+    # Fix 8: Access encoded HTML entities (common in BibTeX/LLM output)
+    # Convert &amp; -> & (Typst escapes & automatically in text, but &amp; literal looks bad)
+    if "&amp;" in content:
+        content = content.replace("&amp;", "&")
+        
+    # Convert other common entities just in case
+    if "&lt;" in content: content = content.replace("&lt;", "<")
+    if "&gt;" in content: content = content.replace("&gt;", ">")
+    if "&quot;" in content: content = content.replace("&quot;", '"')
+
     if content != original_content:
         typst_path.write_text(content)
         return True

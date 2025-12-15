@@ -112,6 +112,9 @@ case "$1" in
             "$PYTHON" "$REPO_ROOT/scripts/agent.py" "$@"
         fi
         ;;
+    gemini-login|gemini-logout|gemini-status|antigravity-*)
+        "$PYTHON" "$REPO_ROOT/scripts/agent.py" "$@"
+        ;;
     add)
         shift
         "$PYTHON" "$REPO_ROOT/scripts/add.py" "$@"

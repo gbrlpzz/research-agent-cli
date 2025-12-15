@@ -53,49 +53,41 @@ flowchart TB
         PaperQA --> Qdrant
     end
 
-    subgraph DRAFTING["Phase 5: Drafting Loop"]
-        direction TB
-        
-        subgraph ReAct["ReAct Agent Cycle"]
-            Think[Chain of Thought]
-            Act[Tool Execution]
-            Obs[Observation]
-            Think --> Act
-            Act --> Obs
-            Obs --> Think
-        end
-
-        subgraph Tools
-            T1[query_library]
-            T2[discover_papers]
-            T3[fuzzy_cite]
-            T4[validate_citations]
-        end
-        
-        Act <--> Tools
-        Think --> Draft[Typst Draft]
+    subgraph TOOLS["Shared Tool Registry"]
+        T1[query_library]
+        T2[discover_papers]
+        T3[add_paper]
+        T4[fuzzy_cite]
+        T5[validate_citations]
+        T6[literature_sheet]
     end
 
-    subgraph REVIEW["Phase 6: Review Loop"]
-        Reviewer[Peer Reviewer Agent]
-        Draft --> Reviewer
+    subgraph DRAFTING["Phase 5: Drafting Agent"]
+        direction TB
+        DraftAgent[ReAct Loop]
+        DraftAgent --> Draft[Typst Draft]
+    end
+
+    subgraph REVIEW["Phase 6-7: Review & Revision Loop"]
+        ReviewAgent[Peer Review]
+        Draft --> ReviewAgent
         
         subgraph Checks
             C1[Citation Validity]
             C2[Claim Grounding]
-            C3[Coverage Analysis]
+            C3[Coverage Gaps]
             C4[Counter-Arguments]
         end
         
-        Reviewer --> Checks
+        ReviewAgent --> Checks
         Checks --> Verdict{Verdict}
         Verdict -->|ACCEPTED| Final[Finalize]
         Verdict -->|REVISIONS| Limit{Count < Max?}
-        Limit -->|Yes| Revise[Phase 7: Revision Agent]
-        Limit -->|No / Default 3| Final
+        Limit -->|Yes| ReviseAgent[Reviser Agent]
+        Limit -->|No| Final
+        ReviseAgent --> DraftAgent
     end
 
-    Revise --> |Feedback Loop| Think
 
     subgraph FINALIZATION
         Final --> BibFilter[Filter Bibliography]
@@ -109,8 +101,29 @@ flowchart TB
         Compile --> Artifacts[artifacts/]
     end
 
+    subgraph NOTIFICATIONS["Live Notifications"]
+        UI[Terminal UI]
+        MacOS[MacOS Alerts]
+        Telegram[Telegram Bot]
+    end
+
     Topic --> Plan
-    Qdrant --> ReAct
+    Qdrant --> DraftAgent
+    Qdrant --> ReviewAgent
+    Qdrant --> ReviseAgent
+
+    %% Tool connections
+    TOOLS <--> DraftAgent
+    TOOLS <--> ReviewAgent
+    TOOLS <--> ReviseAgent
+
+    %% Notification connections
+    DraftAgent -.-> UI
+    ReviewAgent -.-> UI
+    ReviseAgent -.-> UI
+    Final -.-> MacOS
+    Final -.-> Telegram
+    PDF -.-> Telegram
 
     style PLANNING fill:#1a1a2e
     style DISCOVERY fill:#16213e
@@ -119,8 +132,8 @@ flowchart TB
     style DRAFTING fill:#1a1a2e
     style REVIEW fill:#16213e
     style FINALIZATION fill:#1a1a2e
-    style ReAct fill:#303446,stroke:#8aadf4
-    style Tools fill:#232634,stroke:#8aadf4
+    style TOOLS fill:#232634,stroke:#8aadf4
+    style NOTIFICATIONS fill:#232634,stroke:#a6da95
     style Checks fill:#232634,stroke:#f5a97f
 ```
 
@@ -139,6 +152,30 @@ Typst is required for PDF compilation:
 brew install typst  # macOS
 # Or download from https://github.com/typst/typst/releases
 ```
+
+## Authentication & Costs
+
+The agent supports two modes of operation:
+1. **API Key Mode**: Standard billing via `GEMINI_API_KEY` or `OPENAI_API_KEY`.
+2. **"Free Cost" Mode (Recommended)**: Use your existing Gemini/Google quota via OAuth.
+
+### Setting up "Free Cost" Mode
+This mode allows you to use Gemini models (and Antigravity models) without incurring per-token API costs, leveraging your plan's included quota.
+
+1.  **Login**: Run the OAuth script:
+    ```bash
+    research gemini-login
+    # Follow the browser prompt to authenticate with your Google Cloud Project
+    ```
+
+2.  **Verify**:
+    ```bash
+    research gemini-status
+    ```
+
+3.  **Run**: The agent will auto-detect OAuth credentials and switch to "Free Cost" mode (budget set to HIGH by default).
+
+4.  **Antigravity Users**: Run `research antigravity-login` to access internal models.
 
 ## Usage
 
@@ -168,6 +205,8 @@ reports/<timestamp>_<topic>/
 | `research add <id>` | Add paper by DOI or arXiv ID |
 | `research cite [query]` | Fuzzy-match citation keys |
 | `research exa <query>` | Neural search via Exa.ai |
+| `research gemini-login` | Authenticate with Gemini OAuth (Free Quota) |
+| `research antigravity-login` | Authenticate with Antigravity OAuth |
 
 ### Agent Options
 
@@ -203,11 +242,16 @@ OPENAI_API_KEY=<key>
 # Model routing (optional)
 RESEARCH_REASONING_MODEL=gemini/gemini-2.5-flash
 RESEARCH_RAG_MODEL=gemini/gemini-2.5-flash
-RESEARCH_EMBEDDING_MODEL=openai/text-embedding-3-large
+RESEARCH_EMBEDDING_MODEL=gemini/text-embedding-004
+
 
 # Discovery APIs (optional)
 SEMANTIC_SCHOLAR_API_KEY=<key>
 EXA_API_KEY=<key>
+
+# Telegram notifications (optional)
+TELEGRAM_BOT_TOKEN=<token>
+TELEGRAM_CHAT_ID=<chat_id>
 
 # Tuning parameters (optional)
 AGENT_MAX_ITERATIONS=50
@@ -215,6 +259,27 @@ REVISION_MAX_ITERATIONS=25
 MAX_REVIEWER_ITERATIONS=15
 API_TIMEOUT_SECONDS=120
 ```
+
+## Terminal Interface
+
+The agent features a live TUI dashboard showing:
+- **Header**: Topic, model, cost, elapsed time
+- **Status**: Current phase, LLM/Embedding token breakdown
+- **Logs**: Scrolling activity log
+
+The UI persists throughout all phases and closes cleanly on completion or error.
+
+## Notifications
+
+### MacOS
+Native notifications are sent automatically:
+- **Success**: Banner notification when research completes
+- **Failure**: Modal alert if an error occurs
+
+### Telegram
+Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` to receive:
+- Live phase updates on your phone
+- Final PDF delivered to your chat
 
 ## Project Structure
 

@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.llm import llm_chat, _safe_json_loads
 from utils.prompts import SYSTEM_PROMPT, get_system_prompt
+from utils.ui import get_ui
 from .tool_registry import TOOLS, TOOL_FUNCTIONS, get_reviewed_papers
 
 
@@ -65,15 +66,19 @@ def run_agent(
     
     Returns the generated Typst document content.
     """
+    ui = get_ui()
     # Get current date for the document
     current_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     
-    console.print(Panel(
-        f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
-        f"[white]{topic}[/white]\n\n"
-        f"[dim]Model: {AGENT_MODEL} | Budget: {BUDGET_MODE}[/dim]",
-        border_style="cyan"
-    ))
+    if ui:
+        ui.log(f"Starting research on: {topic} (Model: {AGENT_MODEL})", "INFO")
+    else:
+        console.print(Panel(
+            f"[bold cyan]🤖 Research Agent[/bold cyan]\n\n"
+            f"[white]{topic}[/white]\n\n"
+            f"[dim]Model: {AGENT_MODEL} | Budget: {BUDGET_MODE}[/dim]",
+            border_style="cyan"
+        ))
     
     # Get budget-aware system prompt and inject current date
     base_system_prompt = get_system_prompt(BUDGET_MODE)
@@ -124,7 +129,8 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         {"role": "user", "content": user_prompt},
     ]
     
-    console.print("\n[bold]Starting autonomous research...[/bold]\n")
+    if not ui:
+        console.print("\n[bold]Starting autonomous research...[/bold]\n")
     
     max_iterations = MAX_AGENT_ITERATIONS
     iteration = 0
@@ -135,9 +141,11 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
             state = json.loads(state_file.read_text())
             messages = state.get("messages", messages)
             iteration = state.get("iteration", 0)
-            console.print(f"[dim cyan]⏭ Resuming from step {iteration}[/dim cyan]")
+            if ui: ui.log(f"Resuming from step {iteration}", "WARNING")
+            else: console.print(f"[dim cyan]⏭ Resuming from step {iteration}[/dim cyan]")
         except Exception as e:
-            console.print(f"[yellow]Could not restore state: {e}, starting fresh[/yellow]")
+            if ui: ui.log(f"Could not restore state: {e}, starting fresh", "WARNING")
+            else: console.print(f"[yellow]Could not restore state: {e}, starting fresh[/yellow]")
     
     while iteration < max_iterations:
         iteration += 1
@@ -160,59 +168,78 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         # Update system prompt (first message) with latest citations
         messages[0]["content"] = current_system_prompt
         
-        with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
-            # Retry loop for connection errors
-            max_retries = 5
-            retry_delay = 5  # seconds
-            for attempt in range(max_retries):
-                try:
-                    assistant_msg = llm_chat(
+        if ui:
+            ui.set_status(f"Thinking (step {iteration}/{max_iterations})...")
+        
+        # Retry loop for connection errors
+        max_retries = 5
+        retry_delay = 5  # seconds
+        for attempt in range(max_retries):
+            try:
+                # If no UI, use context manager status
+                if not ui:
+                    with console.status(f"[cyan]Thinking (step {iteration}/{max_iterations})..."):
+                         assistant_msg = llm_chat(
+                            model=AGENT_MODEL,
+                            messages=messages,
+                            tools=TOOLS,
+                            temperature=None,
+                            timeout_seconds=API_TIMEOUT_SECONDS,
+                        )
+                else:
+                     assistant_msg = llm_chat(
                         model=AGENT_MODEL,
                         messages=messages,
                         tools=TOOLS,
                         temperature=None,
                         timeout_seconds=API_TIMEOUT_SECONDS,
                     )
-                    break  # Success
-                except Exception as e:
-                    error_str = str(e).lower()
-                    is_connection_error = any(x in error_str for x in [
-                        "connection", "timeout", "network", "enotfound", "etimedout"
-                    ])
-                    
-                    if is_connection_error and attempt < max_retries - 1:
-                        wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
-                        console.print(f"[yellow]Connection error, retrying in {wait_time}s... ({attempt + 1}/{max_retries})[/yellow]")
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        console.print(f"[red]API error: {e}[/red]")
-                        # Save state before breaking so we can resume
-                        if state_file:
-                            state_file.write_text(json.dumps({
-                                "messages": messages,
-                                "iteration": iteration - 1,  # Resume from before failure
-                                "topic": topic
-                            }, default=str))
-                        return "// Agent failed - state saved for resume"
+                break  # Success
+            except Exception as e:
+                error_str = str(e).lower()
+                is_connection_error = any(x in error_str for x in [
+                    "connection", "timeout", "network", "enotfound", "etimedout"
+                ])
+                
+                if is_connection_error and attempt < max_retries - 1:
+                    wait_time = retry_delay * (2 ** attempt)  # Exponential backoff
+                    if ui: ui.log(f"Connection error, retrying in {wait_time}s...", "WARNING")
+                    else: console.print(f"[yellow]Connection error, retrying in {wait_time}s... ({attempt + 1}/{max_retries})[/yellow]")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    if ui: ui.log(f"API error: {e}", "ERROR")
+                    else: console.print(f"[red]API error: {e}[/red]")
+                    # Save state before breaking so we can resume
+                    if state_file:
+                        state_file.write_text(json.dumps({
+                            "messages": messages,
+                            "iteration": iteration - 1,  # Resume from before failure
+                            "topic": topic
+                        }, default=str))
+                    return "// Agent failed - state saved for resume"
         
         tool_calls = assistant_msg.get("tool_calls") or []
         if tool_calls:
             # Preserve the tool_calls on the assistant message (OpenAI tool-calling protocol)
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.get("content") or "",
-                    "tool_calls": tool_calls,
-                }
-            )
+            assistant_history = {
+                "role": "assistant",
+                "content": assistant_msg.get("content") or "",
+                "tool_calls": tool_calls,
+            }
+            if "raw_gemini_parts" in assistant_msg:
+                assistant_history["raw_gemini_parts"] = assistant_msg["raw_gemini_parts"]
+            messages.append(assistant_history)
 
             for tc in tool_calls:
                 fn = (tc.get("function") or {}).get("name")
                 args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
                 tc_id = tc.get("id")
                 
-                console.print(f"[yellow]→ {fn}({json.dumps(args, default=str)[:80]})[/yellow]")
+                if ui:
+                    ui.log(f"Tool: {fn}", "DEBUG")
+                else:
+                    console.print(f"[yellow]→ {fn}({json.dumps(args, default=str)[:80]})[/yellow]")
                 
                 if fn in TOOL_FUNCTIONS:
                     try:
@@ -241,11 +268,13 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
 
         text = (assistant_msg.get("content") or "").strip()
         if not text:
-            console.print("[yellow]Empty response, retrying...[/yellow]")
+            if ui: ui.log("Empty response, retrying...", "WARNING")
+            else: console.print("[yellow]Empty response, retrying...[/yellow]")
             continue
         
         if "#import" in text and "project.with" in text and "#bibliography" in text:
-            console.print("[green]✓ Document generated[/green]")
+            if ui: ui.log("Document generated", "SUCCESS")
+            else: console.print("[green]✓ Document generated[/green]")
             # Cleanup state file on successful completion
             if state_file and state_file.exists():
                 state_file.unlink()
@@ -255,7 +284,8 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
                     return match.group(1).strip()
             return text
         
-        console.print(f"[dim]{text[:150]}...[/dim]")
+        if not ui:
+            console.print(f"[dim]{text[:150]}...[/dim]")
                 
         messages.append({"role": "assistant", "content": text})
         messages.append(

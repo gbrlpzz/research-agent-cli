@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.llm import llm_chat, _safe_json_loads
+from utils.ui import get_ui
 from .tool_registry import TOOLS, TOOL_FUNCTIONS
 
 
@@ -74,11 +75,15 @@ def revise_document(
     
     Returns the revised Typst document content.
     """
-    console.print(Panel(
-        f"[bold yellow]✏️ Revision Phase[/bold yellow]\n\n"
-        f"Addressing peer review feedback...",
-        border_style="yellow"
-    ))
+    ui = get_ui()
+    if ui:
+        ui.log("Addressing peer review feedback...", "INFO")
+    else:
+        console.print(Panel(
+            f"[bold yellow]✏️ Revision Phase[/bold yellow]\n\n"
+            f"Addressing peer review feedback...",
+            border_style="yellow"
+        ))
     
     current_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     
@@ -110,8 +115,24 @@ Use date: "{current_date}" in the document.
     # Run revision loop
     max_iterations = MAX_REVISION_ITERATIONS
     for iteration in range(max_iterations):
-        with console.status(f"[cyan]Revising (step {iteration + 1})..."):
-            try:
+        if ui:
+            ui.set_status(f"Revising (step {iteration + 1})...")
+        else:
+            # Fallback for no UI
+            pass
+
+        try:
+            # If no UI, use console.status context manager, else just call API
+            if not ui:
+                with console.status(f"[cyan]Revising (step {iteration + 1})..."):
+                    assistant_msg = llm_chat(
+                        model=AGENT_MODEL,
+                        messages=messages,
+                        tools=TOOLS,
+                        temperature=None,
+                        timeout_seconds=API_TIMEOUT_SECONDS,
+                    )
+            else:
                 assistant_msg = llm_chat(
                     model=AGENT_MODEL,
                     messages=messages,
@@ -119,26 +140,31 @@ Use date: "{current_date}" in the document.
                     temperature=None,
                     timeout_seconds=API_TIMEOUT_SECONDS,
                 )
-            except Exception as e:
-                console.print(f"[red]API error: {e}[/red]")
-                break
+        except Exception as e:
+            if ui: ui.log(f"API error: {e}", "ERROR")
+            else: console.print(f"[red]API error: {e}[/red]")
+            break
         
         tool_calls = assistant_msg.get("tool_calls") or []
         if tool_calls:
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.get("content") or "",
-                    "tool_calls": tool_calls,
-                }
-            )
+            assistant_history = {
+                "role": "assistant",
+                "content": assistant_msg.get("content") or "",
+                "tool_calls": tool_calls,
+            }
+            if "raw_gemini_parts" in assistant_msg:
+                assistant_history["raw_gemini_parts"] = assistant_msg["raw_gemini_parts"]
+            messages.append(assistant_history)
 
             for tc in tool_calls:
                 fn = (tc.get("function") or {}).get("name")
                 args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
                 tc_id = tc.get("id")
                 
-                console.print(f"[yellow]  → {fn}(...)[/yellow]")
+                if ui:
+                    ui.log(f"Revision tool: {fn}", "DEBUG")
+                else:
+                    console.print(f"[yellow]  → {fn}(...)[/yellow]")
                 
                 if fn in TOOL_FUNCTIONS:
                     try:
@@ -159,12 +185,15 @@ Use date: "{current_date}" in the document.
 
         text = (assistant_msg.get("content") or "").strip()
         if not text:
-            console.print("[yellow]Empty revision response, retrying...[/yellow]")
+            if ui: ui.log("Empty revision response, retrying...", "WARNING")
+            else: console.print("[yellow]Empty revision response, retrying...[/yellow]")
             continue
         
         # Check for complete document markers
         if "#import" in text and "project.with" in text and "#bibliography" in text:
-            console.print("[green]✓ Revised document generated[/green]")
+            if ui: ui.log("Revised document generated", "SUCCESS")
+            else: console.print("[green]✓ Revised document generated[/green]")
+            
             # Extract from code block if present
             if "```typst" in text:
                 match = re.search(r'```typst\s*(.*?)\s*```', text, re.DOTALL)

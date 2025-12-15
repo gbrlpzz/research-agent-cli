@@ -98,18 +98,20 @@ class Orchestrator:
     """
     budget_mode: BudgetMode = BudgetMode.LOW
     _phase_metrics: Dict[str, PhaseMetrics] = field(default_factory=dict)
+    _model_costs: Dict[str, Dict[str, float]] = field(default_factory=dict)  # {model: {tokens, cost}}
     _current_phase: Optional[TaskPhase] = None
     _error_threshold: int = 2  # Escalate after this many errors
+    cost_free: bool = False
     
     @classmethod
-    def from_cli(cls, budget: str = "low") -> "Orchestrator":
+    def from_cli(cls, budget: str = "low", cost_free: bool = False) -> "Orchestrator":
         """Create orchestrator from CLI budget arg."""
         try:
             mode = BudgetMode(budget.lower())
         except ValueError:
             console.print(f"[yellow]Unknown budget '{budget}', defaulting to 'low'[/yellow]")
             mode = BudgetMode.LOW
-        return cls(budget_mode=mode)
+        return cls(budget_mode=mode, cost_free=cost_free)
     
     def get_model_for_phase(self, phase: TaskPhase) -> str:
         """Get the appropriate model for a phase based on budget."""
@@ -120,7 +122,16 @@ class Orchestrator:
         if phase_key in self._phase_metrics:
             metrics = self._phase_metrics[phase_key]
             if metrics.error_count >= self._error_threshold and not metrics.escalated:
-                console.print(f"[yellow]⬆ Escalating to expensive model after {metrics.error_count} errors[/yellow]")
+                try:
+                    from utils.ui import get_ui
+                    ui = get_ui()
+                    if ui:
+                        ui.log(f"Escalating to expensive model after {metrics.error_count} errors", "WARNING")
+                    else:
+                        console.print(f"[yellow]⬆ Escalating to expensive model after {metrics.error_count} errors[/yellow]")
+                except ImportError:
+                    console.print(f"[yellow]⬆ Escalating to expensive model after {metrics.error_count} errors[/yellow]")
+                
                 metrics.escalated = True
                 return EXPENSIVE_MODEL
         
@@ -167,25 +178,78 @@ class Orchestrator:
             )
         self._phase_metrics[phase_key].error_count += 1
     
-    def record_tokens(self, phase: TaskPhase, tokens_in: int, tokens_out: int) -> None:
+    def record_tokens(self, phase: TaskPhase, tokens_in: int, tokens_out: int, model: Optional[str] = None) -> None:
         """Record token usage for current phase."""
         phase_key = phase.value
         if phase_key in self._phase_metrics:
             self._phase_metrics[phase_key].input_tokens += tokens_in
             self._phase_metrics[phase_key].output_tokens += tokens_out
-            self._phase_metrics[phase_key].estimated_cost += self._estimate_cost(
-                self._phase_metrics[phase_key].model_used, tokens_in, tokens_out
-            )
+            
+            # Use specific model if provided, otherwise fallback to phase model
+            cost_model = model if model else self._phase_metrics[phase_key].model_used
+            cost_delta = self._estimate_cost(cost_model, tokens_in, tokens_out)
+            
+            self._phase_metrics[phase_key].estimated_cost += cost_delta
+            
+            # Track per-model costs for UI breakdown
+            model_short = cost_model.split("/")[-1] if "/" in cost_model else cost_model
+            is_embedding = "embedding" in model_short.lower()
+            category = "Embedding" if is_embedding else "LLM"
+            
+            if category not in self._model_costs:
+                self._model_costs[category] = {"tokens": 0, "cost": 0.0}
+            self._model_costs[category]["tokens"] += tokens_in + tokens_out
+            self._model_costs[category]["cost"] += cost_delta
+            
+            # Update UI if active
+            try:
+                from utils.ui import get_ui
+                ui = get_ui()
+                if ui:
+                    total_cost = sum(m.estimated_cost for m in self._phase_metrics.values())
+                    total_tokens = sum(m.input_tokens + m.output_tokens for m in self._phase_metrics.values())
+                    ui.update_metrics(cost=total_cost, tokens=total_tokens, breakdown=self._model_costs)
+            except ImportError:
+                pass
     
     def _estimate_cost(self, model: str, tokens_in: int, tokens_out: int) -> float:
         """Estimate cost based on model and tokens."""
+        # Check if model is covered by free quota (Gemini/Antigravity)
+        # We check specific prefixes to ensure we don't zero out OpenAI/Anthropic costs
+        is_free_quota_model = self.cost_free and (
+            model.startswith("gemini/") or 
+            model.startswith("antigravity/") or
+            "gemini" in model.lower()
+        )
+
+        if is_free_quota_model:
+            return 0.0
+
         # Approximate pricing (USD per 1M tokens)
         pricing = {
             CHEAP_MODEL: {"input": 0.075, "output": 0.30},      # Flash pricing
             EXPENSIVE_MODEL: {"input": 1.25, "output": 5.00},   # Pro pricing (estimated)
+            "text-embedding-3-large": {"input": 0.13, "output": 0.0},
+            "text-embedding-3-small": {"input": 0.02, "output": 0.0},
+            "gemini/text-embedding-004": {"input": 0.0, "output": 0.0}, # Often free/included in quota
         }
         
-        rates = pricing.get(model, pricing[CHEAP_MODEL])
+        rates = pricing.get(model)
+        if not rates:
+            # Smart fallback
+            if "text-embedding-004" in model:
+                 rates = {"input": 0.0, "output": 0.0}
+            elif "embedding" in model.lower():
+                 rates = {"input": 0.10, "output": 0.0}
+            elif "claude-3-opus" in model:
+                 rates = {"input": 15.0, "output": 75.0} # Anthropic Opus
+            elif "claude-3-5-sonnet" in model:
+                 rates = {"input": 3.0, "output": 15.0}  # Anthropic Sonnet
+            elif "gpt-4o" in model:
+                 rates = {"input": 2.5, "output": 10.0}
+            else:
+                 rates = pricing[CHEAP_MODEL] # Default fallback
+                 
         cost = (tokens_in * rates["input"] + tokens_out * rates["output"]) / 1_000_000
         return cost
     

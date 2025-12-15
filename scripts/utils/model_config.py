@@ -52,6 +52,8 @@ def normalize_model_id(model: str) -> str:
         return f"openai/{model}"
     if model.startswith("gemini"):
         return f"gemini/{model}"
+    if model.startswith("antigravity"):
+        return f"antigravity/{model}" if "/" not in model else model
 
     # Unknown provider; leave as-is
     return model
@@ -78,12 +80,15 @@ def required_env_vars_for_model(model: str) -> List[str]:
     if provider == "gemini":
         # LiteLLM commonly reads GEMINI_API_KEY; many users also set GOOGLE_API_KEY.
         return ["GEMINI_API_KEY", "GOOGLE_API_KEY"]
+    if provider == "antigravity":
+        return ["ANTIGRAVITY_OAUTH"]  # Placeholder for OAuth check
     return []
 
 
 def ensure_model_env(model: str) -> None:
     """
     Raise a helpful error if the required provider key isn't configured.
+    For Gemini, OAuth authentication is also accepted as an alternative to API keys.
     """
     required = required_env_vars_for_model(model)
     if not required:
@@ -92,9 +97,32 @@ def ensure_model_env(model: str) -> None:
     # If ANY of the required vars is set, consider it satisfied.
     if any(os.getenv(k) for k in required):
         return
+    
+    # For Gemini, also check if OAuth is available
+    provider = _provider_from_model(normalize_model_id(model))
+    if provider == "gemini":
+        try:
+            from .gemini_oauth import is_oauth_available
+            if is_oauth_available():
+                return  # OAuth is configured, no API key needed
+        except ImportError:
+            pass
+    
+    # For Antigravity, check OAuth
+    if provider == "antigravity":
+        try:
+            from .antigravity_oauth import is_oauth_available
+            if is_oauth_available():
+                return
+        except ImportError:
+            pass
 
-    provider = _provider_from_model(normalize_model_id(model)) or "unknown"
+    provider = provider or "unknown"
     opts = " or ".join(required)
+    provider = provider or "unknown"
+    opts = " or ".join(required)
+    if provider == "antigravity":
+        raise RuntimeError(f"Antigravity OAuth not configured. Run 'research antigravity-login'.")
     raise RuntimeError(f"Missing API key for provider '{provider}'. Set {opts}.")
 
 
