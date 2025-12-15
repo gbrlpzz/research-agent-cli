@@ -437,6 +437,18 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         # Only run if not resuming or if we need to redo planning
         orch = get_orchestrator()
         model = orch.start_phase(TaskPhase.PLANNING)
+        
+        # Optimization: Use Flash for Planning if on Gemini Pro to save quota
+        if model.startswith("gemini/") and "pro" in model and "flash" not in model:
+             model = "gemini/gemini-2.5-flash" 
+             console.print("[dim]Optimization: Switched Planning to Gemini 2.5 Flash[/dim]")
+        
+        # Optimization: Use Sonnet for Planning if on Antigravity
+        if model.startswith("antigravity/"):
+             # Avoid Flash, prefer Sonnet or Pro
+             model = "antigravity/claude-3-5-sonnet"
+             console.print("[dim]Optimization: Using Claude 3.5 Sonnet for Planning phase[/dim]")
+             
         set_planner_model(model)
         
         emit_progress("Planning", "in_progress")
@@ -826,11 +838,23 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     else:
         (report_dir / "refs.bib").write_text("% No references\n")
     
+    # Get cost summary for document injection
+    orch = get_orchestrator()
+    cost_summary = orch.get_summary()
+    cost_info_str = f"{cost_summary['total_tokens']:,} tokens · {cost_summary['total_cost']}"
+    
     # Inject star_hash parameter into the document
     if 'star_hash:' not in typst_content:
         typst_content = typst_content.replace(
             'date:',
             'star_hash: "star_hash.svg",\n  date:'
+        )
+    
+    # Inject cost_info parameter into the document
+    if 'cost_info:' not in typst_content:
+        typst_content = typst_content.replace(
+            'star_hash:',
+            f'cost_info: "{cost_info_str}",\n  star_hash:'
         )
     
     # Write final main.typ
@@ -896,6 +920,14 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     # Markdown sheet removed as requested
     log_debug(f"Literature sheet exported with {len(get_reviewed_papers())} papers")
     
+    # Get cost summary from orchestrator
+    orch = get_orchestrator()
+    cost_summary = orch.get_summary()
+    
+    # Save cost report to artifacts
+    (artifacts_dir / "cost_report.json").write_text(json.dumps(cost_summary, indent=2))
+    log_debug(f"Cost report: {cost_summary['total_cost']} for {cost_summary['total_tokens']:,} tokens")
+    
     # Summary
     reviewed_count = len(get_reviewed_papers())
     # Robust citation count from used keys directly
@@ -907,22 +939,27 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         f"[white]Topic:[/white] {topic[:50]}...\n"
         f"[white]Reviews:[/white] {len(reviews)} round{'s' if len(reviews) != 1 else ''}\n"
         f"[white]Final verdict:[/white] {reviews[-1]['verdict'].upper() if reviews else 'N/A'}\n"
-        f"[white]Papers:[/white] {cited_count} cited / {reviewed_count} reviewed\n\n"
+        f"[white]Papers:[/white] {cited_count} cited / {reviewed_count} reviewed\n"
+        f"[white]Cost:[/white] {cost_summary['total_cost']} ({cost_summary['total_tokens']:,} tokens)\n\n"
         f"[dim]Output:[/dim]\n"
         f"  📝 main.typ\n"
         f"  📄 main.pdf\n"
         f"  📚 refs.bib\n"
         f"  📊 literature_sheet.csv\n"
+        f"  💰 artifacts/cost_report.json\n"
         f"  📁 artifacts/ (plans, drafts, reviews)\n\n"
         f"[dim]{report_dir}[/dim]",
         border_style="green"
     ))
     
+    # Print detailed cost breakdown
+    orch.print_summary()
+    
     log_debug(f"Session complete: {report_dir}")
     
     # Emit final completion with PDF path for external tools
     pdf_path = report_dir / "main.pdf"
-    emit_progress("Complete", "complete", pdf_path=str(pdf_path), report_dir=str(report_dir))
+    emit_progress("Complete", "complete", pdf_path=str(pdf_path), report_dir=str(report_dir), cost=cost_summary['total_cost'])
     
     return report_dir
 
@@ -935,6 +972,11 @@ def interactive_config(topic: str) -> dict:
     """Show interactive config menu before research starts."""
     from rich.prompt import Prompt, IntPrompt
     
+    if not topic:
+        topic = Prompt.ask("[bold cyan]Enter research topic[/bold cyan]")
+        if not topic:
+            sys.exit(0)
+
     console.print()
     console.print(Panel(
         f"[bold cyan]Research Agent Config[/bold cyan]\n\n"
@@ -943,88 +985,220 @@ def interactive_config(topic: str) -> dict:
     ))
     console.print()
     
-    # Model selection
-    model = Prompt.ask(
-        "[cyan]Model[/cyan]",
-        choices=["3-pro", "2.5-flash", "2.5-pro"],
-        default="2.5-flash"
-    )
-    model_map = {
-        "3-pro": "gemini/gemini-3-pro-preview",
-        "2.5-flash": "gemini/gemini-2.5-flash",
-        "2.5-pro": "gemini/gemini-2.5-pro-preview",
-    }
+    console.print("[bold cyan]Select Research Profile:[/bold cyan]")
+    console.print("1. [bold]Gemini Plan[/bold]      (High budget, Gemini 3 Pro via OAuth)")
+    console.print("2. [bold]Antigravity Plan[/bold] (High budget, Claude Opus 4.5 Thinking)")
+    console.print("3. [bold]API Mode[/bold]         (Low budget, Gemini 2.5 Flash via API Key)")
     
+    profile = Prompt.ask(
+        "Choose profile",
+        choices=["1", "2", "3"],
+        default="1"
+    )
+    
+    from utils.llm import set_oauth_enabled
+    
+    if profile == "1":
+        reasoning_model = "gemini/gemini-3-pro-preview"
+        budget = "high"
+        set_oauth_enabled(True)
+    elif profile == "2":
+        set_oauth_enabled(True)
+        budget = "high"
+        console.print("\n[bold]Select Antigravity Model:[/bold]")
+        console.print("1. Claude Opus 4.5 Thinking (Default)")
+        console.print("2. Claude 3.5 Sonnet")
+        console.print("3. Claude 3 Opus")
+        console.print("4. Gemini 3 Pro")
+        
+        ag_choice = Prompt.ask("Choose model", choices=["1", "2", "3", "4"], default="1")
+        if ag_choice == "1":
+            reasoning_model = "antigravity/claude-opus-4-5-thinking"
+        elif ag_choice == "2":
+            reasoning_model = "antigravity/claude-3-5-sonnet"
+        elif ag_choice == "3":
+            reasoning_model = "antigravity/claude-3-opus"
+        else:
+            reasoning_model = "antigravity/gemini-3-pro"
+    else:
+        reasoning_model = "gemini/gemini-2.5-flash"
+        budget = "low"
+        set_oauth_enabled(False)
+    
+    console.print(f"[dim]Selected: {reasoning_model} ({budget})[/dim]\n")
+
     # Iterations and revisions
-    max_iterations = IntPrompt.ask("[cyan]Max agent iterations[/cyan]", default=50)
-    revisions = IntPrompt.ask("[cyan]Revision rounds[/cyan]", default=3)
+    max_iterations = IntPrompt.ask("[cyan]Max agent iterations[/cyan]", default=50 if budget == "high" else 30)
+    revisions = IntPrompt.ask("[cyan]Revision rounds[/cyan]", default=3 if budget == "high" else 1)
     
     console.print()
     return {
-        "reasoning_model": model_map[model],
+        "reasoning_model": reasoning_model,
         "max_iterations": max_iterations,
         "revisions": revisions,
+        "budget": budget,
+        "topic": topic,
     }
 
 
 if __name__ == "__main__":
     import argparse
+    import sys
+    
+    # Manual command routing to avoid conflict with 'topic' argument (which consumes everything)
+    # This ensures 'research gemini-login' works even though 'topic' has nargs='*'
+    command_mode = None
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1]
+        if cmd.startswith("gemini-") or cmd.startswith("antigravity-"):
+            command_mode = cmd
     
     parser = argparse.ArgumentParser(
         description="Autonomous Research Agent with Peer Review",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  research agent "Impact of attention mechanisms on NLP"
-  research agent -r 5 "Vision Transformers vs CNNs"
-  research agent --revisions 1 "Quick research topic"
-  research agent -i "Interactive config mode"
-  research agent --reasoning-model openai/gpt-5.2-high --rag-model openai/gpt-5.2-fast "Topic"
+  research "Impact of attention mechanisms on NLP"
+  research -r 5 "Vision Transformers vs CNNs"
+  
+Gemini OAuth (use your Gemini plan quota):
+  research gemini-login     # Authenticate with Google OAuth
+  research gemini-logout    # Clear stored OAuth tokens
+  research gemini-status    # Check OAuth status
+
+Antigravity (Claude Opus 4.5 Thinking):
+  research antigravity-login
+  research antigravity-logout
+  research antigravity-status
         """
     )
-    parser.add_argument('topic', nargs='*', help='Research topic (optional if resuming)')
-    parser.add_argument('--interactive', '-i', action='store_true',
-                       help='Show config menu before starting')
-    parser.add_argument('--resume', type=str, default=None,
-                       help='Resume from existing report directory (e.g., reports/20251212_150513_...)')
-    parser.add_argument('--revisions', '-r', type=int, default=3,
-                       help='Max peer review rounds (default: 3)')
-    parser.add_argument('--reviewers', type=int, default=1,
-                       help='Number of parallel reviewers (default: 1)')
-    parser.add_argument(
-        "--reasoning-model",
-        default=None,
-        help="Model for reasoning/planning/writing/reviewing (default: GPT-5.2 High)",
-    )
-    parser.add_argument(
-        "--rag-model",
-        default=None,
-        help="Model for PaperQA RAG over your library (default: GPT-5.2 Fast)",
-    )
-    parser.add_argument(
-        "--embedding-model",
-        default=None,
-        help="Embedding model for PaperQA indexing (default: text-embedding-3-large)",
-    )
-    parser.add_argument(
-        "--json-output",
-        action="store_true",
-        help="Output JSON progress updates for external tool integration (e.g., WhatsApp bot)",
-    )
-    parser.add_argument(
-        "--telegram-chat-id",
-        default=None,
-        help="Telegram chat ID for sending progress updates (used by Telegram bot)",
-    )
-    parser.add_argument(
+    
+    # We only add subparsers IF we detected a command mode, OR we don't add them at all
+    # and Handle manually. Mixing subparsers and nargs='*' is tricky in argparse.
+    # Strategy: If a command is present, use a parser that expects it. If not, use the research parser.
+    
+    if command_mode == 'gemini-login':
+        parser.add_argument('command', choices=['gemini-login'])
+        parser.add_argument('--project-id', type=str, default='',
+                          help='Google Cloud project ID (will prompt if not provided)')
+    
+    elif command_mode == 'gemini-logout':
+        parser.add_argument('command', choices=['gemini-logout'])
+        
+    elif command_mode == 'gemini-status':
+        parser.add_argument('command', choices=['gemini-status'])
+        
+    elif command_mode == 'antigravity-login':
+        parser.add_argument('command', choices=['antigravity-login'])
+        parser.add_argument('--project-id', type=str, default='', help='Google Cloud Project ID')
+
+    elif command_mode == 'antigravity-logout':
+        parser.add_argument('command', choices=['antigravity-logout'])
+
+    elif command_mode == 'antigravity-status':
+        parser.add_argument('command', choices=['antigravity-status'])
+        
+    else:
+        # Standard research mode
+        parser.add_argument('topic', nargs='*', help='Research topic (optional if resuming)')
+        parser.add_argument('--interactive', '-i', action='store_true',
+                           help='Show config menu before starting')
+        parser.add_argument('--resume', type=str, default=None,
+                           help='Resume from existing report directory (e.g., reports/20251212_150513_...)')
+        parser.add_argument('--revisions', '-r', type=int, default=3,
+                           help='Max peer review rounds (default: 3)')
+        parser.add_argument('--reviewers', type=int, default=1,
+                           help='Number of parallel reviewers (default: 1)')
+        parser.add_argument(
+            "--reasoning-model",
+            default=None,
+            help="Model for reasoning/planning/writing/reviewing (default: GPT-5.2 High)",
+        )
+        parser.add_argument(
+            "--rag-model",
+            default=None,
+            help="Model for PaperQA RAG over your library (default: GPT-5.2 Fast)",
+        )
+        parser.add_argument(
+            "--embedding-model",
+            default=None,
+            help="Embedding model for PaperQA indexing (default: text-embedding-3-large)",
+        )
+        parser.add_argument(
+            "--json-output",
+            action="store_true",
+            help="Output JSON progress updates for external tool integration (e.g., WhatsApp bot)",
+        )
+        parser.add_argument(
+            "--telegram-chat-id",
+            default=None,
+            help="Telegram chat ID for sending progress updates (used by Telegram bot)",
+        )
+        parser.add_argument(
         "--budget",
-        default="low",
+        default=None,
         choices=["low", "balanced", "high"],
-        help="Budget mode: low (cost-saving), balanced, or high (quality). Default: low",
+        help="Budget mode: low (cost-saving), balanced, or high (quality). Default: low (or high if using Gemini OAuth)",
     )
     
     args = parser.parse_args()
     
+    # Handle Gemini OAuth commands
+    if command_mode == 'gemini-login':
+        from utils.gemini_oauth import interactive_login
+        success = interactive_login(args.project_id)
+        sys.exit(0 if success else 1)
+    
+    if command_mode == 'gemini-logout':
+        from utils.gemini_oauth import logout
+        logout()
+        sys.exit(0)
+    
+    if command_mode == 'gemini-status':
+        from utils.gemini_oauth import load_tokens, is_oauth_available
+        if is_oauth_available():
+            tokens = load_tokens()
+            console.print("[green]✓ Gemini OAuth is configured[/green]")
+            if tokens:
+                console.print(f"  [dim]Email: {tokens.email or 'unknown'}[/dim]")
+                console.print(f"  [dim]Project: {tokens.project_id}[/dim]")
+                if tokens.is_expired():
+                    console.print("  [yellow]Token expired (will auto-refresh on next use)[/yellow]")
+                else:
+                    console.print("  [dim]Token valid[/dim]")
+        else:
+            console.print("[yellow]✗ Gemini OAuth not configured[/yellow]")
+            console.print("  [dim]Run 'research gemini-login' to authenticate[/dim]")
+        sys.exit(0)
+
+    # Handle Antigravity commands
+    if command_mode == 'antigravity-login':
+        from utils.antigravity_oauth import interactive_login
+        success = interactive_login(args.project_id)
+        sys.exit(0 if success else 1)
+        
+    if command_mode == 'antigravity-logout':
+        from utils.antigravity_oauth import logout
+        logout()
+        sys.exit(0)
+        
+    if command_mode == 'antigravity-status':
+        from utils.antigravity_oauth import load_tokens, is_oauth_available
+        if is_oauth_available():
+            tokens = load_tokens()
+            console.print("[green]✓ Antigravity OAuth is configured[/green]")
+            if tokens:
+                console.print(f"  [dim]Email: {tokens.email or 'unknown'}[/dim]")
+                console.print(f"  [dim]Project: {tokens.project_id}[/dim]")
+                if tokens.is_expired():
+                    console.print("  [yellow]Token expired (will auto-refresh)[/yellow]")
+                else:
+                    console.print("  [dim]Token valid[/dim]")
+        else:
+            console.print("[yellow]✗ Antigravity OAuth not configured[/yellow]")
+            console.print("  [dim]Run 'research antigravity-login' to authenticate[/dim]")
+        sys.exit(0)
+
     # Handle resume mode
     resume_path = None
     if args.resume:
@@ -1058,8 +1232,11 @@ Examples:
                 console.print(f"[yellow]No topic provided, extracted from directory: {topic}[/yellow]")
     else:
         topic = " ".join(args.topic)
-        
-        if not topic:
+        # If no topic provided and no resume, default to interactive mode
+        if not topic and not args.resume:
+            args.interactive = True
+            
+        if not topic and not args.interactive:
             parser.print_help()
             sys.exit(1)
     
@@ -1068,9 +1245,15 @@ Examples:
         config = interactive_config(topic)
         reasoning_model = config["reasoning_model"]
         revisions = config["revisions"]
+        if "topic" in config:
+            topic = config["topic"]
         # Update phase module iteration limits
         from phases.drafter import set_max_iterations as set_drafter_iterations
         set_drafter_iterations(config["max_iterations"])
+        
+        # Apply budget from profile if set
+        if "budget" in config:
+            args.budget = config["budget"]
     else:
         reasoning_model = args.reasoning_model
         revisions = args.revisions
@@ -1081,6 +1264,14 @@ Examples:
         embedding_model=args.embedding_model,
     )
     set_model_routing(routing)
+    
+    # Check Gemini OAuth status for Gemini models
+    if routing.reasoning_model.startswith("gemini/") or routing.rag_model.startswith("gemini/"):
+        from utils.gemini_oauth import is_oauth_available
+        if is_oauth_available():
+            console.print("[dim]Using Gemini OAuth (your Gemini plan quota)[/dim]")
+        else:
+            console.print("[dim]Using Gemini API key (no OAuth configured)[/dim]")
 
     try:
         ensure_model_env(routing.reasoning_model)
@@ -1088,9 +1279,9 @@ Examples:
         ensure_model_env(routing.embedding_model)
     except RuntimeError as e:
         console.print(f"[red]Error: {e}[/red]")
-        console.print("\n[yellow]Set API keys in .env:[/yellow]")
-        console.print("  OPENAI_API_KEY=...")
-        console.print("  # or for Gemini:")
+        console.print("\n[yellow]Set API keys in .env or use OAuth:[/yellow]")
+        console.print("  research gemini-login  # Use your Gemini plan quota")
+        console.print("  # or set API key:")
         console.print("  GEMINI_API_KEY=...")
         sys.exit(1)
     
@@ -1098,6 +1289,18 @@ Examples:
     console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
     
+    # Determine budget (default to high if Gemini OAuth is used, else low)
+    if args.budget is None:
+        args.budget = "low"  # Default fallback
+        if routing.reasoning_model.startswith("gemini/") or routing.rag_model.startswith("gemini/"):
+            try:
+                from utils.gemini_oauth import is_oauth_available
+                if is_oauth_available():
+                    args.budget = "high"
+                    console.print("[dim]Defaulting to HIGH budget (Gemini OAuth detected)[/dim]")
+            except ImportError:
+                pass
+
     # Initialize orchestrator with budget mode
     orchestrator = Orchestrator.from_cli(args.budget)
     set_orchestrator(orchestrator)

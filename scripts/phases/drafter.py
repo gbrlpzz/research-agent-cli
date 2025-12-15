@@ -199,13 +199,14 @@ IMPORTANT - Follow the enhanced RAG-First workflow:
         tool_calls = assistant_msg.get("tool_calls") or []
         if tool_calls:
             # Preserve the tool_calls on the assistant message (OpenAI tool-calling protocol)
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.get("content") or "",
-                    "tool_calls": tool_calls,
-                }
-            )
+            assistant_history = {
+                "role": "assistant",
+                "content": assistant_msg.get("content") or "",
+                "tool_calls": tool_calls,
+            }
+            if "raw_gemini_parts" in assistant_msg:
+                assistant_history["raw_gemini_parts"] = assistant_msg["raw_gemini_parts"]
+            messages.append(assistant_history)
 
             for tc in tool_calls:
                 fn = (tc.get("function") or {}).get("name")
