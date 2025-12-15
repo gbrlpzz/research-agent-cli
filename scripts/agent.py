@@ -144,21 +144,21 @@ def emit_progress(phase: str, status: str = "in_progress", **kwargs):
     
     Only outputs when --json-output flag is set.
     """
-    if not _json_output_mode:
-        return
-    
-    update = {
-        "phase": phase,
-        "status": status,
-        **kwargs
-    }
-    # Print as JSON line (NDJSON format)
-    # Print as JSON line (NDJSON format)
-    print(json.dumps(update), flush=True)
+    if _json_output_mode:
+        update = {
+            "phase": phase,
+            "status": status,
+            **kwargs
+        }
+        # Print as JSON line (NDJSON format)
+        print(json.dumps(update), flush=True)
 
     # Update Telegram if enabled
     if _telegram_notifier:
-        _telegram_notifier.update_status(phase, kwargs)
+        try:
+            _telegram_notifier.update_status(phase, kwargs)
+        except Exception:
+            pass
 
 
 def setup_debug_log(report_dir: Path) -> logging.Logger:
@@ -429,6 +429,14 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     # Initialize UI
     ui = UIManager(topic=topic, model_name=AGENT_MODEL)
     set_ui(ui)
+    
+    # Initialize Mobile Notifications
+    global _telegram_notifier
+    _telegram_notifier = TelegramNotifier()
+    if _telegram_notifier.enabled:
+        _telegram_notifier.start_research(topic, AGENT_MODEL)
+        ui.log("Telegram notifications enabled", "INFO")
+
     ui.start()
     
     try:
