@@ -923,7 +923,13 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     final_pdf = report_dir / "main.pdf"
     if final_pdf.exists():
         ui.log("Report generated successfully", "SUCCESS")
-        ui.send_notification(f"Research on '{topic}' is complete!", "Research Agent Success")
+        # Use urgent=True to show modal dialog that breaks through
+        ui.send_notification(
+            f"Research on '{topic}' is complete!\nPDF ready at: {final_pdf.name}", 
+            "Research Agent Success",
+            urgent=True,
+            reveal_path=str(final_pdf)
+        )
         if _telegram_notifier:
             try:
                 # Extract title for caption
@@ -1344,7 +1350,17 @@ Antigravity (Claude Opus 4.5 Thinking):
         globals()['_json_output_mode'] = True
         emit_progress("Starting", "in_progress", topic=topic)
     
-    generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers, resume_from=resume_path)
+    try:
+        generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers, resume_from=resume_path)
+    except Exception as e:
+        console.print(f"[bold red]Fatal Error: {e}[/bold red]")
+        # Try to send notification if UI was initialized or create temp one
+        from utils.ui import get_ui, UIManager
+        ui = get_ui()
+        if not ui:
+            ui = UIManager("Error Handler", "None")
+        ui.send_notification(f"Research failed: {str(e)}", "Research Agent Error", urgent=True)
+        sys.exit(1)
     
     # Print cost summary at end
     orchestrator.print_summary()

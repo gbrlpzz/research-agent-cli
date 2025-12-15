@@ -118,16 +118,48 @@ class UIManager:
         self.log_buffer.append((timestamp, level, message, style))
         self.update()
 
-    def send_notification(self, message: str, title: str = "Research Agent"):
-        """Send a MacOS notification."""
+    def send_notification(self, message: str, title: str = "Research Agent", urgent: bool = False, reveal_path: Optional[str] = None):
+        """
+        Send a MacOS notification.
+        
+        Args:
+            message: The body text of the notification
+            title: The title of the notification
+            urgent: If True, uses 'display alert' (modal dialog) instead of banner
+            reveal_path: Optional path to reveal in Finder if user clicks action button
+        """
         import subprocess
         import sys
         if sys.platform != "darwin":
             return
             
         try:
-            script = f'display notification "{message}" with title "{title}"'
-            subprocess.run(["osascript", "-e", script], check=False)
+            if urgent or reveal_path:
+                # 'display alert' is modal (pops up in center)
+                # If reveal_path is set, we add a button to open it
+                buttons = 'buttons {"OK"}'
+                if reveal_path:
+                    buttons = 'buttons {"Show in Finder", "OK"} default button "OK"'
+                
+                script = f'display alert "{title}" message "{message}" as critical {buttons}'
+                
+                # If we have a path to reveal, we need to wait for the result to see if they clicked it
+                if reveal_path:
+                    result = subprocess.run(
+                        ["osascript", "-e", script], 
+                        capture_output=True, 
+                        text=True, 
+                        check=False
+                    )
+                    if "Show in Finder" in result.stdout:
+                         subprocess.run(["open", "-R", reveal_path], check=False)
+                else:
+                    # Run detached if no interaction needed
+                    subprocess.Popen(["osascript", "-e", script])
+            else:
+                # 'display notification' is a transient banner
+                script = f'display notification "{message}" with title "{title}" sound name "default"'
+                subprocess.run(["osascript", "-e", script], check=False)
         except Exception:
             pass  # Fail silently if notifications don't work
 
