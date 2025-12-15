@@ -68,7 +68,7 @@ flowchart TB
         DraftAgent --> Draft[Typst Draft]
     end
 
-    subgraph REVIEW["Phase 6: Reviewer Agent"]
+    subgraph REVIEW["Phase 6-7: Review & Revision Loop"]
         ReviewAgent[Peer Review]
         Draft --> ReviewAgent
         
@@ -83,15 +83,11 @@ flowchart TB
         Checks --> Verdict{Verdict}
         Verdict -->|ACCEPTED| Final[Finalize]
         Verdict -->|REVISIONS| Limit{Count < Max?}
-        Limit -->|Yes| ReviseAgent
+        Limit -->|Yes| ReviseAgent[Reviser Agent]
         Limit -->|No| Final
+        ReviseAgent --> DraftAgent
     end
 
-    subgraph REVISION["Phase 7: Reviser Agent"]
-        ReviseAgent[Revision Loop]
-    end
-
-    ReviseAgent --> |Feedback| DraftAgent
 
     subgraph FINALIZATION
         Final --> BibFilter[Filter Bibliography]
@@ -135,8 +131,7 @@ flowchart TB
     style INDEXING fill:#16213e
     style DRAFTING fill:#1a1a2e
     style REVIEW fill:#16213e
-    style REVISION fill:#1a1a2e
-    style FINALIZATION fill:#16213e
+    style FINALIZATION fill:#1a1a2e
     style TOOLS fill:#232634,stroke:#8aadf4
     style NOTIFICATIONS fill:#232634,stroke:#a6da95
     style Checks fill:#232634,stroke:#f5a97f
