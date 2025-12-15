@@ -140,6 +140,31 @@ brew install typst  # macOS
 # Or download from https://github.com/typst/typst/releases
 ```
 
+## Authentication & Costs
+
+The agent supports two modes of operation:
+1. **API Key Mode**: Standard billing via `GEMINI_API_KEY` or `OPENAI_API_KEY`.
+2. **"Free Cost" Mode (Recommended)**: Use your existing Gemini/Google quota via OAuth.
+
+### Setting up "Free Cost" Mode
+This mode allows you to use Gemini models (and Antigravity models) without incurring per-token API costs, leveraging your plan's included quota.
+
+1.  **Login**: Run the independent OAuth script:
+    ```bash
+    research gemini-login
+    # Follow the browser prompt to authenticate with your Google Cloud Project
+    ```
+    *Note: This authentication is self-contained and independent of any external "Opencode" repositories.*
+
+2.  **Verify**:
+    ```bash
+    research gemini-status
+    ```
+
+3.  **Run**: The agent will auto-detect OAuth credentials and switch to "Free Cost" mode (budget set to HIGH by default).
+
+4.  **Antigravity Users**: Run `research antigravity-login` to access internal models.
+
 ## Usage
 
 ```bash
@@ -168,6 +193,8 @@ reports/<timestamp>_<topic>/
 | `research add <id>` | Add paper by DOI or arXiv ID |
 | `research cite [query]` | Fuzzy-match citation keys |
 | `research exa <query>` | Neural search via Exa.ai |
+| `research gemini-login` | Authenticate with Gemini OAuth (Free Quota) |
+| `research antigravity-login` | Authenticate with Antigravity OAuth |
 
 ### Agent Options
 
@@ -203,7 +230,8 @@ OPENAI_API_KEY=<key>
 # Model routing (optional)
 RESEARCH_REASONING_MODEL=gemini/gemini-2.5-flash
 RESEARCH_RAG_MODEL=gemini/gemini-2.5-flash
-RESEARCH_EMBEDDING_MODEL=openai/text-embedding-3-large
+RESEARCH_EMBEDDING_MODEL=gemini/text-embedding-004
+
 
 # Discovery APIs (optional)
 SEMANTIC_SCHOLAR_API_KEY=<key>
