@@ -53,49 +53,45 @@ flowchart TB
         PaperQA --> Qdrant
     end
 
-    subgraph DRAFTING["Phase 5: Drafting Loop"]
-        direction TB
-        
-        subgraph ReAct["ReAct Agent Cycle"]
-            Think[Chain of Thought]
-            Act[Tool Execution]
-            Obs[Observation]
-            Think --> Act
-            Act --> Obs
-            Obs --> Think
-        end
-
-        subgraph Tools
-            T1[query_library]
-            T2[discover_papers]
-            T3[fuzzy_cite]
-            T4[validate_citations]
-        end
-        
-        Act <--> Tools
-        Think --> Draft[Typst Draft]
+    subgraph TOOLS["Shared Tool Registry"]
+        T1[query_library]
+        T2[discover_papers]
+        T3[add_paper]
+        T4[fuzzy_cite]
+        T5[validate_citations]
+        T6[literature_sheet]
     end
 
-    subgraph REVIEW["Phase 6: Review Loop"]
-        Reviewer[Peer Reviewer Agent]
-        Draft --> Reviewer
+    subgraph DRAFTING["Phase 5: Drafting Agent"]
+        direction TB
+        DraftAgent[ReAct Loop]
+        DraftAgent --> Draft[Typst Draft]
+    end
+
+    subgraph REVIEW["Phase 6: Reviewer Agent"]
+        ReviewAgent[Peer Review]
+        Draft --> ReviewAgent
         
         subgraph Checks
             C1[Citation Validity]
             C2[Claim Grounding]
-            C3[Coverage Analysis]
+            C3[Coverage Gaps]
             C4[Counter-Arguments]
         end
         
-        Reviewer --> Checks
+        ReviewAgent --> Checks
         Checks --> Verdict{Verdict}
         Verdict -->|ACCEPTED| Final[Finalize]
         Verdict -->|REVISIONS| Limit{Count < Max?}
-        Limit -->|Yes| Revise[Phase 7: Revision Agent]
-        Limit -->|No / Default 3| Final
+        Limit -->|Yes| ReviseAgent
+        Limit -->|No| Final
     end
 
-    Revise --> |Feedback Loop| Think
+    subgraph REVISION["Phase 7: Reviser Agent"]
+        ReviseAgent[Revision Loop]
+    end
+
+    ReviseAgent --> |Feedback| DraftAgent
 
     subgraph FINALIZATION
         Final --> BibFilter[Filter Bibliography]
@@ -109,8 +105,29 @@ flowchart TB
         Compile --> Artifacts[artifacts/]
     end
 
+    subgraph NOTIFICATIONS["Live Notifications"]
+        UI[Terminal UI]
+        MacOS[MacOS Alerts]
+        Telegram[Telegram Bot]
+    end
+
     Topic --> Plan
-    Qdrant --> ReAct
+    Qdrant --> DraftAgent
+    Qdrant --> ReviewAgent
+    Qdrant --> ReviseAgent
+
+    %% Tool connections
+    TOOLS <--> DraftAgent
+    TOOLS <--> ReviewAgent
+    TOOLS <--> ReviseAgent
+
+    %% Notification connections
+    DraftAgent -.-> UI
+    ReviewAgent -.-> UI
+    ReviseAgent -.-> UI
+    Final -.-> MacOS
+    Final -.-> Telegram
+    PDF -.-> Telegram
 
     style PLANNING fill:#1a1a2e
     style DISCOVERY fill:#16213e
@@ -118,9 +135,10 @@ flowchart TB
     style INDEXING fill:#16213e
     style DRAFTING fill:#1a1a2e
     style REVIEW fill:#16213e
-    style FINALIZATION fill:#1a1a2e
-    style ReAct fill:#303446,stroke:#8aadf4
-    style Tools fill:#232634,stroke:#8aadf4
+    style REVISION fill:#1a1a2e
+    style FINALIZATION fill:#16213e
+    style TOOLS fill:#232634,stroke:#8aadf4
+    style NOTIFICATIONS fill:#232634,stroke:#a6da95
     style Checks fill:#232634,stroke:#f5a97f
 ```
 
