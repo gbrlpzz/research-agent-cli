@@ -100,6 +100,16 @@ def fix_typst_error(typst_path: Path, error_msg: str) -> bool:
     # Regex: (space or start)#(digit) -> \1\#\2
     content = re.sub(r'(^|\s)#(\d)', r'\1\\#\2', content)
 
+    # Fix 8: Access encoded HTML entities (common in BibTeX/LLM output)
+    # Convert &amp; -> & (Typst escapes & automatically in text, but &amp; literal looks bad)
+    if "&amp;" in content:
+        content = content.replace("&amp;", "&")
+        
+    # Convert other common entities just in case
+    if "&lt;" in content: content = content.replace("&lt;", "<")
+    if "&gt;" in content: content = content.replace("&gt;", ">")
+    if "&quot;" in content: content = content.replace("&quot;", '"')
+
     if content != original_content:
         typst_path.write_text(content)
         return True
