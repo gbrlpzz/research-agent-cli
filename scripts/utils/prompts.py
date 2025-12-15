@@ -71,7 +71,7 @@ Your priority is MAXIMUM RIGOR:
 - query_library(question, paper_filter): evidence-grounded answers with citations from indexed papers
 - discover_papers(query|cited_by|references): find papers AND auto-add them to library (no separate add needed!)
 - exa_search(query): last resort (costs credits)
-- fuzzy_cite(query): get valid @citation_keys for Typst
+- fuzzy_cite(query): fuzzy search for @citation_keys (tolerates typos; single terms work best)
 - validate_citations([keys...]): validate every @key before final output
 
 ## Writing style (calibrated, non-overblown)
@@ -92,7 +92,9 @@ Your priority is MAXIMUM RIGOR:
    - Do not invent statistics, dates, mechanisms, or "common knowledge" background.
 
 2) Citation discipline:
-   - ***PRE-VALIDATE***: ALWAYS call fuzzy_cite("author/topic/year") BEFORE using any @citation_key.
+   - ***PRE-VALIDATE***: ALWAYS call fuzzy_cite() BEFORE using any @citation_key.
+     * Use single-term queries: fuzzy_cite("vaswani"), fuzzy_cite("attention"), fuzzy_cite("2017")
+     * Tolerates typos: "vasawni" will still find "vaswani2017attention"
    - NEVER invent citation keys like "author2024sometitle" - they will fail compilation.
    - Only use @citation_keys that fuzzy_cite() returned or that appear in AVAILABLE CITATIONS.
    - Cite at the point of the claim (not as a dump at the end).

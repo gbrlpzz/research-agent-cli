@@ -3,6 +3,7 @@ exa_py
 python-dotenv
 rich
 papis
+rapidfuzz
 
 # Edison Scientific client
 # edison-client (may need: uv pip install edison-client OR install from GitHub)

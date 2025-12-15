@@ -358,85 +358,145 @@ def fuzzy_cite(query: str) -> List[Dict[str, str]]:
     """
     Fuzzy search for citation keys in the library.
     
-    Uses fuzzy matching to find papers even with partial or misspelled queries.
-    Returns citation keys to use as @citation_key in the Typst document.
+    Uses true fuzzy matching (Levenshtein distance) to find papers even with 
+    typos or partial queries. Returns citation keys to use as @citation_key.
     
     Args:
-        query: Search term - author name, title fragment, year, keyword
-               (e.g., "vaswani", "attention", "2017", "transformer")
+        query: Search term - author name, title fragment, year, or keyword.
+               Single terms work best (e.g., "vaswani", "attention", "2017").
+               Multiple terms use OR logic (matches if ANY term scores well).
     
     Returns:
-        List of matching papers with: citation_key, title, authors, year
+        List of matching papers with: citation_key, title, authors, year, score
         Track these keys - they will be included in refs.bib
     """
     global _used_citation_keys
     import yaml
     
+    # Try to import rapidfuzz for true fuzzy matching
+    try:
+        from rapidfuzz import fuzz, process
+        use_fuzzy = True
+    except ImportError:
+        use_fuzzy = False
+        console.print("[dim]⚠ rapidfuzz not installed, using substring matching[/dim]")
+    
     console.print(f"[dim]📚 Fuzzy cite search: {query}[/dim]")
     
-    results = []
-    query_lower = query.lower()
+    query_lower = query.lower().strip()
     query_parts = query_lower.split()
     
+    # Build candidate list from library
+    candidates = []
     for info_file in LIBRARY_PATH.rglob("info.yaml"):
         try:
             with open(info_file) as f:
                 data = yaml.safe_load(f)
             
-            # Build searchable text
-            searchable = f"{data.get('ref', '')} {data.get('title', '')} {data.get('author', '')} {data.get('year', '')}".lower()
+            citation_key = data.get('ref', 'unknown')
+            title = data.get('title', 'Unknown')
+            authors = data.get('author', 'Unknown')
+            year = str(data.get('year', ''))
             
-            # Fuzzy match: all query parts must appear somewhere
-            if all(part in searchable for part in query_parts):
-                citation_key = data.get('ref', 'unknown')
-                title = data.get('title', 'Unknown')
-                authors = data.get('author', 'Unknown')
-                year = str(data.get('year', ''))
-                
-                results.append({
-                    "citation_key": citation_key,
-                    "title": title[:70],
-                    "authors": authors[:40],
-                    "year": year
-                })
-                # Track for refs.bib filtering
-                _used_citation_keys.add(citation_key)
-                
-                # Track/upgrade in reviewed papers (use paper_id model)
-                try:
-                    track_reviewed_paper(
-                        citation_key=citation_key,
-                        title=title,
-                        authors=authors[:60],
-                        year=year,
-                        relevance=4,  # High since it matched query
-                        utility=4,    # High since agent requested it
-                        source="fuzzy_cite",
-                        used_as_evidence=False,
-                    )
-                    # Ensure cited flag is reflected
-                    pid = make_paper_id(citation_key=citation_key)
-                    if pid in _reviewed_papers:
-                        _reviewed_papers[pid]["cited"] = True
-                except Exception:
-                    pass
+            # Build searchable text
+            searchable = f"{citation_key} {title} {authors} {year}".lower()
+            
+            candidates.append({
+                "citation_key": citation_key,
+                "title": title,
+                "authors": authors,
+                "year": year,
+                "searchable": searchable,
+            })
         except:
             pass
     
-    # If no matches found, suggest a discovery search
+    if not candidates:
+        console.print(f"[yellow]⚠ Library empty - use discover_papers first[/yellow]")
+        return [{
+            "citation_key": None,
+            "title": "Library is empty",
+            "authors": "Use discover_papers to find and add papers first",
+            "year": "",
+            "suggestion": f"discover_papers(\"{query}\")"
+        }]
+    
+    results = []
+    
+    if use_fuzzy:
+        # True fuzzy matching with rapidfuzz
+        # Score each candidate against query parts (OR logic: best match wins)
+        scored = []
+        for c in candidates:
+            # For each query part, compute fuzzy score against searchable text
+            # Use partial_ratio for substring-friendly matching
+            part_scores = [fuzz.partial_ratio(part, c["searchable"]) for part in query_parts]
+            # Also try the full query
+            full_score = fuzz.partial_ratio(query_lower, c["searchable"])
+            # Best score: max of individual parts or full query
+            best_score = max(max(part_scores) if part_scores else 0, full_score)
+            
+            if best_score >= 60:  # Threshold for "good enough" match
+                scored.append((c, best_score))
+        
+        # Sort by score descending
+        scored.sort(key=lambda x: x[1], reverse=True)
+        
+        for c, score in scored[:10]:
+            results.append({
+                "citation_key": c["citation_key"],
+                "title": c["title"][:70],
+                "authors": c["authors"][:40],
+                "year": c["year"],
+                "score": score,
+            })
+    else:
+        # Fallback: substring matching with OR logic (any part matches)
+        for c in candidates:
+            # OR logic: match if ANY query part is found
+            if any(part in c["searchable"] for part in query_parts):
+                results.append({
+                    "citation_key": c["citation_key"],
+                    "title": c["title"][:70],
+                    "authors": c["authors"][:40],
+                    "year": c["year"],
+                })
+        results = results[:10]
+    
+    # Track matched keys
+    for r in results:
+        key = r["citation_key"]
+        if key:
+            _used_citation_keys.add(key)
+            try:
+                track_reviewed_paper(
+                    citation_key=key,
+                    title=r["title"],
+                    authors=r["authors"],
+                    year=r["year"],
+                    relevance=4,
+                    utility=4,
+                    source="fuzzy_cite",
+                    used_as_evidence=False,
+                )
+                pid = make_paper_id(citation_key=key)
+                if pid in _reviewed_papers:
+                    _reviewed_papers[pid]["cited"] = True
+            except Exception:
+                pass
+    
     if not results:
-        console.print(f"[yellow]⚠ No matches for '{query}' - consider using discover_papers[/yellow]")
-        # Return a hint for the agent
+        console.print(f"[yellow]⚠ No matches for '{query}' - use discover_papers first[/yellow]")
         return [{
             "citation_key": None,
             "title": f"No matches for '{query}'",
-            "authors": "Use discover_papers to find and add_paper to library first",
+            "authors": "Use discover_papers() first - papers are auto-added to library",
             "year": "",
             "suggestion": f"discover_papers(\"{query}\")"
         }]
     
     console.print(f"[green]✓ Found {len(results)} matches[/green]")
-    return results[:10]
+    return results
 
 
 def citation_key_to_pdf_filter(citation_key: str) -> str:

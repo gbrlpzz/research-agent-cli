@@ -312,6 +312,8 @@ def exa_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
     - You need conceptual/semantic matching beyond keywords
     - Looking for recent or obscure papers
     
+    Papers with identifiable DOI/arXiv are auto-added to the library.
+    
     Args:
         query: Natural language query (can be more conceptual)
         limit: Max results (default: 5 to conserve credits)
@@ -337,22 +339,67 @@ def exa_search(query: str, limit: int = 5) -> List[Dict[str, Any]]:
         
         papers = []
         for r in results.results:
-            # Try to extract arxiv ID from URL
             arxiv_id = None
+            doi = None
+            
+            # Extract arXiv ID from URL
             if 'arxiv.org' in r.url:
                 match = re.search(r'(\d{4}\.\d{4,5})', r.url)
                 if match:
                     arxiv_id = match.group(1)
+            
+            # Extract DOI from URL
+            if 'doi.org' in r.url:
+                match = re.search(r'(10\.\d{4,}/[^\s]+)', r.url)
+                if match:
+                    doi = match.group(1).rstrip('/')
             
             papers.append({
                 'title': r.title,
                 'url': r.url,
                 'abstract': r.text[:400] if r.text else None,
                 'arxiv_id': arxiv_id,
+                'doi': doi,
                 'source': 'Exa'
             })
         
         console.print(f"[green]✓ Exa found {len(papers)} results[/green]")
+        
+        # AUTO-ADD: Add papers with DOI or arXiv ID to library (like discover_papers)
+        added_count = 0
+        from .library import add_paper
+        
+        for p in papers:
+            identifier = p.get('doi') or p.get('arxiv_id')
+            if identifier:
+                try:
+                    source = "doi" if p.get('doi') else "arxiv"
+                    result = add_paper(identifier, source)
+                    if result.get("status") in ("success", "already_exists"):
+                        added_count += 1
+                except Exception as e:
+                    console.print(f"[dim]Could not add {identifier}: {e}[/dim]")
+        
+        if added_count > 0:
+            console.print(f"[green]✓ Added/verified {added_count} papers in library[/green]")
+        
+        # Track in literature sheet
+        for p in papers:
+            try:
+                track_reviewed_paper(
+                    citation_key="",
+                    title=p.get("title", "") or "",
+                    authors="",
+                    year="",
+                    relevance=3,
+                    utility=3,
+                    source="exa_search",
+                    doi=p.get("doi"),
+                    arxiv_id=p.get("arxiv_id"),
+                )
+            except Exception:
+                pass
+        
         return papers
     except Exception as e:
         console.print(f"[red]Exa error: {e}[/red]")

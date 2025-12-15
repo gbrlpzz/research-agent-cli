@@ -111,13 +111,12 @@ TOPIC: {topic}
 IMPORTANT - Follow the enhanced RAG-First workflow:
 1. FIRST query_library() with the main topic to see what knowledge already exists
 2. Identify gaps in the existing knowledge (especially for argument map claims)
-3. Use BOTH keyword search AND citation networks to discover papers
-4. add_paper() for the most relevant papers
-5. query_library() again with more specific questions
-6. Follow multi-pass drafting (outline → sections → integration)
-7. Self-critique before finalizing
-8. fuzzy_cite() to get @citation_keys
-9. Output complete Typst document (use date: "{current_date}")"""
+3. Use discover_papers() with keywords AND citation networks (papers auto-add!)
+4. query_library() again with more specific questions
+5. Follow multi-pass drafting (outline → sections → integration)
+6. Self-critique before finalizing
+7. fuzzy_cite() to get @citation_keys
+8. Output complete Typst document (use date: "{current_date}")"""
 
     # OpenAI-style messages (system prompt is updated dynamically each step)
     messages: List[Dict[str, Any]] = [
