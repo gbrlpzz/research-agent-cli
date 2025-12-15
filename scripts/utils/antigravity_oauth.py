@@ -442,14 +442,24 @@ def antigravity_generate_content(
         
         if response.status_code == 429:
             if attempt < max_retries:
-                wait_time = 30
-                try:
-                    import re
-                    match = re.search(r"reset after (\d+)s", response.text)
-                    if match:
-                        wait_time = int(match.group(1)) + 1
-                except Exception:
-                    pass
+                # Default: Exponential backoff (5, 10, 20)
+                wait_time = 5 * (2 ** attempt)
+                
+                # Check standard header
+                if "Retry-After" in response.headers:
+                    try:
+                        wait_time = int(response.headers["Retry-After"]) + 1
+                    except ValueError:
+                        pass
+                else:
+                    # Check body for specific Gemini message
+                    try:
+                        import re
+                        match = re.search(r"reset after (\d+)s", response.text)
+                        if match:
+                            wait_time = int(match.group(1)) + 1
+                    except Exception:
+                        pass
                 
                 console.print(f"[yellow]Antigravity rate limit exceeded. Waiting {wait_time}s before retry ({attempt + 1}/{max_retries})...[/yellow]")
                 time.sleep(wait_time)
