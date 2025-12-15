@@ -841,7 +841,12 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     # Get cost summary for document injection
     orch = get_orchestrator()
     cost_summary = orch.get_summary()
-    cost_info_str = f"{cost_summary['total_tokens']:,} tokens · {cost_summary['total_cost']}"
+    
+    # Format cost info as Typst content with line break
+    # Example: [150,000 Tokens \ $0.00]
+    tokens_str = f"{cost_summary['total_tokens']:,} Tokens"
+    cost_str = f"{cost_summary['total_cost']}"
+    cost_info_val = f"[{tokens_str} \\ {cost_str}]"
     
     # Inject star_hash parameter into the document
     if 'star_hash:' not in typst_content:
@@ -854,7 +859,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     if 'cost_info:' not in typst_content:
         typst_content = typst_content.replace(
             'star_hash:',
-            f'cost_info: "{cost_info_str}",\n  star_hash:'
+            f'cost_info: {cost_info_val},\n  star_hash:'
         )
     
     # Write final main.typ
@@ -867,32 +872,53 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         shutil.copy(compile_script, report_dir / "compile.sh")
         (report_dir / "compile.sh").chmod(0o755)
     
-    with console.status("[dim]Compiling PDF (with star hash)..."):
-        try:
-            # Use compile.sh for unified star hash + typst compile
-            if (report_dir / "compile.sh").exists():
-                result = subprocess.run(
-                    ["./compile.sh"],
-                    cwd=report_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=120
-                )
-            else:
-                # Fallback to plain typst if compile.sh not available
-                result = subprocess.run(
-                    ["typst", "compile", "main.typ"],
-                    cwd=report_dir,
-                    capture_output=True,
-                    text=True,
-                    timeout=60
-                )
-            if result.returncode != 0:
-                log_debug(f"Compile error: {result.stderr}")
-        except FileNotFoundError:
-            log_debug("compile.sh or typst not found")
-        except Exception as e:
-            log_debug(f"Compile error: {e}")
+    # Try to compile with retries and auto-fixing
+    with console.status("[dim]Compiling PDF (with retries)..."):
+        max_retries = 3
+        pdf_generated = False
+        
+        for attempt in range(max_retries):
+            try:
+                # Use compile.sh for unified star hash + typst compile
+                if (report_dir / "compile.sh").exists():
+                    result = subprocess.run(
+                        ["./compile.sh"],
+                        cwd=report_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=120
+                    )
+                else:
+                    # Fallback to plain typst
+                    result = subprocess.run(
+                        ["typst", "compile", "main.typ"],
+                        cwd=report_dir,
+                        capture_output=True,
+                        text=True,
+                        timeout=60
+                    )
+                
+                if result.returncode == 0:
+                    pdf_generated = True
+                    break
+                else:
+                    log_debug(f"Compile error (attempt {attempt+1}): {result.stderr}")
+                    
+                    # Attempt Auto-Fix
+                    if attempt < max_retries - 1:
+                        console.print(f"[yellow]⚠ Typst error (attempt {attempt+1}), trying to fix...[/yellow]")
+                        from utils.typst_utils import fix_typst_error
+                        if fix_typst_error(main_typ, result.stderr):
+                            console.print("[cyan]  Applied auto-fix, retrying...[/cyan]")
+                            continue
+                        else:
+                            console.print("[dim]  No fix available.[/dim]")
+            
+            except Exception as e:
+                log_debug(f"Compile exception: {e}")
+        
+        if not pdf_generated:
+            console.print("[red]❌ Failed to compile PDF after retries[/red]")
 
     final_pdf = report_dir / "main.pdf"
     if final_pdf.exists():
@@ -1289,20 +1315,24 @@ Antigravity (Claude Opus 4.5 Thinking):
     console.print(f"[dim]RAG model: {routing.rag_model}[/dim]")
     console.print(f"[dim]Embedding model: {routing.embedding_model}[/dim]")
     
-    # Determine budget (default to high if Gemini OAuth is used, else low)
-    if args.budget is None:
-        args.budget = "low"  # Default fallback
-        if routing.reasoning_model.startswith("gemini/") or routing.rag_model.startswith("gemini/"):
-            try:
-                from utils.gemini_oauth import is_oauth_available
-                if is_oauth_available():
+    # Determine budget and cost status
+    cost_free = False
+    if routing.reasoning_model.startswith("gemini/") or routing.rag_model.startswith("gemini/"):
+        try:
+            from utils.gemini_oauth import is_oauth_available
+            if is_oauth_available():
+                cost_free = True
+                if args.budget is None:
                     args.budget = "high"
                     console.print("[dim]Defaulting to HIGH budget (Gemini OAuth detected)[/dim]")
-            except ImportError:
-                pass
+        except ImportError:
+            pass
+
+    if args.budget is None:
+        args.budget = "low"
 
     # Initialize orchestrator with budget mode
-    orchestrator = Orchestrator.from_cli(args.budget)
+    orchestrator = Orchestrator.from_cli(args.budget, cost_free=cost_free)
     set_orchestrator(orchestrator)
     console.print(f"[dim]Budget mode: {orchestrator.budget_mode.value}[/dim]")
     

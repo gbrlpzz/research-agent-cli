@@ -217,6 +217,15 @@ def _gemini_response_to_openai(response: Dict[str, Any]) -> Dict[str, Any]:
     if tool_calls:
         result["tool_calls"] = tool_calls
     
+    # Extract usage metadata if present
+    usage = response.get("usageMetadata", {})
+    if usage:
+        result["usage"] = {
+            "prompt_tokens": usage.get("promptTokenCount", 0),
+            "completion_tokens": usage.get("candidatesTokenCount", 0),
+            "total_tokens": usage.get("totalTokenCount", 0),
+        }
+    
     return result
 
 
@@ -341,7 +350,24 @@ def llm_chat(
     # Try Gemini OAuth first for Gemini models
     if _should_use_gemini_oauth(model):
         try:
-            return _call_gemini_oauth(model, messages, tools, temperature)
+            resp_msg = _call_gemini_oauth(model, messages, tools, temperature)
+            
+            # Record tokens if available
+            if "usage" in resp_msg:
+                try:
+                    from phases.orchestrator import get_orchestrator
+                    orch = get_orchestrator()
+                    if orch and orch._current_phase:
+                        usage = resp_msg["usage"]
+                        orch.record_tokens(
+                            orch._current_phase, 
+                            usage.get("prompt_tokens", 0), 
+                            usage.get("completion_tokens", 0)
+                        )
+                except Exception:
+                    pass
+            
+            return resp_msg
         except Exception as e:
             # Log and fall back to LiteLLM
             if "OAuth not configured" not in str(e):
@@ -364,7 +390,24 @@ def llm_chat(
 
     # Try Antigravity OAuth
     if _should_use_antigravity_oauth(model):
-        return _call_antigravity_oauth(model, messages, tools, temperature)
+        resp_msg = _call_antigravity_oauth(model, messages, tools, temperature)
+        
+        # Record tokens if available
+        if "usage" in resp_msg:
+            try:
+                from phases.orchestrator import get_orchestrator
+                orch = get_orchestrator()
+                if orch and orch._current_phase:
+                    usage = resp_msg["usage"]
+                    orch.record_tokens(
+                        orch._current_phase, 
+                        usage.get("prompt_tokens", 0), 
+                        usage.get("completion_tokens", 0)
+                    )
+            except Exception:
+                pass
+        
+        return resp_msg
     
     # Fall back to LiteLLM
     _require_litellm()

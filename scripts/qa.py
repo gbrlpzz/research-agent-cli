@@ -96,6 +96,35 @@ def setup_paperqa_settings(
     settings.answer.answer_max_sources = 10  # Increased for rigor
     settings.answer.evidence_k = 15  # Increased for rigor (supports 3-5 citations/para)
     
+    # Register LiteLLM callback for token tracking
+    def track_usage(kwargs, completion_response, start_time, end_time):
+        try:
+            from phases.orchestrator import get_orchestrator
+            orch = get_orchestrator()
+            if orch and orch._current_phase and hasattr(completion_response, 'usage'):
+                usage = completion_response.usage
+                input_tokens = getattr(usage, 'prompt_tokens', 0) or 0
+                output_tokens = getattr(usage, 'completion_tokens', 0) or 0
+                model = kwargs.get('model') or completion_response.model
+                
+                orch.record_tokens(
+                    orch._current_phase, 
+                    input_tokens, 
+                    output_tokens,
+                    model=model
+                )
+        except Exception:
+            pass
+
+    try:
+        import litellm
+        # Add to success callbacks if not already present to avoid duplicates
+        # We use a unique name check or just append safely
+        if track_usage not in litellm.success_callback:
+            litellm.success_callback.append(track_usage)
+    except Exception:
+        pass
+    
     logging.info(f"Configured paper-qa: llm={settings.llm}, embedding={settings.embedding}")
     return settings
 

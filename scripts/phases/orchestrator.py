@@ -100,16 +100,17 @@ class Orchestrator:
     _phase_metrics: Dict[str, PhaseMetrics] = field(default_factory=dict)
     _current_phase: Optional[TaskPhase] = None
     _error_threshold: int = 2  # Escalate after this many errors
+    cost_free: bool = False
     
     @classmethod
-    def from_cli(cls, budget: str = "low") -> "Orchestrator":
+    def from_cli(cls, budget: str = "low", cost_free: bool = False) -> "Orchestrator":
         """Create orchestrator from CLI budget arg."""
         try:
             mode = BudgetMode(budget.lower())
         except ValueError:
             console.print(f"[yellow]Unknown budget '{budget}', defaulting to 'low'[/yellow]")
             mode = BudgetMode.LOW
-        return cls(budget_mode=mode)
+        return cls(budget_mode=mode, cost_free=cost_free)
     
     def get_model_for_phase(self, phase: TaskPhase) -> str:
         """Get the appropriate model for a phase based on budget."""
@@ -167,25 +168,58 @@ class Orchestrator:
             )
         self._phase_metrics[phase_key].error_count += 1
     
-    def record_tokens(self, phase: TaskPhase, tokens_in: int, tokens_out: int) -> None:
+    def record_tokens(self, phase: TaskPhase, tokens_in: int, tokens_out: int, model: Optional[str] = None) -> None:
         """Record token usage for current phase."""
         phase_key = phase.value
         if phase_key in self._phase_metrics:
             self._phase_metrics[phase_key].input_tokens += tokens_in
             self._phase_metrics[phase_key].output_tokens += tokens_out
+            
+            # Use specific model if provided, otherwise fallback to phase model
+            cost_model = model if model else self._phase_metrics[phase_key].model_used
+            
             self._phase_metrics[phase_key].estimated_cost += self._estimate_cost(
-                self._phase_metrics[phase_key].model_used, tokens_in, tokens_out
+                cost_model, tokens_in, tokens_out
             )
     
     def _estimate_cost(self, model: str, tokens_in: int, tokens_out: int) -> float:
         """Estimate cost based on model and tokens."""
+        # Check if model is covered by free quota (Gemini/Antigravity)
+        # We check specific prefixes to ensure we don't zero out OpenAI/Anthropic costs
+        is_free_quota_model = self.cost_free and (
+            model.startswith("gemini/") or 
+            model.startswith("antigravity/") or
+            "gemini" in model.lower()
+        )
+
+        if is_free_quota_model:
+            return 0.0
+
         # Approximate pricing (USD per 1M tokens)
         pricing = {
             CHEAP_MODEL: {"input": 0.075, "output": 0.30},      # Flash pricing
             EXPENSIVE_MODEL: {"input": 1.25, "output": 5.00},   # Pro pricing (estimated)
+            "text-embedding-3-large": {"input": 0.13, "output": 0.0},
+            "text-embedding-3-small": {"input": 0.02, "output": 0.0},
+            "gemini/text-embedding-004": {"input": 0.0, "output": 0.0}, # Often free/included in quota
         }
         
-        rates = pricing.get(model, pricing[CHEAP_MODEL])
+        rates = pricing.get(model)
+        if not rates:
+            # Smart fallback
+            if "text-embedding-004" in model:
+                 rates = {"input": 0.0, "output": 0.0}
+            elif "embedding" in model.lower():
+                 rates = {"input": 0.10, "output": 0.0}
+            elif "claude-3-opus" in model:
+                 rates = {"input": 15.0, "output": 75.0} # Anthropic Opus
+            elif "claude-3-5-sonnet" in model:
+                 rates = {"input": 3.0, "output": 15.0}  # Anthropic Sonnet
+            elif "gpt-4o" in model:
+                 rates = {"input": 2.5, "output": 10.0}
+            else:
+                 rates = pricing[CHEAP_MODEL] # Default fallback
+                 
         cost = (tokens_in * rates["input"] + tokens_out * rates["output"]) / 1_000_000
         return cost
     
