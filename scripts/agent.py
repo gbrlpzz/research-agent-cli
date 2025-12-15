@@ -923,12 +923,10 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     final_pdf = report_dir / "main.pdf"
     if final_pdf.exists():
         ui.log("Report generated successfully", "SUCCESS")
-        # Use urgent=True to show modal dialog that breaks through
+        # User prefers subtle notifications (banners) over modal alerts
         ui.send_notification(
-            f"Research on '{topic}' is complete!\nPDF ready at: {final_pdf.name}", 
-            "Research Agent Success",
-            urgent=True,
-            reveal_path=str(final_pdf)
+            f"Research on '{topic}' is complete!", 
+            "Research Agent Success"
         )
         if _telegram_notifier:
             try:
