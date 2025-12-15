@@ -23,3 +23,7 @@ qdrant-client
 # LLM backends (used directly in scripts/agent.py and indirectly via PaperQA)
 litellm
 openai
+
+# macOS menu bar app
+rumps>=0.4.0
+pync>=2.0.0
