@@ -236,12 +236,37 @@ RESEARCH_EMBEDDING_MODEL=gemini/text-embedding-004
 SEMANTIC_SCHOLAR_API_KEY=<key>
 EXA_API_KEY=<key>
 
+# Telegram notifications (optional)
+TELEGRAM_BOT_TOKEN=<token>
+TELEGRAM_CHAT_ID=<chat_id>
+
 # Tuning parameters (optional)
 AGENT_MAX_ITERATIONS=50
 REVISION_MAX_ITERATIONS=25
 MAX_REVIEWER_ITERATIONS=15
 API_TIMEOUT_SECONDS=120
 ```
+
+## Terminal Interface
+
+The agent features a live TUI dashboard showing:
+- **Header**: Topic, model, cost, elapsed time
+- **Status**: Current phase, LLM/Embedding token breakdown
+- **Logs**: Scrolling activity log
+
+The UI persists throughout all phases and closes cleanly on completion or error.
+
+## Notifications
+
+### MacOS
+Native notifications are sent automatically:
+- **Success**: Banner notification when research completes
+- **Failure**: Modal alert if an error occurs
+
+### Telegram
+Configure `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` in `.env` to receive:
+- Live phase updates on your phone
+- Final PDF delivered to your chat
 
 ## Project Structure
 
