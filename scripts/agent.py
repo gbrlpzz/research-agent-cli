@@ -330,11 +330,10 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         except:
             pass
 
-    if chat_id:
-        _telegram_notifier = TelegramNotifier(chat_id=chat_id)
-        # Send start message if it's a new run
-        if not resume_from:
-             _telegram_notifier.start_research(topic, AGENT_MODEL)
+    # Initialize Telegram Notifier (always try, falls back to env vars)
+    _telegram_notifier = TelegramNotifier(chat_id=chat_id)
+    if _telegram_notifier.enabled and not resume_from:
+         _telegram_notifier.start_research(topic, AGENT_MODEL)
     
     
     def check_session_timeout():
@@ -431,10 +430,8 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     set_ui(ui)
     
     # Initialize Mobile Notifications
-    global _telegram_notifier
-    _telegram_notifier = TelegramNotifier()
-    if _telegram_notifier.enabled:
-        _telegram_notifier.start_research(topic, AGENT_MODEL)
+    # Log Telegram status
+    if _telegram_notifier and _telegram_notifier.enabled:
         ui.log("Telegram notifications enabled", "INFO")
 
     ui.start()
