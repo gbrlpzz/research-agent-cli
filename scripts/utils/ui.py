@@ -58,19 +58,12 @@ class UIManager:
         """Create the main layout structure."""
         layout = Layout()
         
-        # Split into Header, Body, Footer
+        # Compact layout: Header (3 lines) + Status (3 lines) + Logs (rest)
         layout.split(
             Layout(name="header", size=3),
-            Layout(name="body"),
-            Layout(name="footer", size=12),
+            Layout(name="status", size=5),
+            Layout(name="logs"),  # Takes remaining space
         )
-        
-        # Split body into Main (Status) and Side (Metrics)
-        # For now just one main body
-        # layout["body"].split_row(
-        #     Layout(name="main", ratio=2),
-        #     Layout(name="side", ratio=1),
-        # )
         
         return layout
 
@@ -164,69 +157,74 @@ class UIManager:
             pass  # Fail silently if notifications don't work
 
     def _generate_header(self) -> Panel:
-        """Generate the header panel."""
+        """Generate the compact header panel."""
         elapsed = time.time() - self.start_time
         hours = int(elapsed // 3600)
         minutes = int((elapsed % 3600) // 60)
         seconds = int(elapsed % 60)
         timer = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         
+        # Compact single-line header with all key info
         grid = Table.grid(expand=True)
-        grid.add_column(justify="left", ratio=1)
-        grid.add_column(justify="center", ratio=1)
+        grid.add_column(justify="left", ratio=2)
         grid.add_column(justify="right", ratio=1)
         
+        # Truncate topic if too long
+        topic_display = self.topic[:50] + "..." if len(self.topic) > 50 else self.topic
+        model_short = self.model_name.split("/")[-1] if "/" in self.model_name else self.model_name
+        
         grid.add_row(
-            f"[bold]{self.topic}[/bold]",
-            f"[blue]Phase: {self.current_phase}[/blue]",
-            f"[green]${self.total_cost:.4f}[/green] ({self.total_tokens:,} toks) | [yellow]{timer}[/yellow]"
+            f"[bold]{topic_display}[/bold]",
+            f"[dim]{model_short}[/dim] | [green]${self.total_cost:.4f}[/green] | [yellow]{timer}[/yellow]"
         )
         
-        return Panel(
-            grid,
-            style="bold white",
-            border_style="blue"
-        )
+        return Panel(grid, style="bold white", border_style="blue")
 
-    def _generate_body(self) -> Panel:
-        """Generate the main body panel."""
-        # Simple content for now
-        content = Group(
-            Text(f"\nModel: {self.model_name}", style="dim"),
-            Text(f"\n{self.status_message}", style="bold cyan", justify="center"),
+    def _generate_status(self) -> Panel:
+        """Generate the compact status panel."""
+        content = Table.grid(expand=True)
+        content.add_column(justify="left")
+        content.add_column(justify="right")
+        
+        # Build breakdown string from metrics (if available)
+        breakdown_str = ""
+        if "breakdown" in self.metrics:
+            breakdown = self.metrics["breakdown"]
+            parts = []
+            for cat, data in breakdown.items():
+                toks = data.get("tokens", 0)
+                cost = data.get("cost", 0.0)
+                parts.append(f"{cat}: {toks:,}t (${cost:.4f})")
+            breakdown_str = " | ".join(parts)
+        
+        content.add_row(
+            f"[blue bold]{self.current_phase}[/blue bold]",
+            f"[green]${self.total_cost:.4f}[/green]"
+        )
+        content.add_row(
+            f"[cyan]{self.status_message}[/cyan]",
+            f"[dim]{breakdown_str or f'{self.total_tokens:,} tokens'}[/dim]"
         )
         
-        if self.metrics:
-            metrics_table = Table(title="Metrics", box=None, show_header=False)
-            metrics_table.add_column("Key", style="dim")
-            metrics_table.add_column("Value", style="bold")
-            for k, v in self.metrics.items():
-                metrics_table.add_row(k, str(v))
-            content = Group(content, Text("\n"), metrics_table)
+        return Panel(content, border_style="cyan")
 
-        return Panel(
-            content,
-            title="Active Task",
-            border_style="cyan"
-        )
-
-    def _generate_footer(self) -> Panel:
-        """Generate the scrolling log footer."""
+    def _generate_logs(self) -> Panel:
+        """Generate the expanded log panel."""
         log_text = Text()
         for ts, lvl, msg, style in self.log_buffer:
             log_text.append(f"{ts} [{lvl}] {msg}\n", style=style)
             
         return Panel(
             log_text,
-            title="Recent Activity",
+            title="Activity Log",
             border_style="dim"
         )
 
     def update(self):
         """Render the layout."""
         self.layout["header"].update(self._generate_header())
-        self.layout["body"].update(self._generate_body())
-        self.layout["footer"].update(self._generate_footer())
+        self.layout["status"].update(self._generate_status())
+        self.layout["logs"].update(self._generate_logs())
         self.live.refresh()
 
 # Global UI instance placeholder

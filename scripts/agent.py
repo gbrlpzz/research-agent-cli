@@ -436,7 +436,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
 
     ui.start()
     
-    try:
+    if True: # Wrapped to preserve indentation after removing try/finally
         log_debug(f"Max revisions: {max_revisions}")
         if resumed_state:
             log_debug(f"Resuming from phase: {resumed_state['phase']}")
@@ -484,8 +484,8 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             ui.log("Skipping Phase 1 (Planning) - already completed", "DEBUG")
             research_plan = resumed_state['research_plan']
             log_debug("Research plan restored from checkpoint")
-    finally:
-        ui.stop()
+            log_debug("Research plan restored from checkpoint")
+
     
     # ========== PHASE 1b: ARGUMENT DISSECTION ==========
         if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map']:
@@ -1000,6 +1000,9 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     pdf_path = report_dir / "main.pdf"
     emit_progress("Complete", "complete", pdf_path=str(pdf_path), report_dir=str(report_dir), cost=cost_summary['total_cost'])
     
+    # Stop the UI before returning
+    ui.stop()
+    
     return report_dir
 
 
@@ -1357,10 +1360,14 @@ Antigravity (Claude Opus 4.5 Thinking):
     try:
         generate_report(topic, max_revisions=revisions, num_reviewers=args.reviewers, resume_from=resume_path)
     except Exception as e:
-        console.print(f"[bold red]Fatal Error: {e}[/bold red]")
-        # Try to send notification if UI was initialized or create temp one
+        # Stop the UI first so we can print the error cleanly
         from utils.ui import get_ui, UIManager
         ui = get_ui()
+        if ui:
+            ui.stop()
+        
+        console.print(f"[bold red]Fatal Error: {e}[/bold red]")
+        # Try to send notification
         if not ui:
             ui = UIManager("Error Handler", "None")
         ui.send_notification(f"Research failed: {str(e)}", "Research Agent Error", urgent=True)

@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.llm import llm_chat, _safe_json_loads
+from utils.ui import get_ui
 from .tool_registry import REVIEWER_TOOLS, TOOL_FUNCTIONS
 
 
@@ -126,11 +127,15 @@ def peer_review(
     
     Returns a dictionary with verdict, summary, weaknesses, and recommendations.
     """
-    console.print(Panel(
-        f"[bold blue]🔍 Reviewer #{reviewer_id} (Round {round_num})[/bold blue]\n\n"
-        f"Verifying document on: {topic[:60]}...",
-        border_style="blue"
-    ))
+    ui = get_ui()
+    if ui:
+        ui.log(f"Reviewer #{reviewer_id} (Round {round_num}) verifying document...", "INFO")
+    else:
+        console.print(Panel(
+            f"[bold blue]🔍 Reviewer #{reviewer_id} (Round {round_num})[/bold blue]\n\n"
+            f"Verifying document on: {topic[:60]}...",
+            border_style="blue"
+        ))
     
     # Context for the reviewer
     context = f"""
@@ -173,7 +178,8 @@ def peer_review(
                 timeout_seconds=REVIEWER_TIMEOUT_SECONDS,
             )
         except Exception as e:
-            console.print(f"[red]Reviewer API error: {e}[/red]")
+            if ui: ui.log(f"Reviewer API error: {e}", "ERROR")
+            else: console.print(f"[red]Reviewer API error: {e}[/red]")
             break
             
         tool_calls = assistant_msg.get("tool_calls") or []
@@ -192,7 +198,10 @@ def peer_review(
                 args = _safe_json_loads((tc.get("function") or {}).get("arguments"))
                 tc_id = tc.get("id")
                 
-                console.print(f"[magenta]  Reviewer: {fn}(...)[/magenta]")
+                if ui:
+                    ui.log(f"Reviewer calling tool: {fn}", "DEBUG")
+                else:
+                    console.print(f"[magenta]  Reviewer: {fn}(...)[/magenta]")
                 
                 if fn in TOOL_FUNCTIONS:
                     try:
@@ -309,7 +318,10 @@ def peer_review(
                 "recommended_papers": recommendations,
                 "full_text": text,
             }
-            console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
+            if ui:
+                ui.log(f"Reviewer #{reviewer_id} Verdict: {verdict.upper()}", "SUCCESS")
+            else:
+                console.print(f"[bold]Reviewer #{reviewer_id} Verdict: {verdict.upper()}[/bold]")
             break  # Done!
         
         # No verdict found yet - append and continue
@@ -332,7 +344,9 @@ def peer_review(
                 last_text = msg["content"][:500]
                 break
         
-        console.print(f"[yellow]⚠ Reviewer did not produce structured review[/yellow]")
+        if ui: ui.log("Reviewer did not produce structured review", "WARNING")
+        else: console.print(f"[yellow]⚠ Reviewer did not produce structured review[/yellow]")
+        
         final_review = {
             "verdict": "minor_revisions",
             "summary": f"Reviewer did not produce structured review. Last output: {last_text[:200]}..." if last_text else "Reviewer did not produce structured review",
@@ -347,5 +361,7 @@ def peer_review(
         **final_review
     }
 
+
+__all__ = ["peer_review", "set_model", "set_max_iterations", "REVIEWER_PROMPT"]
 
 __all__ = ["peer_review", "set_model", "set_max_iterations", "REVIEWER_PROMPT"]

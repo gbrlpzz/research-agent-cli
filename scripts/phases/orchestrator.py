@@ -98,6 +98,7 @@ class Orchestrator:
     """
     budget_mode: BudgetMode = BudgetMode.LOW
     _phase_metrics: Dict[str, PhaseMetrics] = field(default_factory=dict)
+    _model_costs: Dict[str, Dict[str, float]] = field(default_factory=dict)  # {model: {tokens, cost}}
     _current_phase: Optional[TaskPhase] = None
     _error_threshold: int = 2  # Escalate after this many errors
     cost_free: bool = False
@@ -121,7 +122,16 @@ class Orchestrator:
         if phase_key in self._phase_metrics:
             metrics = self._phase_metrics[phase_key]
             if metrics.error_count >= self._error_threshold and not metrics.escalated:
-                console.print(f"[yellow]⬆ Escalating to expensive model after {metrics.error_count} errors[/yellow]")
+                try:
+                    from utils.ui import get_ui
+                    ui = get_ui()
+                    if ui:
+                        ui.log(f"Escalating to expensive model after {metrics.error_count} errors", "WARNING")
+                    else:
+                        console.print(f"[yellow]⬆ Escalating to expensive model after {metrics.error_count} errors[/yellow]")
+                except ImportError:
+                    console.print(f"[yellow]⬆ Escalating to expensive model after {metrics.error_count} errors[/yellow]")
+                
                 metrics.escalated = True
                 return EXPENSIVE_MODEL
         
@@ -177,22 +187,28 @@ class Orchestrator:
             
             # Use specific model if provided, otherwise fallback to phase model
             cost_model = model if model else self._phase_metrics[phase_key].model_used
+            cost_delta = self._estimate_cost(cost_model, tokens_in, tokens_out)
             
-            self._phase_metrics[phase_key].estimated_cost += self._estimate_cost(
-                cost_model, tokens_in, tokens_out
-            )
+            self._phase_metrics[phase_key].estimated_cost += cost_delta
+            
+            # Track per-model costs for UI breakdown
+            model_short = cost_model.split("/")[-1] if "/" in cost_model else cost_model
+            is_embedding = "embedding" in model_short.lower()
+            category = "Embedding" if is_embedding else "LLM"
+            
+            if category not in self._model_costs:
+                self._model_costs[category] = {"tokens": 0, "cost": 0.0}
+            self._model_costs[category]["tokens"] += tokens_in + tokens_out
+            self._model_costs[category]["cost"] += cost_delta
             
             # Update UI if active
             try:
                 from utils.ui import get_ui
                 ui = get_ui()
                 if ui:
-                    summary = self.get_summary()
-                    # Parse cost back from string or calculate raw
-                    # get_summary returns formatted strings, let's recalculate totals raw for UI
                     total_cost = sum(m.estimated_cost for m in self._phase_metrics.values())
                     total_tokens = sum(m.input_tokens + m.output_tokens for m in self._phase_metrics.values())
-                    ui.update_metrics(cost=total_cost, tokens=total_tokens)
+                    ui.update_metrics(cost=total_cost, tokens=total_tokens, breakdown=self._model_costs)
             except ImportError:
                 pass
     
