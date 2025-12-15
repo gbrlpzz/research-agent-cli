@@ -826,6 +826,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
             log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
     
     # ========== FINAL OUTPUT ==========
+    emit_progress("Finalization", "in_progress")
     ui.set_phase("Finalization")
     ui.set_status("Generating final PDF report...")
     
