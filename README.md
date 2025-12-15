@@ -149,12 +149,11 @@ The agent supports two modes of operation:
 ### Setting up "Free Cost" Mode
 This mode allows you to use Gemini models (and Antigravity models) without incurring per-token API costs, leveraging your plan's included quota.
 
-1.  **Login**: Run the independent OAuth script:
+1.  **Login**: Run the OAuth script:
     ```bash
     research gemini-login
     # Follow the browser prompt to authenticate with your Google Cloud Project
     ```
-    *Note: This authentication is self-contained and independent of any external "Opencode" repositories.*
 
 2.  **Verify**:
     ```bash
