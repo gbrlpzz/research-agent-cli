@@ -181,6 +181,20 @@ class Orchestrator:
             self._phase_metrics[phase_key].estimated_cost += self._estimate_cost(
                 cost_model, tokens_in, tokens_out
             )
+            
+            # Update UI if active
+            try:
+                from utils.ui import get_ui
+                ui = get_ui()
+                if ui:
+                    summary = self.get_summary()
+                    # Parse cost back from string or calculate raw
+                    # get_summary returns formatted strings, let's recalculate totals raw for UI
+                    total_cost = sum(m.estimated_cost for m in self._phase_metrics.values())
+                    total_tokens = sum(m.input_tokens + m.output_tokens for m in self._phase_metrics.values())
+                    ui.update_metrics(cost=total_cost, tokens=total_tokens)
+            except ImportError:
+                pass
     
     def _estimate_cost(self, model: str, tokens_in: int, tokens_out: int) -> float:
         """Estimate cost based on model and tokens."""

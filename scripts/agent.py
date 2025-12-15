@@ -419,408 +419,407 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     artifacts_dir = report_dir / "artifacts"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
     
+    # Import UI
+    from utils.ui import UIManager, set_ui, get_ui
+
     # Setup debug logging
     _debug_logger = setup_debug_log(report_dir)
     log_debug(f"Starting research session: {topic}")
-    log_debug(f"Max revisions: {max_revisions}")
-    if resumed_state:
-        log_debug(f"Resuming from phase: {resumed_state['phase']}")
     
-    # Initialize variables that may be restored or created fresh
-    research_plan = None
-    argument_map = None
-    typst_content = None
-    round_reviews_history = []
+    # Initialize UI
+    ui = UIManager(topic=topic, model_name=AGENT_MODEL)
+    set_ui(ui)
+    ui.start()
     
-    # ========== PHASE 1: PLANNING ==========
-    if not resumed_state or resumed_state['phase'] in ['research_plan']:
-        # Only run if not resuming or if we need to redo planning
-        orch = get_orchestrator()
-        model = orch.start_phase(TaskPhase.PLANNING)
+    try:
+        log_debug(f"Max revisions: {max_revisions}")
+        if resumed_state:
+            log_debug(f"Resuming from phase: {resumed_state['phase']}")
+            ui.log(f"Resuming from checkpoint ({resumed_state['phase']})", "WARNING")
         
-        # Optimization: Use Flash for Planning if on Gemini Pro to save quota
-        if model.startswith("gemini/") and "pro" in model and "flash" not in model:
-             model = "gemini/gemini-2.5-flash" 
-             console.print("[dim]Optimization: Switched Planning to Gemini 2.5 Flash[/dim]")
+        # Initialize variables that may be restored or created fresh
+        research_plan = None
+        argument_map = None
+        typst_content = None
+        round_reviews_history = []
         
-        # Optimization: Use Sonnet for Planning if on Antigravity
-        if model.startswith("antigravity/"):
-             # Avoid Flash, prefer Sonnet or Pro
-             model = "antigravity/claude-3-5-sonnet"
-             console.print("[dim]Optimization: Using Claude 3.5 Sonnet for Planning phase[/dim]")
-             
-        set_planner_model(model)
-        
-        emit_progress("Planning", "in_progress")
-        console.print(Panel(
-            f"[bold blue]Phase 1: Research Planning[/bold blue]\n[dim]Model: {model}[/dim]",
-            border_style="blue", width=60
-        ))
-        
-        research_plan = create_research_plan(topic)
-        save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
-        # Save plan to artifacts
-        (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
-        emit_progress("Planning", "complete", questions=len(research_plan.get("sub_questions", [])))
-        log_debug(f"Research plan created: {json.dumps(research_plan)}")
-    else:
-        # Skip and restore from checkpoint
-        console.print("[dim cyan]⏭ Skipping Phase 1 (Planning) - already completed[/dim cyan]")
-        research_plan = resumed_state['research_plan']
-        log_debug("Research plan restored from checkpoint")
+        # ========== PHASE 1: PLANNING ==========
+        if not resumed_state or resumed_state['phase'] in ['research_plan']:
+            # Only run if not resuming or if we need to redo planning
+            orch = get_orchestrator()
+            model = orch.start_phase(TaskPhase.PLANNING)
+            
+            # Optimization: Use Flash for Planning if on Gemini Pro to save quota
+            if model.startswith("gemini/") and "pro" in model and "flash" not in model:
+                 model = "gemini/gemini-2.5-flash" 
+                 ui.log("Optimization: Switched Planning to Gemini 2.5 Flash", "DEBUG")
+            
+            # Optimization: Use Sonnet for Planning if on Antigravity
+            if model.startswith("antigravity/"):
+                 model = "antigravity/claude-3-5-sonnet"
+                 ui.log("Optimization: Using Claude 3.5 Sonnet for Planning", "DEBUG")
+                 
+            set_planner_model(model)
+            
+            emit_progress("Planning", "in_progress")
+            
+            ui.set_phase("Planning", model)
+            ui.set_status("Decomposing research topic...")
+            
+            research_plan = create_research_plan(topic)
+            save_checkpoint("research_plan", {"plan": research_plan, "library_size": len(list(LIBRARY_PATH.rglob("*.pdf")))})
+            # Save plan to artifacts
+            (artifacts_dir / "research_plan.json").write_text(json.dumps(research_plan, indent=2))
+            emit_progress("Planning", "complete", questions=len(research_plan.get("sub_questions", [])))
+            
+            ui.log(f"Plan created with {len(research_plan.get('sub_questions', []))} sub-questions", "SUCCESS")
+            log_debug(f"Research plan created: {json.dumps(research_plan)}")
+        else:
+            # Skip and restore from checkpoint
+            ui.log("Skipping Phase 1 (Planning) - already completed", "DEBUG")
+            research_plan = resumed_state['research_plan']
+            log_debug("Research plan restored from checkpoint")
+    finally:
+        ui.stop()
     
     # ========== PHASE 1b: ARGUMENT DISSECTION ==========
-    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map']:
-        orch = get_orchestrator()
-        model = orch.start_phase(TaskPhase.ARGUMENT_MAP)
-        set_planner_model(model)
-        
-        emit_progress("ArgumentMap", "in_progress")
-        console.print(Panel(
-            f"[bold magenta]Phase 1b: Argument Dissection[/bold magenta]\n[dim]Model: {model}[/dim]",
-            border_style="magenta", width=60
-        ))
-        
-        argument_map = create_argument_map(topic, research_plan)
-        save_checkpoint("argument_map", {"map": argument_map})
-        (artifacts_dir / "argument_map.json").write_text(json.dumps(argument_map, indent=2))
-        emit_progress("ArgumentMap", "complete")
-        log_debug(f"Argument map created: {json.dumps(argument_map)}")
-    else:
-        console.print("[dim cyan]⏭ Skipping Phase 1b (Argument Dissection) - already completed[/dim cyan]")
-        argument_map = resumed_state['argument_map']
-        log_debug("Argument map restored from checkpoint")
-    
-    # ========== PHASE 2: RESEARCH & WRITE ==========
-    # Check for incomplete draft (drafter_state.json exists = draft in progress)
-    drafter_state_file = artifacts_dir / "drafter_state.json"
-    draft_incomplete = drafter_state_file.exists()
-    
-    if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft'] or draft_incomplete:
-        orch = get_orchestrator()
-        model = orch.start_phase(TaskPhase.DRAFTING)
-        set_drafter_model(model)
-        set_drafter_budget(orch.budget_mode.value)
-        
-        emit_progress("Drafting", "in_progress")
-        console.print(Panel(
-            f"[bold cyan]Phase 2: Research & Writing[/bold cyan]\n[dim]Model: {model}[/dim]",
-            border_style="cyan", width=60
-        ))
-        
-        # State file for granular step-by-step resume
-        
-        try:
-            typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map, state_file=drafter_state_file)
-        except RuntimeError as e:
-            # Track error for potential escalation
-            orch.record_error(TaskPhase.DRAFTING)
-            # Fail fast on model access issues; don't continue generating empty drafts/reviews.
-            console.print(f"[red]Fatal LLM error: {e}[/red]")
-            raise
-
-        if not typst_content or typst_content.strip().startswith("// Agent"):
-            # Catches both "// Agent did not produce" and "// Agent failed - state saved"
-            raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
-    else:
-        console.print("[dim cyan]⏭ Skipping Phase 2 (Research & Writing) - already completed[/dim cyan]")
-        typst_content = resumed_state['typst_content']
-        round_reviews_history = resumed_state['round_reviews_history']
-        log_debug("Draft content and review history restored from checkpoint")
-    
-    # Save drafts and generate refs.bib
-    save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
-    (artifacts_dir / "draft_initial.typ").write_text(typst_content)
-    
-    # Generate refs.bib for the initial draft
-    doc_citations = extract_citations_from_typst(typst_content)
-    all_cited = get_used_citation_keys() | doc_citations
-    if MASTER_BIB.exists():
-        current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
-    else:
-        current_refs_bib = "% No references\n"
-    (artifacts_dir / "draft_initial_refs.bib").write_text(current_refs_bib)
-    
-    # Copy lib.typ and refs.bib to artifacts for standalone draft compilation
-    if (TEMPLATE_PATH / "lib.typ").exists():
-        shutil.copy(TEMPLATE_PATH / "lib.typ", artifacts_dir / "lib.typ")
-    (artifacts_dir / "refs.bib").write_text(current_refs_bib)
-    
-    # Compile initial draft to PDF (with self-fixing)
-    try:
-        compile_and_fix(artifacts_dir / "draft_initial.typ")
-    except Exception:
-        pass  # Don't fail if typst not available
-    
-    emit_progress("Drafting", "complete", citations=len(all_cited))
-    log_debug(f"Initial draft complete with {len(all_cited)} citations")
-    
-    # ========== PHASE 3: PEER REVIEW LOOP ==========
-    reviews = []
-    # round_reviews_history already initialized above (may be restored from checkpoint)
-    
-    # Determine starting round for revision loop
-    start_round = 1
-    if resumed_state and resumed_state['current_revision_round'] > 0:
-        # Resume from next round after the last completed one
-        start_round = resumed_state['current_revision_round'] + 1
-        console.print(f"[dim cyan]⏭ Resuming from revision round {start_round}[/dim cyan]")
-    
-    for revision_round in range(start_round, max_revisions + 1):
-        # Check session timeout at start of each revision round
-        if check_session_timeout():
-            console.print("[yellow]⚠ Skipping further revisions due to session timeout[/yellow]")
-            break
+        if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map']:
+            orch = get_orchestrator()
+            model = orch.start_phase(TaskPhase.ARGUMENT_MAP)
+            set_planner_model(model)
             
-        # Set up orchestrator for review phase
-        orch = get_orchestrator()
-        model = orch.start_phase(TaskPhase.REVIEW)
-        set_reviewer_model(model)
+            emit_progress("ArgumentMap", "in_progress")
+            
+            ui.set_phase("Argument Dissection", model)
+            ui.set_status("Analyzing arguments...")
+            
+            argument_map = create_argument_map(topic, research_plan)
+            save_checkpoint("argument_map", {"map": argument_map})
+            (artifacts_dir / "argument_map.json").write_text(json.dumps(argument_map, indent=2))
+            emit_progress("ArgumentMap", "complete")
+            
+            ui.log("Argument map created", "SUCCESS")
+            log_debug(f"Argument map created: {json.dumps(argument_map)}")
+        else:
+            ui.log("Skipping Phase 1b (Argument Dissection) - already completed", "DEBUG")
+            argument_map = resumed_state['argument_map']
+            log_debug("Argument map restored from checkpoint")
         
-        emit_progress("Review", "in_progress", round=revision_round)
-        console.print(Panel(
-            f"[bold magenta]Phase 3.{revision_round}: Peer Review[/bold magenta]\n[dim]Model: {model}[/dim]",
-            border_style="magenta", width=60
-        ))
+        # ========== PHASE 2: RESEARCH & WRITE ==========
+        # Check for incomplete draft (drafter_state.json exists = draft in progress)
+        drafter_state_file = artifacts_dir / "drafter_state.json"
+        draft_incomplete = drafter_state_file.exists()
         
-        # Generate refs.bib for the current draft
+        if not resumed_state or resumed_state['phase'] in ['research_plan', 'argument_map', 'initial_draft'] or draft_incomplete:
+            orch = get_orchestrator()
+            model = orch.start_phase(TaskPhase.DRAFTING)
+            set_drafter_model(model)
+            set_drafter_budget(orch.budget_mode.value)
+            
+            emit_progress("Drafting", "in_progress")
+            
+            ui.set_phase("Drafting", model)
+            ui.set_status("Researching and writing draft...")
+            
+            # State file for granular step-by-step resume
+            
+            try:
+                typst_content = run_agent(topic, research_plan=research_plan, argument_map=argument_map, state_file=drafter_state_file)
+            except RuntimeError as e:
+                # Track error for potential escalation
+                orch.record_error(TaskPhase.DRAFTING)
+                # Fail fast on model access issues; don't continue generating empty drafts/reviews.
+                ui.log(f"Fatal LLM error: {e}", "ERROR")
+                raise
+    
+            if not typst_content or typst_content.strip().startswith("// Agent"):
+                # Catches both "// Agent did not produce" and "// Agent failed - state saved"
+                raise RuntimeError("Agent failed to produce a draft. Aborting to avoid generating empty reports.")
+        else:
+            ui.log("Skipping Phase 2 (Research & Writing) - already completed", "DEBUG")
+            typst_content = resumed_state['typst_content']
+            round_reviews_history = resumed_state['round_reviews_history']
+            log_debug("Draft content and review history restored from checkpoint")
+        
+        # Save drafts and generate refs.bib
+        save_checkpoint("initial_draft", {"document": typst_content, "citations": list(_used_citation_keys)})
+        (artifacts_dir / "draft_initial.typ").write_text(typst_content)
+        
+        # Generate refs.bib for the initial draft
         doc_citations = extract_citations_from_typst(typst_content)
         all_cited = get_used_citation_keys() | doc_citations
         if MASTER_BIB.exists():
             current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
         else:
             current_refs_bib = "% No references\n"
+        (artifacts_dir / "draft_initial_refs.bib").write_text(current_refs_bib)
         
-        # Peer review with full context
-        round_reviews = []
-        verdicts = []
+        # Copy lib.typ and refs.bib to artifacts for standalone draft compilation
+        if (TEMPLATE_PATH / "lib.typ").exists():
+            shutil.copy(TEMPLATE_PATH / "lib.typ", artifacts_dir / "lib.typ")
+        (artifacts_dir / "refs.bib").write_text(current_refs_bib)
         
-        # Prepare previous reviews context for this round
-        previous_reviews_text = ""
-        if round_reviews_history:
-            for rnd, reviews in enumerate(round_reviews_history, 1):
-                previous_reviews_text += f"\n--- ROUND {rnd} FEEDBACK ---\n"
-                for i, r_data in enumerate(reviews, 1):
-                    previous_reviews_text += f"Reviewer {i}: {r_data.get('summary')}\n"
-                    if r_data.get('weaknesses'):
-                        previous_reviews_text += f"Weaknesses: {r_data.get('weaknesses')}\n"
-                    if r_data.get('missing_citations'):
-                         previous_reviews_text += f"Missing Citations: {r_data.get('missing_citations')}\n"
-
-        for r_idx in range(1, num_reviewers + 1):
-            review_result = peer_review(
-                typst_content,
-                topic,
-                revision_round,
-                reviewer_id=r_idx,
-                research_plan=research_plan,
-                refs_bib=current_refs_bib,
-                previous_reviews=previous_reviews_text
-            )
-            round_reviews.append(review_result)
-            verdicts.append(review_result.get('verdict', 'minor_revisions'))
-            
-            # Save individual review
-            (artifacts_dir / f"peer_review_r{revision_round}_p{r_idx}.json").write_text(json.dumps(review_result, indent=2))
-        
-        # Track history
-        round_reviews_history.append(round_reviews)
-        
-        # Aggregate reviews for revision
-        # Check if ALL accepted
-        if all(v == 'accept' for v in verdicts):
-            console.print("[bold green]✓ Paper accepted by all reviewers![/bold green]")
-            break
-            
-        # Process Recommended Papers from Reviewers
-        all_recommendations = []
-        for rr in round_reviews:
-            if "recommended_papers" in rr:
-                all_recommendations.extend(rr["recommended_papers"])
-        
-        added_citations = []
-        if all_recommendations:
-            console.print(Panel(f"[bold blue]Processing {len(all_recommendations)} Reviewer Recommendations[/bold blue]"))
-            for rec in all_recommendations:
-                # Handle DOI
-                if "doi" in rec:
-                    try:
-                        console.print(f"[cyan]Adding recommended DOI: {rec['doi']}[/cyan]")
-                        add_paper(identifier=rec['doi'], source="doi")
-                        added_citations.append(f"DOI: {rec['doi']} (Reason: {rec.get('reason', 'Reviewer recommended')})")
-                    except Exception as e:
-                        console.print(f"[red]Failed to add DOI {rec['doi']}: {e}[/red]")
-                # Handle Query
-                elif "query" in rec:
-                    try:
-                        console.print(f"[cyan]Discovering for query: {rec['query']}[/cyan]")
-                        # First discover
-                        found = discover_papers(query=rec['query'], limit=3)
-                        # Then auto-add top 1 if found
-                        if found and found[0].get("title"): # Check if valid result
-                             first_paper = found[0]
-                             ident = first_paper.get("doi") or first_paper.get("arxivId") or first_paper.get("arxiv_id")
-                             if ident:
-                                 console.print(f"[cyan]Adding discovered paper: {ident}[/cyan]")
-                                 add_paper(identifier=ident, source="doi" if first_paper.get("doi") else "arxiv")
-                                 added_citations.append(f"Discovered: {first_paper.get('title')} ({ident})")
-                    except Exception as e:
-                        console.print(f"[red]Failed to process query {rec['query']}: {e}[/red]")
-
-        # Synthesize feedback string
-        combined_feedback = f"Processing {len(round_reviews)} reviews.\n\n"
-        
-        if added_citations:
-             console.print("[bold blue]Wait! Indexing new papers and generating summaries...[/bold blue]")
-             
-             # Force update index (by calling query_library widely)
-             # And try to get summaries for new papers to inject into prompt
-             paper_summaries = []
-             try:
-                 # Construct a query to get summaries of new papers
-                 # We can't query by ID easily, but we can list library and then partial match?
-                 # Better: Just run a broad query relevant to the REASONS given
-                 # Or just generic "What are the key findings of [Title]?"
-                 
-                 for ac_text in added_citations:
-                     # ac_text format: "Discovered: Title (ID)" or "DOI: ID (Reason)"
-                     if "Discovered:" in ac_text:
-                         title_part = ac_text.split("Discovered:")[1].split("(")[0].strip()
-                         query_text = f"What are the key findings of the paper '{title_part}'?"
-                     else:
-                         doi_part = ac_text.split("DOI:")[1].split("(")[0].strip()
-                         query_text = f"What are the key findings of the paper with DOI {doi_part}?"
-                     
-                     # Check if we should query
-                     console.print(f"[dim]Indexing & Summarizing: {query_text[:50]}...[/dim]")
-                     answer = query_library(query_text) # This triggers indexing!
-                     if answer and "I cannot answer" not in answer:
-                         paper_summaries.append(f"**Paper**: {ac_text}\n**Summary**: {answer}\n")
-             except Exception as e:
-                 console.print(f"[yellow]Warning: Failed to summarize new papers: {e}[/yellow]")
-
-             combined_feedback += "## 📚 PRE-REVISION LITERATURE UPDATE\n"
-             combined_feedback += "The following papers suggested by reviewers have been AUTOMATICALLY ADDED to the library. YOU MUST REVIEW AND INTEGRATE THEM:\n"
-             for ac in added_citations:
-                 combined_feedback += f"- {ac}\n"
-             
-             if paper_summaries:
-                 combined_feedback += "\n### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS\n"
-                 combined_feedback += "\n".join(paper_summaries)
-                 combined_feedback += "\n[End of New Literature]\n"
-             combined_feedback += "\n"
-
-        # Display Review Summaries to User
-        console.print(Panel(f"[bold magenta]Review Round {revision_round} Summaries[/bold magenta]", border_style="magenta"))
-        
-        # Calculate aggregated verdict (most common verdict, or worst case)
-        verdicts = [rr.get('verdict', 'unknown') for rr in round_reviews]
-        if 'major_revisions' in verdicts:
-            aggregated_verdict = 'major_revisions'
-        elif 'minor_revisions' in verdicts:
-            aggregated_verdict = 'minor_revisions'
-        elif 'accept' in verdicts:
-            aggregated_verdict = 'accept'
-        else:
-            aggregated_verdict = 'unknown'
-        
-        for i, rr in enumerate(round_reviews, 1):
-            verdict = rr.get('verdict', 'unknown')
-            verdict_color = "green" if verdict == 'accept' else "yellow"
-            
-            console.print(f"[bold]Reviewer {i}:[/bold] [{verdict_color}]{verdict.upper()}[/{verdict_color}]")
-            console.print(f"[italic]{rr.get('summary', '')}[/italic]")
-            if rr.get('weaknesses'):
-                # Count weakness items (lines that start with - or number) not characters
-                weaknesses_text = rr.get('weaknesses', '')
-                if isinstance(weaknesses_text, str):
-                    weakness_lines = [l for l in weaknesses_text.strip().split('\n') if l.strip()]
-                    weakness_count = len(weakness_lines)
-                else:
-                    weakness_count = len(weaknesses_text)
-                console.print(f"[red]• {weakness_count} Weakness{'es' if weakness_count != 1 else ''} identified[/red]")
-            if rr.get('matching_citations') or rr.get('missing_citations'):
-                 console.print(f"[blue]• Citation feedback provided[/blue]")
-            console.print("")
-
-            combined_feedback += f"--- REVIEWER {i} ({rr.get('verdict')}) ---\n"
-            combined_feedback += f"Summary: {rr.get('summary')}\n"
-            combined_feedback += f"Weaknesses: {rr.get('weaknesses')}\n"
-            combined_feedback += f"Hallucinations: {rr.get('hallucinations')}\n"
-            combined_feedback += f"Specific Edits: {rr.get('specific_edits')}\n\n"
-            
-        # Save aggregated feedback
-        (artifacts_dir / f"aggregated_feedback_r{revision_round}.txt").write_text(combined_feedback)
-        
-        # Checkpoint after review round
-        save_checkpoint(f"peer_review_r{revision_round}", {
-            "round": revision_round,
-            "reviews": round_reviews,
-            "verdict": aggregated_verdict,
-            "feedback": combined_feedback
-        })
-        
-        # Determine if revision is needed based on verdict
-        needs_revision = aggregated_verdict in ['major_revisions', 'minor_revisions']
-        
-        log_debug(f"Round {revision_round} verdict: {aggregated_verdict}, needs_revision: {needs_revision}")
-        
-        if not needs_revision:
-            break # Exit loop if accepted
-            
-        # ========== PHASE 4: REVISION ==========
-        orch = get_orchestrator()
-        model = orch.start_phase(TaskPhase.REVISION)
-        set_reviser_model(model)
-        
-        emit_progress("Revision", "in_progress", round=revision_round)
-        console.print(Panel(
-            f"[bold yellow]Phase 4.{revision_round}: Revision[/bold yellow]\n[dim]Model: {model}[/dim]",
-            border_style="yellow", width=60
-        ))
-        
-        typst_content = revise_document(
-            typst_content, 
-            combined_feedback, 
-            topic,
-            research_plan
-        )
-        emit_progress("Revision", "complete", round=revision_round)
-        
-        # Save draft with its refs.bib to artifacts (complete, reviewable document)
-        draft_file = artifacts_dir / f"draft_r{revision_round}.typ"
-        draft_file.write_text(typst_content)
-        
-        # Generate refs.bib for this draft
-        doc_citations = extract_citations_from_typst(typst_content)
-        all_cited = get_used_citation_keys() | doc_citations
-        if MASTER_BIB.exists():
-            draft_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
-        else:
-            draft_refs_bib = "% No references\n"
-        (artifacts_dir / f"draft_r{revision_round}_refs.bib").write_text(draft_refs_bib)
-        
-        # Update shared refs.bib and compile revision draft to PDF
-        (artifacts_dir / "refs.bib").write_text(draft_refs_bib)
+        # Compile initial draft to PDF (with self-fixing)
         try:
-            compile_and_fix(artifacts_dir / f"draft_r{revision_round}.typ")
+            ui.set_status("Compiling initial draft...")
+            compile_and_fix(artifacts_dir / "draft_initial.typ")
+            ui.log("Initial draft compiled", "SUCCESS")
         except Exception:
             pass  # Don't fail if typst not available
         
-        # Checkpoint after revision
-        save_checkpoint(f"revision_r{revision_round}", {
-            "round": revision_round,
-            "document": typst_content,
-            "citations": list(_used_citation_keys)
-        })
+        emit_progress("Drafting", "complete", citations=len(all_cited))
+        ui.update_metrics(cost=0.0, tokens=0, citations=len(all_cited)) # Cost updated via orchestrator later
+        log_debug(f"Initial draft complete with {len(all_cited)} citations")
         
-        log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
+        # ========== PHASE 3: PEER REVIEW LOOP ==========
+        reviews = []
+        # round_reviews_history already initialized above (may be restored from checkpoint)
+        
+        # Determine starting round for revision loop
+        start_round = 1
+        if resumed_state and resumed_state['current_revision_round'] > 0:
+            # Resume from next round after the last completed one
+            start_round = resumed_state['current_revision_round'] + 1
+            ui.log(f"Resuming from revision round {start_round}", "INFO")
+        
+        for revision_round in range(start_round, max_revisions + 1):
+            # Check session timeout at start of each revision round
+            if check_session_timeout():
+                ui.log("Skipping further revisions due to session timeout", "WARNING")
+                break
+                
+            # Set up orchestrator for review phase
+            orch = get_orchestrator()
+            model = orch.start_phase(TaskPhase.REVIEW)
+            set_reviewer_model(model)
+            
+            emit_progress("Review", "in_progress", round=revision_round)
+            
+            ui.set_phase(f"Review (Round {revision_round})", model)
+            ui.set_status(f"Gathering feedback from {num_reviewers} reviewers...")
+            
+            # Generate refs.bib for the current draft
+            doc_citations = extract_citations_from_typst(typst_content)
+            all_cited = get_used_citation_keys() | doc_citations
+            if MASTER_BIB.exists():
+                current_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+            else:
+                current_refs_bib = "% No references\n"
+            
+            # Peer review with full context
+            round_reviews = []
+            verdicts = []
+            
+            # Prepare previous reviews context for this round
+            previous_reviews_text = ""
+            if round_reviews_history:
+                for rnd, reviews in enumerate(round_reviews_history, 1):
+                    previous_reviews_text += f"\n--- ROUND {rnd} FEEDBACK ---\n"
+                    for i, r_data in enumerate(reviews, 1):
+                        previous_reviews_text += f"Reviewer {i}: {r_data.get('summary')}\n"
+                        if r_data.get('weaknesses'):
+                            previous_reviews_text += f"Weaknesses: {r_data.get('weaknesses')}\n"
+                        if r_data.get('missing_citations'):
+                             previous_reviews_text += f"Missing Citations: {r_data.get('missing_citations')}\n"
+    
+            for r_idx in range(1, num_reviewers + 1):
+                ui.set_status(f"Reviewer {r_idx} analyzing document...")
+                review_result = peer_review(
+                    typst_content,
+                    topic,
+                    revision_round,
+                    reviewer_id=r_idx,
+                    research_plan=research_plan,
+                    refs_bib=current_refs_bib,
+                    previous_reviews=previous_reviews_text
+                )
+                round_reviews.append(review_result)
+                verdicts.append(review_result.get('verdict', 'minor_revisions'))
+                
+                # Save individual review
+                (artifacts_dir / f"peer_review_r{revision_round}_p{r_idx}.json").write_text(json.dumps(review_result, indent=2))
+            
+            # Track history
+            round_reviews_history.append(round_reviews)
+        
+            # Aggregate reviews for revision
+            # Check if ALL accepted
+            if all(v == 'accept' for v in verdicts):
+                ui.log("Paper accepted by all reviewers!", "SUCCESS")
+                break
+                
+            # Process Recommended Papers from Reviewers
+            all_recommendations = []
+            for rr in round_reviews:
+                if "recommended_papers" in rr:
+                    all_recommendations.extend(rr["recommended_papers"])
+            
+            added_citations = []
+            if all_recommendations:
+                ui.log(f"Processing {len(all_recommendations)} Reviewer Recommendations", "INFO")
+                for rec in all_recommendations:
+                    # Handle DOI
+                    if "doi" in rec:
+                        try:
+                            ui.log(f"Adding recommended DOI: {rec['doi']}", "INFO")
+                            add_paper(identifier=rec['doi'], source="doi")
+                            added_citations.append(f"DOI: {rec['doi']} (Reason: {rec.get('reason', 'Reviewer recommended')})")
+                        except Exception as e:
+                            ui.log(f"Failed to add DOI {rec['doi']}: {e}", "ERROR")
+                    # Handle Query
+                    elif "query" in rec:
+                        try:
+                            ui.set_status(f"Discovering: {rec['query']}")
+                            # First discover
+                            found = discover_papers(query=rec['query'], limit=3)
+                            # Then auto-add top 1 if found
+                            if found and found[0].get("title"): # Check if valid result
+                                 first_paper = found[0]
+                                 ident = first_paper.get("doi") or first_paper.get("arxivId") or first_paper.get("arxiv_id")
+                                 if ident:
+                                     ui.log(f"Adding discovered paper: {ident}", "INFO")
+                                     add_paper(identifier=ident, source="doi" if first_paper.get("doi") else "arxiv")
+                                     added_citations.append(f"Discovered: {first_paper.get('title')} ({ident})")
+                        except Exception as e:
+                            ui.log(f"Failed to process query {rec['query']}: {e}", "ERROR")
+
+            # Synthesize feedback string
+            combined_feedback = f"Processing {len(round_reviews)} reviews.\n\n"
+            
+            if added_citations:
+                 ui.set_status("Indexing new papers and generating summaries...")
+                 
+                 # Force update index (by calling query_library widely)
+                 paper_summaries = []
+                 try:
+                     for ac_text in added_citations:
+                         # ac_text format: "Discovered: Title (ID)" or "DOI: ID (Reason)"
+                         if "Discovered:" in ac_text:
+                             title_part = ac_text.split("Discovered:")[1].split("(")[0].strip()
+                             query_text = f"What are the key findings of the paper '{title_part}'?"
+                         else:
+                             doi_part = ac_text.split("DOI:")[1].split("(")[0].strip()
+                             query_text = f"What are the key findings of the paper with DOI {doi_part}?"
+                         
+                         # Check if we should query
+                         ui.set_status(f"Summarizing: {query_text[:30]}...")
+                         answer = query_library(query_text) # This triggers indexing!
+                         if answer and "I cannot answer" not in answer:
+                             paper_summaries.append(f"**Paper**: {ac_text}\n**Summary**: {answer}\n")
+                 except Exception as e:
+                     ui.log(f"Failed to summarize new papers: {e}", "WARNING")
+
+                 combined_feedback += "## 📚 PRE-REVISION LITERATURE UPDATE\n"
+                 combined_feedback += "The following papers suggested by reviewers have been AUTOMATICALLY ADDED to the library. YOU MUST REVIEW AND INTEGRATE THEM:\n"
+                 for ac in added_citations:
+                     combined_feedback += f"- {ac}\n"
+                 
+                 if paper_summaries:
+                     combined_feedback += "\n### 📝 ABSTRACTS / SUMMARIES OF NEW PAPERS\n"
+                     combined_feedback += "\n".join(paper_summaries)
+                     combined_feedback += "\n[End of New Literature]\n"
+                 combined_feedback += "\n"
+
+            # Display Review Summaries to User
+            ui.log(f"Review Round {revision_round} Summaries:", "INFO")
+            
+            # Calculate aggregated verdict
+            verdicts = [rr.get('verdict', 'unknown') for rr in round_reviews]
+            if 'major_revisions' in verdicts:
+                aggregated_verdict = 'major_revisions'
+            elif 'minor_revisions' in verdicts:
+                aggregated_verdict = 'minor_revisions'
+            elif 'accept' in verdicts:
+                aggregated_verdict = 'accept'
+            else:
+                aggregated_verdict = 'unknown'
+            
+            for i, rr in enumerate(round_reviews, 1):
+                verdict = rr.get('verdict', 'unknown')
+                ui.log(f"Reviewer {i}: {verdict.upper()}", "SUCCESS" if verdict == 'accept' else "WARNING")
+                
+                # Add simple summary log
+                summary = rr.get('summary', '')[:100] + "..." if len(rr.get('summary', '')) > 100 else rr.get('summary', '')
+                ui.log(f"  {summary}", "DEBUG")
+
+                combined_feedback += f"--- REVIEWER {i} ({rr.get('verdict')}) ---\n"
+                combined_feedback += f"Summary: {rr.get('summary')}\n"
+                combined_feedback += f"Weaknesses: {rr.get('weaknesses')}\n"
+                combined_feedback += f"Hallucinations: {rr.get('hallucinations')}\n"
+                combined_feedback += f"Specific Edits: {rr.get('specific_edits')}\n\n"
+                
+            # Save aggregated feedback
+            (artifacts_dir / f"aggregated_feedback_r{revision_round}.txt").write_text(combined_feedback)
+            
+            # Checkpoint after review round
+            save_checkpoint(f"peer_review_r{revision_round}", {
+                "round": revision_round,
+                "reviews": round_reviews,
+                "verdict": aggregated_verdict,
+                "feedback": combined_feedback
+            })
+            
+            # Determine if revision is needed based on verdict
+            needs_revision = aggregated_verdict in ['major_revisions', 'minor_revisions']
+            
+            log_debug(f"Round {revision_round} verdict: {aggregated_verdict}, needs_revision: {needs_revision}")
+            
+            if not needs_revision:
+                break # Exit loop if accepted
+                
+            # ========== PHASE 4: REVISION ==========
+            orch = get_orchestrator()
+            model = orch.start_phase(TaskPhase.REVISION)
+            set_reviser_model(model)
+            
+            emit_progress("Revision", "in_progress", round=revision_round)
+            
+            ui.set_phase(f"Revision (Round {revision_round})", model)
+            ui.set_status("Revising document based on feedback...")
+            
+            typst_content = revise_document(
+                typst_content, 
+                combined_feedback, 
+                topic,
+                research_plan
+            )
+            emit_progress("Revision", "complete", round=revision_round)
+            
+            # Save draft with its refs.bib to artifacts (complete, reviewable document)
+            draft_file = artifacts_dir / f"draft_r{revision_round}.typ"
+            draft_file.write_text(typst_content)
+            
+            # Generate refs.bib for this draft
+            doc_citations = extract_citations_from_typst(typst_content)
+            all_cited = get_used_citation_keys() | doc_citations
+            if MASTER_BIB.exists():
+                draft_refs_bib = filter_bibtex_to_cited(MASTER_BIB, all_cited)
+            else:
+                draft_refs_bib = "% No references\n"
+            (artifacts_dir / f"draft_r{revision_round}_refs.bib").write_text(draft_refs_bib)
+            
+            # Update shared refs.bib and compile revision draft to PDF
+            (artifacts_dir / "refs.bib").write_text(draft_refs_bib)
+            try:
+                ui.set_status("Compiling revision...")
+                compile_and_fix(artifacts_dir / f"draft_r{revision_round}.typ")
+                ui.log(f"Revision {revision_round} compiled", "SUCCESS")
+            except Exception:
+                pass  # Don't fail if typst not available
+            
+            # Checkpoint after revision
+            save_checkpoint(f"revision_r{revision_round}", {
+                "round": revision_round,
+                "document": typst_content,
+                "citations": list(_used_citation_keys)
+            })
+            
+            ui.update_metrics(cost=0.0, tokens=0, citations=len(all_cited))
+            log_debug(f"Revision {revision_round} complete with {len(all_cited)} citations")
     
     # ========== FINAL OUTPUT ==========
-    console.print(Panel(
-        f"[bold green]Finalizing Output[/bold green]",
-        border_style="green", width=60
-    ))
+    ui.set_phase("Finalization")
+    ui.set_status("Generating final PDF report...")
     
     # Copy template
     if (TEMPLATE_PATH / "lib.typ").exists():
@@ -846,7 +845,7 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     # Example: [150,000 Tokens \ $0.00]
     tokens_str = f"{cost_summary['total_tokens']:,} Tokens"
     cost_str = f"{cost_summary['total_cost']}"
-    cost_info_val = f"[{tokens_str} \\ {cost_str}]"
+    cost_info_val = f"[{tokens_str} \\\\ {cost_str}]"
     
     # Inject star_hash parameter into the document
     if 'star_hash:' not in typst_content:
@@ -873,56 +872,57 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
         (report_dir / "compile.sh").chmod(0o755)
     
     # Try to compile with retries and auto-fixing
-    with console.status("[dim]Compiling PDF (with retries)..."):
-        max_retries = 3
-        pdf_generated = False
-        
-        for attempt in range(max_retries):
-            try:
-                # Use compile.sh for unified star hash + typst compile
-                if (report_dir / "compile.sh").exists():
-                    result = subprocess.run(
-                        ["./compile.sh"],
-                        cwd=report_dir,
-                        capture_output=True,
-                        text=True,
-                        timeout=120
-                    )
-                else:
-                    # Fallback to plain typst
-                    result = subprocess.run(
-                        ["typst", "compile", "main.typ"],
-                        cwd=report_dir,
-                        capture_output=True,
-                        text=True,
-                        timeout=60
-                    )
-                
-                if result.returncode == 0:
-                    pdf_generated = True
-                    break
-                else:
-                    log_debug(f"Compile error (attempt {attempt+1}): {result.stderr}")
-                    
-                    # Attempt Auto-Fix
-                    if attempt < max_retries - 1:
-                        console.print(f"[yellow]⚠ Typst error (attempt {attempt+1}), trying to fix...[/yellow]")
-                        from utils.typst_utils import fix_typst_error
-                        if fix_typst_error(main_typ, result.stderr):
-                            console.print("[cyan]  Applied auto-fix, retrying...[/cyan]")
-                            continue
-                        else:
-                            console.print("[dim]  No fix available.[/dim]")
+    max_retries = 3
+    pdf_generated = False
+    
+    for attempt in range(max_retries):
+        try:
+            ui.set_status(f"Compiling PDF (Attempt {attempt+1}/{max_retries})...")
+            # Use compile.sh for unified star hash + typst compile
+            if (report_dir / "compile.sh").exists():
+                result = subprocess.run(
+                    ["./compile.sh"],
+                    cwd=report_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=120
+                )
+            else:
+                # Fallback to plain typst
+                result = subprocess.run(
+                    ["typst", "compile", "main.typ"],
+                    cwd=report_dir,
+                    capture_output=True,
+                    text=True,
+                    timeout=60
+                )
             
-            except Exception as e:
-                log_debug(f"Compile exception: {e}")
+            if result.returncode == 0:
+                pdf_generated = True
+                break
+            else:
+                log_debug(f"Compile error (attempt {attempt+1}): {result.stderr}")
+                ui.log(f"Compile error: {result.stderr[:100]}...", "WARNING")
+                
+                # Attempt Auto-Fix
+                if attempt < max_retries - 1:
+                    ui.log("Attempting to auto-fix Typst syntax...", "INFO")
+                    from utils.typst_utils import fix_typst_error
+                    if fix_typst_error(main_typ, result.stderr):
+                        ui.log("Applied auto-fix, retrying...", "SUCCESS")
+                        continue
+                    else:
+                        ui.log("No fix available.", "WARNING")
         
-        if not pdf_generated:
-            console.print("[red]❌ Failed to compile PDF after retries[/red]")
+        except Exception as e:
+            log_debug(f"Compile exception: {e}")
+    
+    if not pdf_generated:
+        ui.log("Failed to compile PDF after retries", "ERROR")
 
     final_pdf = report_dir / "main.pdf"
     if final_pdf.exists():
-        console.print(f"\n[bold green]Report generated successfully:[/bold green] {final_pdf}")
+        ui.log("Report generated successfully", "SUCCESS")
         if _telegram_notifier:
             try:
                 # Extract title for caption
@@ -934,13 +934,12 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
                             break
                 _telegram_notifier.send_document(final_pdf, caption=caption)
             except Exception as e:
-                console.print(f"[yellow]Failed to send PDF to Telegram: {e}[/yellow]")
+                ui.log(f"Failed to send PDF to Telegram: {e}", "WARNING")
     else:
-        console.print(f"\n[bold red]Failed to generate PDF[/bold red]")
         if _telegram_notifier:
             _telegram_notifier.send_message(f"❌ Research complete but PDF generation failed. Check logs.")
     
-    # Export literature review sheet
+    # Export literature sheet
     literature_sheet = export_literature_sheet()
     (report_dir / "literature_sheet.csv").write_text(literature_sheet)
     # Markdown sheet removed as requested
@@ -958,6 +957,9 @@ def generate_report(topic: str, max_revisions: int = 3, num_reviewers: int = 1, 
     reviewed_count = len(get_reviewed_papers())
     # Robust citation count from used keys directly
     cited_count = len(get_used_citation_keys())
+    
+    # STOP UI HERE TO RESTORE CONSOLE FOR FINAL SUMMARY
+    ui.stop()
     
     console.print("\n" + "="*60)
     console.print(Panel(
