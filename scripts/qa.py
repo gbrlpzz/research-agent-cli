@@ -56,6 +56,153 @@ warnings.filterwarnings('ignore', category=DeprecationWarning, module='paperqa')
 warnings.filterwarnings('ignore', message='.*synchronous.*deprecated.*')
 warnings.filterwarnings('ignore', message='coroutine.*was never awaited')
 
+
+# =============================================================================
+# LiteLLM Monkey-Patch for Gemini OAuth
+# =============================================================================
+# PaperQA uses LiteLLM internally. We patch litellm.completion to route
+# Gemini calls through our OAuth wrapper instead of using API keys.
+
+_litellm_original_completion = None
+_litellm_original_acompletion = None
+_oauth_patch_applied = False
+
+
+def _patch_litellm_for_oauth():
+    """Monkey-patch LiteLLM to use Gemini OAuth for Gemini models."""
+    global _litellm_original_completion, _litellm_original_acompletion, _oauth_patch_applied
+    
+    if _oauth_patch_applied:
+        return
+    
+    try:
+        import litellm
+        from utils.gemini_oauth import is_oauth_available, get_valid_tokens, gemini_generate_content
+        from utils.model_config import normalize_model_id
+        
+        if not is_oauth_available():
+            logging.info("Gemini OAuth not available, skipping LiteLLM patch")
+            return
+        
+        # Save original functions
+        _litellm_original_completion = litellm.completion
+        _litellm_original_acompletion = litellm.acompletion
+        
+        def _convert_messages_to_gemini(messages):
+            """Convert OpenAI-style messages to Gemini format."""
+            contents = []
+            system_instruction = None
+            
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                
+                if role == "system":
+                    system_instruction = {"parts": [{"text": content}]}
+                    continue
+                
+                gemini_role = "model" if role == "assistant" else "user"
+                contents.append({"role": gemini_role, "parts": [{"text": content}]})
+            
+            return contents, system_instruction
+        
+        def _convert_gemini_response_to_litellm(response, model):
+            """Convert Gemini response to LiteLLM-compatible format."""
+            from litellm import ModelResponse, Choices, Message, Usage
+            
+            candidates = response.get("candidates", [])
+            if not candidates:
+                return ModelResponse(choices=[Choices(message=Message(role="assistant", content=""))])
+            
+            parts = candidates[0].get("content", {}).get("parts", [])
+            text = "".join(p.get("text", "") for p in parts if "text" in p)
+            
+            usage_data = response.get("usageMetadata", {})
+            usage = Usage(
+                prompt_tokens=usage_data.get("promptTokenCount", 0),
+                completion_tokens=usage_data.get("candidatesTokenCount", 0),
+                total_tokens=usage_data.get("totalTokenCount", 0)
+            )
+            
+            return ModelResponse(
+                choices=[Choices(
+                    message=Message(role="assistant", content=text),
+                    finish_reason="stop"
+                )],
+                model=model,
+                usage=usage
+            )
+        
+        def patched_completion(*args, **kwargs):
+            model = kwargs.get("model") or (args[0] if args else None)
+            normalized = normalize_model_id(model) if model else ""
+            
+            if normalized.startswith("gemini/"):
+                try:
+                    messages = kwargs.get("messages", [])
+                    contents, system_instruction = _convert_messages_to_gemini(messages)
+                    
+                    temperature = kwargs.get("temperature")
+                    gen_config = {"temperature": temperature} if temperature is not None else None
+                    
+                    response = gemini_generate_content(
+                        model=normalized,
+                        contents=contents,
+                        system_instruction=system_instruction,
+                        generation_config=gen_config,
+                    )
+                    
+                    return _convert_gemini_response_to_litellm(response, normalized)
+                except Exception as e:
+                    logging.warning(f"OAuth call failed, falling back to LiteLLM: {e}")
+                    return _litellm_original_completion(*args, **kwargs)
+            
+            return _litellm_original_completion(*args, **kwargs)
+        
+        async def patched_acompletion(*args, **kwargs):
+            model = kwargs.get("model") or (args[0] if args else None)
+            normalized = normalize_model_id(model) if model else ""
+            
+            if normalized.startswith("gemini/"):
+                try:
+                    messages = kwargs.get("messages", [])
+                    contents, system_instruction = _convert_messages_to_gemini(messages)
+                    
+                    temperature = kwargs.get("temperature")
+                    gen_config = {"temperature": temperature} if temperature is not None else None
+                    
+                    # Run sync OAuth call in executor (OAuth lib is sync)
+                    import asyncio
+                    loop = asyncio.get_event_loop()
+                    response = await loop.run_in_executor(
+                        None,
+                        lambda: gemini_generate_content(
+                            model=normalized,
+                            contents=contents,
+                            system_instruction=system_instruction,
+                            generation_config=gen_config,
+                        )
+                    )
+                    
+                    return _convert_gemini_response_to_litellm(response, normalized)
+                except Exception as e:
+                    logging.warning(f"OAuth async call failed, falling back to LiteLLM: {e}")
+                    return await _litellm_original_acompletion(*args, **kwargs)
+            
+            return await _litellm_original_acompletion(*args, **kwargs)
+        
+        # Apply patches
+        litellm.completion = patched_completion
+        litellm.acompletion = patched_acompletion
+        _oauth_patch_applied = True
+        logging.info("LiteLLM patched for Gemini OAuth")
+        
+    except ImportError as e:
+        logging.warning(f"Could not patch LiteLLM for OAuth: {e}")
+    except Exception as e:
+        logging.error(f"Failed to patch LiteLLM: {e}")
+
+
 def setup_paperqa_settings(
     *,
     rag_model: "Optional[str]" = None,
@@ -66,19 +213,9 @@ def setup_paperqa_settings(
     
     routing = ModelRouting.from_env(rag_model=rag_model, embedding_model=embedding_model)
 
-    # Inject OAuth token for Gemini models if available
-    # This allows PaperQA/LiteLLM to use our OAuth credentials
+    # Apply LiteLLM patch for Gemini OAuth if using Gemini for RAG
     if routing.rag_model.startswith("gemini/"):
-        try:
-            from utils.gemini_oauth import get_valid_tokens
-            tokens = get_valid_tokens()
-            if tokens:
-                os.environ["GEMINI_API_KEY"] = tokens.access_token
-                logging.info("Injected Gemini OAuth token for PaperQA")
-        except ImportError:
-            pass
-        except Exception as e:
-            logging.warning(f"Failed to inject OAuth token: {e}")
+        _patch_litellm_for_oauth()
 
     try:
         ensure_model_env(routing.rag_model)
