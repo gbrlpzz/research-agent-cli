@@ -178,6 +178,12 @@ research gemini-status
 research agent "Your Topic"
 ```
 
+> [!NOTE]
+> If switching embedding models (e.g., from cloud to local), clear the vector cache first:
+> ```bash
+> rm -rf library/.qa_*
+> ```
+
 ### API Key Mode (Alternative)
 
 If you prefer cloud embeddings or don't have Ollama, set API keys in `.env`:
