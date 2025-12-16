@@ -66,6 +66,20 @@ def setup_paperqa_settings(
     
     routing = ModelRouting.from_env(rag_model=rag_model, embedding_model=embedding_model)
 
+    # Inject OAuth token for Gemini models if available
+    # This allows PaperQA/LiteLLM to use our OAuth credentials
+    if routing.rag_model.startswith("gemini/"):
+        try:
+            from utils.gemini_oauth import get_valid_tokens
+            tokens = get_valid_tokens()
+            if tokens:
+                os.environ["GEMINI_API_KEY"] = tokens.access_token
+                logging.info("Injected Gemini OAuth token for PaperQA")
+        except ImportError:
+            pass
+        except Exception as e:
+            logging.warning(f"Failed to inject OAuth token: {e}")
+
     try:
         ensure_model_env(routing.rag_model)
         ensure_model_env(routing.embedding_model)
