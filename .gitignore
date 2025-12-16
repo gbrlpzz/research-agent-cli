@@ -25,3 +25,4 @@ scripts/tools/external/*
 # Generated reports
 reports/*
 !reports/.gitkeep
+and

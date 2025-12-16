@@ -1028,8 +1028,8 @@ def interactive_config(topic: str) -> dict:
     console.print()
     
     console.print("[bold cyan]Select Research Profile:[/bold cyan]")
-    console.print("1. [bold]Gemini Plan[/bold]      (High budget, Gemini 3 Pro via OAuth)")
-    console.print("2. [bold]Antigravity Plan[/bold] (High budget, Claude Opus 4.5 Thinking)")
+    console.print("1. [bold]Gemini Plan[/bold]      (Gemini 3 Pro via OAuth + Local Embeddings)")
+    console.print("2. [bold]Antigravity Plan[/bold] (Claude Opus 4.5 Thinking)")
     console.print("3. [bold]API Mode[/bold]         (Low budget, Gemini 2.5 Flash via API Key)")
     
     profile = Prompt.ask(
@@ -1040,10 +1040,17 @@ def interactive_config(topic: str) -> dict:
     
     from utils.llm import set_oauth_enabled
     
+    # Defaults (will be overridden per-profile)
+    rag_model = None  # Let ModelRouting.from_env() decide
+    embedding_model = None  # Let ModelRouting.from_env() decide
+    
     if profile == "1":
         reasoning_model = "gemini/gemini-3-pro-preview"
+        rag_model = "gemini/gemini-2.5-flash"
+        embedding_model = "ollama/mxbai-embed-large"  # Local embeddings!
         budget = "high"
         set_oauth_enabled(True)
+        console.print("[dim]Note: Requires Ollama with mxbai-embed-large pulled.[/dim]")
     elif profile == "2":
         set_oauth_enabled(True)
         budget = "high"
@@ -1067,7 +1074,10 @@ def interactive_config(topic: str) -> dict:
         budget = "low"
         set_oauth_enabled(False)
     
-    console.print(f"[dim]Selected: {reasoning_model} ({budget})[/dim]\n")
+    console.print(f"[dim]Selected: {reasoning_model} ({budget})[/dim]")
+    if embedding_model:
+        console.print(f"[dim]Embeddings: {embedding_model} (local)[/dim]")
+    console.print()
 
     # Iterations and revisions
     max_iterations = IntPrompt.ask("[cyan]Max agent iterations[/cyan]", default=50 if budget == "high" else 30)
@@ -1076,11 +1086,14 @@ def interactive_config(topic: str) -> dict:
     console.print()
     return {
         "reasoning_model": reasoning_model,
+        "rag_model": rag_model,
+        "embedding_model": embedding_model,
         "max_iterations": max_iterations,
         "revisions": revisions,
         "budget": budget,
         "topic": topic,
     }
+
 
 
 if __name__ == "__main__":
@@ -1287,6 +1300,8 @@ Antigravity (Claude Opus 4.5 Thinking):
         config = interactive_config(topic)
         reasoning_model = config["reasoning_model"]
         revisions = config["revisions"]
+        rag_model = config.get("rag_model")  # May be None
+        embedding_model = config.get("embedding_model")  # May be None
         if "topic" in config:
             topic = config["topic"]
         # Update phase module iteration limits
@@ -1299,11 +1314,13 @@ Antigravity (Claude Opus 4.5 Thinking):
     else:
         reasoning_model = args.reasoning_model
         revisions = args.revisions
+        rag_model = args.rag_model
+        embedding_model = args.embedding_model
     
     routing = ModelRouting.from_env(
         reasoning_model=reasoning_model,
-        rag_model=args.rag_model,
-        embedding_model=args.embedding_model,
+        rag_model=rag_model,
+        embedding_model=embedding_model,
     )
     set_model_routing(routing)
     

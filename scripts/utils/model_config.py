@@ -17,7 +17,7 @@ from typing import Iterable, List, Optional
 
 DEFAULT_REASONING_MODEL = "gemini/gemini-3-pro-preview"
 DEFAULT_RAG_MODEL = "gemini/gemini-2.5-flash"
-DEFAULT_EMBEDDING_MODEL = "gemini/text-embedding-004"
+DEFAULT_EMBEDDING_MODEL = "ollama/mxbai-embed-large"  # Local embeddings by default
 
 try:
     import litellm
@@ -82,7 +82,10 @@ def required_env_vars_for_model(model: str) -> List[str]:
         return ["GEMINI_API_KEY", "GOOGLE_API_KEY"]
     if provider == "antigravity":
         return ["ANTIGRAVITY_OAUTH"]  # Placeholder for OAuth check
+    if provider == "ollama":
+        return []  # Ollama runs locally, no API key needed
     return []
+
 
 
 def ensure_model_env(model: str) -> None:
