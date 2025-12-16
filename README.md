@@ -147,35 +147,49 @@ pip install -r requirements.txt
 cp .env.example .env  # Configure API keys
 ```
 
-Typst is required for PDF compilation:
+### Required Dependencies
+
 ```bash
-brew install typst  # macOS
-# Or download from https://github.com/typst/typst/releases
+# PDF compilation
+brew install typst
+
+# Local embeddings (zero-cost mode)
+brew install ollama
+ollama pull mxbai-embed-large
 ```
 
 ## Authentication & Costs
 
-The agent supports two modes of operation:
-1. **API Key Mode**: Standard billing via `GEMINI_API_KEY` or `OPENAI_API_KEY`.
-2. **"Free Cost" Mode (Recommended)**: Use your existing Gemini/Google quota via OAuth.
+### Zero-Cost Mode (Default)
 
-### Setting up "Free Cost" Mode
-This mode allows you to use Gemini models (and Antigravity models) without incurring per-token API costs, leveraging your plan's included quota.
+The default configuration uses **Gemini OAuth + local embeddings** for completely free operation:
+- **Reasoning & RAG**: Gemini 3 Pro / Flash via OAuth (your plan's quota)
+- **Embeddings**: `ollama/mxbai-embed-large` (runs locally on your machine)
 
-1.  **Login**: Run the OAuth script:
-    ```bash
-    research gemini-login
-    # Follow the browser prompt to authenticate with your Google Cloud Project
-    ```
+**Setup:**
+```bash
+# 1. Authenticate with Gemini
+research gemini-login
 
-2.  **Verify**:
-    ```bash
-    research gemini-status
-    ```
+# 2. Verify
+research gemini-status
 
-3.  **Run**: The agent will auto-detect OAuth credentials and switch to "Free Cost" mode (budget set to HIGH by default).
+# 3. Run (embeddings run locally via Ollama)
+research agent "Your Topic"
+```
 
-4.  **Antigravity Users**: Run `research antigravity-login` to access internal models.
+### API Key Mode (Alternative)
+
+If you prefer cloud embeddings or don't have Ollama, set API keys in `.env`:
+```env
+GEMINI_API_KEY=<key>
+# or
+OPENAI_API_KEY=<key>
+```
+
+### Antigravity (Internal)
+
+Run `research antigravity-login` to access Claude Opus 4.5 Thinking and other internal models.
 
 ## Usage
 
@@ -235,15 +249,14 @@ Options:
 Environment variables (`.env`):
 
 ```env
-# Required: at least one LLM API key
+# LLM API keys (optional if using OAuth)
 GEMINI_API_KEY=<key>
 OPENAI_API_KEY=<key>
 
-# Model routing (optional)
-RESEARCH_REASONING_MODEL=gemini/gemini-2.5-flash
+# Model routing (defaults shown)
+RESEARCH_REASONING_MODEL=gemini/gemini-3-pro-preview
 RESEARCH_RAG_MODEL=gemini/gemini-2.5-flash
-RESEARCH_EMBEDDING_MODEL=gemini/text-embedding-004
-
+RESEARCH_EMBEDDING_MODEL=ollama/mxbai-embed-large  # Local by default
 
 # Discovery APIs (optional)
 SEMANTIC_SCHOLAR_API_KEY=<key>
