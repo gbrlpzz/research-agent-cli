@@ -77,8 +77,10 @@ def _patch_litellm_for_oauth():
     
     try:
         import litellm
-        from utils.gemini_oauth import is_oauth_available, get_valid_tokens, gemini_generate_content
+        from utils.gemini_oauth import is_oauth_available, gemini_generate_content
         from utils.model_config import normalize_model_id
+        # Use the same conversion functions as llm.py for consistency
+        from utils.llm import _openai_messages_to_gemini, _gemini_response_to_openai
         
         if not is_oauth_available():
             logging.info("Gemini OAuth not available, skipping LiteLLM patch")
@@ -88,45 +90,24 @@ def _patch_litellm_for_oauth():
         _litellm_original_completion = litellm.completion
         _litellm_original_acompletion = litellm.acompletion
         
-        def _convert_messages_to_gemini(messages):
-            """Convert OpenAI-style messages to Gemini format."""
-            contents = []
-            system_instruction = None
-            
-            for msg in messages:
-                role = msg.get("role", "user")
-                content = msg.get("content", "")
-                
-                if role == "system":
-                    system_instruction = {"parts": [{"text": content}]}
-                    continue
-                
-                gemini_role = "model" if role == "assistant" else "user"
-                contents.append({"role": gemini_role, "parts": [{"text": content}]})
-            
-            return contents, system_instruction
-        
-        def _convert_gemini_response_to_litellm(response, model):
-            """Convert Gemini response to LiteLLM-compatible format."""
+        def _convert_to_litellm_response(openai_msg, model):
+            """Convert our OpenAI-style response dict to LiteLLM ModelResponse."""
             from litellm import ModelResponse, Choices, Message, Usage
             
-            candidates = response.get("candidates", [])
-            if not candidates:
-                return ModelResponse(choices=[Choices(message=Message(role="assistant", content=""))])
-            
-            parts = candidates[0].get("content", {}).get("parts", [])
-            text = "".join(p.get("text", "") for p in parts if "text" in p)
-            
-            usage_data = response.get("usageMetadata", {})
+            usage_data = openai_msg.get("usage", {})
             usage = Usage(
-                prompt_tokens=usage_data.get("promptTokenCount", 0),
-                completion_tokens=usage_data.get("candidatesTokenCount", 0),
-                total_tokens=usage_data.get("totalTokenCount", 0)
+                prompt_tokens=usage_data.get("prompt_tokens", 0),
+                completion_tokens=usage_data.get("completion_tokens", 0),
+                total_tokens=usage_data.get("total_tokens", 0)
             )
             
             return ModelResponse(
                 choices=[Choices(
-                    message=Message(role="assistant", content=text),
+                    message=Message(
+                        role=openai_msg.get("role", "assistant"),
+                        content=openai_msg.get("content"),
+                        tool_calls=openai_msg.get("tool_calls")
+                    ),
                     finish_reason="stop"
                 )],
                 model=model,
@@ -140,7 +121,7 @@ def _patch_litellm_for_oauth():
             if normalized.startswith("gemini/"):
                 try:
                     messages = kwargs.get("messages", [])
-                    contents, system_instruction = _convert_messages_to_gemini(messages)
+                    contents, system_instruction = _openai_messages_to_gemini(messages)
                     
                     temperature = kwargs.get("temperature")
                     gen_config = {"temperature": temperature} if temperature is not None else None
@@ -152,7 +133,9 @@ def _patch_litellm_for_oauth():
                         generation_config=gen_config,
                     )
                     
-                    return _convert_gemini_response_to_litellm(response, normalized)
+                    # Use llm.py's response converter then wrap for LiteLLM
+                    openai_msg = _gemini_response_to_openai(response)
+                    return _convert_to_litellm_response(openai_msg, normalized)
                 except Exception as e:
                     logging.warning(f"OAuth call failed, falling back to LiteLLM: {e}")
                     return _litellm_original_completion(*args, **kwargs)
@@ -166,7 +149,7 @@ def _patch_litellm_for_oauth():
             if normalized.startswith("gemini/"):
                 try:
                     messages = kwargs.get("messages", [])
-                    contents, system_instruction = _convert_messages_to_gemini(messages)
+                    contents, system_instruction = _openai_messages_to_gemini(messages)
                     
                     temperature = kwargs.get("temperature")
                     gen_config = {"temperature": temperature} if temperature is not None else None
@@ -184,7 +167,8 @@ def _patch_litellm_for_oauth():
                         )
                     )
                     
-                    return _convert_gemini_response_to_litellm(response, normalized)
+                    openai_msg = _gemini_response_to_openai(response)
+                    return _convert_to_litellm_response(openai_msg, normalized)
                 except Exception as e:
                     logging.warning(f"OAuth async call failed, falling back to LiteLLM: {e}")
                     return await _litellm_original_acompletion(*args, **kwargs)
