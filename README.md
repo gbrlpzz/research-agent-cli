@@ -1,3 +1,6 @@
+> [!NOTE]
+> **Deprecation Notice**: This repository is deprecated and not maintained due to improvements in available harnesses.
+
 # Research Agent CLI
 
 A multi-phase pipeline for automated academic research. The system discovers papers, constructs a vector-indexed library, generates structured documents with inline citations, and iterates through peer review until acceptance criteria are met.
